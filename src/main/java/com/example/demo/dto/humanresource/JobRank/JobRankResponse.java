@@ -1,0 +1,16 @@
+package com.example.demo.dto.humanresource.JobRank;
+
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class JobRankResponse {
+    Long jobRankId;
+    String jobRankCode;
+    String sourceId;
+    String name;
+}

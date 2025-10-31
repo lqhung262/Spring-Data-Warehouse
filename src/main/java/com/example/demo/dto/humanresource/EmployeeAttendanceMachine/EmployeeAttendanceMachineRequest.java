@@ -1,0 +1,19 @@
+package com.example.demo.dto.humanresource.EmployeeAttendanceMachine;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class EmployeeAttendanceMachineRequest {
+    @NotNull
+    private Long employeeId;
+
+    @NotNull
+    private Long machineId;
+}

@@ -1,0 +1,19 @@
+package com.example.demo.dto.humanresource.EmployeeWorkLocation;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class EmployeeWorkLocationRequest {
+    @NotNull
+    private Long employeeId;
+
+    @NotNull
+    private Long workLocationId;
+}
