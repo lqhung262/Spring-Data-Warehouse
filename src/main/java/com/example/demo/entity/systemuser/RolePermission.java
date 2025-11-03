@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.Set;
+
 @Entity
 @Table(name = "role_permission")
 @Data
@@ -14,10 +16,15 @@ public class RolePermission {
     private Long rolePermissionId;
 
     @NotNull
-    @Column(name = "role_id", nullable = false)
-    private Long roleId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role roleId;
 
     @NotNull
-    @Column(name = "permission_id", nullable = false)
-    private Long permissionId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "permission_id", nullable = false)
+    private Permission permissionId;
+
+    @OneToMany(mappedBy = "rolePermission", fetch = FetchType.LAZY)
+    private Set<Permission> permissions;
 }
