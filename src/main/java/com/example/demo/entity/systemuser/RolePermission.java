@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import java.util.Set;
-
 @Entity
 @Table(name = "role_permission")
 @Data
@@ -24,7 +22,4 @@ public class RolePermission {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "permission_id", nullable = false)
     private Permission permissionId;
-
-    @OneToMany(mappedBy = "rolePermission", fetch = FetchType.LAZY)
-    private Set<Permission> permissions;
 }

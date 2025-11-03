@@ -140,12 +140,6 @@
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${mapstruct.version}</version>
                         </path>
-                        <!-- Lombok-MapStruct binding (bắt buộc để Lombok và MapStruct tương tác) -->
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok-mapstruct-binding</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
