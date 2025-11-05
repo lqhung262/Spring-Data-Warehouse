@@ -1,6 +1,6 @@
 package com.example.demo.dto.systemuser.Role;
 
-import com.example.demo.entity.systemuser.Permission;
+import com.example.demo.dto.systemuser.Permission.PermissionResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -16,6 +16,6 @@ public class RoleResponse {
     String shortName;
     String description;
     String note;
-    Set<Permission> permissions;
+    Set<PermissionResponse> permissions;
 
 }

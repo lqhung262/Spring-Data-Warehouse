@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Collection;
@@ -28,8 +29,8 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtEnabledFilter jwtEnabledFilter) throws Exception {
+        http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
@@ -37,8 +38,12 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2
                         -> oauth2.jwt(jwt
-                        -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-                .build();
+                        -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+
+        // register the enabled-check filter after the bearer token filter
+        http.addFilterAfter(jwtEnabledFilter, BearerTokenAuthenticationFilter.class);
+
+        return http.build();
     }
 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {

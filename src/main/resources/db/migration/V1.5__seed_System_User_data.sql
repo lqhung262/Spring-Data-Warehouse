@@ -11,13 +11,13 @@ VALUES ('ROLE_DDC_SUPER_ADMIN', 'Full system admin', 'system'),
 
 -- Permissions (example)
 INSERT INTO permission (short_name, description, url, method, is_public)
-VALUES ('EMPLOYEE_LIST', 'List employees', '/api/v1/employees', 'GET', FALSE),
-       ('EMPLOYEE_CREATE', 'Create employee', '/api/v1/employees', 'POST', FALSE),
-       ('EMPLOYEE_UPDATE', 'Update employee', '/api/v1/employees', 'PUT', FALSE),
-       ('EMPLOYEE_DELETE', 'Delete employee', '/api/v1/employees', 'DELETE', FALSE),
-       ('DEPT_LIST', 'List departments', '/api/v1/departments', 'GET', FALSE),
+VALUES ('EMPLOYEE_LIST', 'List employees', '/employees', 'GET', FALSE),
+       ('EMPLOYEE_CREATE', 'Create employee', '/employees', 'POST', FALSE),
+       ('EMPLOYEE_UPDATE', 'Update employee', '/employees', 'PUT', FALSE),
+       ('EMPLOYEE_DELETE', 'Delete employee', '/employees', 'DELETE', FALSE),
+       ('DEPT_LIST', 'List departments', '/departments', 'GET', FALSE),
        ('OPENAPI_JSON', 'OpenAPI JSON', '/v3/api-docs', 'GET', TRUE),
-       ('SWAGGER_UI', 'Swagger UI', '/swagger-ui/*', 'GET', TRUE),
+       ('SWAGGER_UI', 'Swagger UI', '/swagger-ui/**', 'GET', TRUE),
        ('HEALTH', 'Health', '/actuator/health', 'GET', TRUE);
 
 -- Map permissions -> roles
@@ -32,20 +32,20 @@ WHERE r.short_name = 'ROLE_DDC_SUPER_ADMIN';
 INSERT INTO role_permission (role_id, permission_id)
 SELECT (SELECT role_id FROM role WHERE short_name = 'ROLE_DDC_HR_ADMIN'), p.permission_id
 FROM permission p
-WHERE p.url LIKE '/api/v1/%';
+WHERE p.url LIKE '/%';
 
 -- HR_MANAGER: read + create/update
 INSERT INTO role_permission (role_id, permission_id)
 SELECT (SELECT role_id FROM role WHERE short_name = 'ROLE_DDC_HR_MANAGER'), p.permission_id
 FROM permission p
-WHERE p.url LIKE '/api/v1/%'
+WHERE p.url LIKE '/%'
   AND p.method IN ('GET', 'POST', 'PUT');
 
 -- HR_VIEWER: read only
 INSERT INTO role_permission (role_id, permission_id)
 SELECT (SELECT role_id FROM role WHERE short_name = 'ROLE_DDC_HR_VIEWER'), p.permission_id
 FROM permission p
-WHERE p.url LIKE '/api/v1/%'
+WHERE p.url LIKE '/%'
   AND p.method = 'GET';
 
 -- API_CLIENT: public

@@ -1,6 +1,6 @@
 package com.example.demo.dto.systemuser.User;
 
-import com.example.demo.entity.systemuser.Role;
+import com.example.demo.dto.systemuser.Role.RoleResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -17,5 +17,5 @@ public class UserResponse {
     String userName;
     String fullName;
     String emailAddress;
-    Set<Role> roles;
+    Set<RoleResponse> roles;
 }

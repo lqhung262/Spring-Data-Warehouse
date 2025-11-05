@@ -9,9 +9,9 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface PermissionMapper {
-    Permission toPermission(PermissionRequest request);
-
     PermissionResponse toPermissionResponse(Permission permission);
+
+    Permission toPermission(PermissionRequest request);
 
     void updatePermission(@MappingTarget Permission permission, PermissionRequest request);
 }

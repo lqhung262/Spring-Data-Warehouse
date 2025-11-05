@@ -1,21 +1,16 @@
 package com.example.demo.exception;
 
 import com.example.demo.dto.ApiResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(value = NotFoundException.class)
     ResponseEntity<ApiResponse<Object>> handlingNotFoundException(NotFoundException e) {
-//        ApiResponse response = new ApiResponse(e.getCode(), e.getMessage(), Optional.empty());
-
-//        response.setCode(e.getCode());
-//        response.setMessage(e.getMessage());
-//        response.setCode(ErrorCode.UNAUTHORIZED_EXCEPTION.getCode());
-//        response.setMessage(ErrorCode.UNAUTHORIZED_EXCEPTION.getMessage());
-
         return ResponseEntity
                 .badRequest()
                 .body(new ApiResponse<>(
@@ -23,5 +18,28 @@ public class GlobalExceptionHandler {
                         e.getMessage(),
                         null
                 ));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<ApiResponse<Object>> handlingResponseStatusException(ResponseStatusException e) {
+        int code = e.getStatusCode().value();
+        String msg = e.getReason() == null ? e.getMessage() : e.getReason();
+        return ResponseEntity
+                .status(e.getStatusCode())
+                .body(new ApiResponse<>(
+                        code,
+                        msg,
+                        null
+                ));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<ApiResponse<Object>> handlingDataIntegrity(DataIntegrityViolationException e) {
+        // likely unique constraint violation in DB
+        // getMostSpecificCause() is expected to be present for JDBC exceptions
+        String msg = e.getMostSpecificCause().getMessage();
+        return ResponseEntity
+                .status(409)
+                .body(new ApiResponse<>(409, msg, null));
     }
 }

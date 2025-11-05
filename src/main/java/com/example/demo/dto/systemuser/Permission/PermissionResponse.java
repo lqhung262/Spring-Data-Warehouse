@@ -14,4 +14,6 @@ public class PermissionResponse {
     String description;
     String url;
     String method;
+    Boolean isPublic;
 }
+

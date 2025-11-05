@@ -1,6 +1,5 @@
 package com.example.demo.dto.systemuser.User;
 
-import com.example.demo.entity.systemuser.Role;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,5 +28,9 @@ public class UserRequest {
     @NotBlank
     private String emailAddress;
 
-    private Set<Role> roles;
+    // change: accept role IDs instead of entity payload to decouple API from JPA entities
+    private Set<Long> roleIds;
+
+    // optional flag to set enabled/disabled
+    private Boolean isEnabled;
 }
