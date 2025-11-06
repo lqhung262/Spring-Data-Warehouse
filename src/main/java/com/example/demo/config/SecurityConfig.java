@@ -2,6 +2,7 @@ package com.example.demo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -29,11 +30,12 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtEnabledFilter jwtEnabledFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtEnabledFilter jwtEnabledFilter, PermissionAuthorizationFilter permissionAuthorizationFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2
@@ -42,6 +44,8 @@ public class SecurityConfig {
 
         // register the enabled-check filter after the bearer token filter
         http.addFilterAfter(jwtEnabledFilter, BearerTokenAuthenticationFilter.class);
+        // register permission auth filter after enabled filter
+        http.addFilterAfter(permissionAuthorizationFilter, JwtEnabledFilter.class);
 
         return http.build();
     }

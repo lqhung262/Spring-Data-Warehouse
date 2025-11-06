@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/laborStatuss")
+@RequestMapping("/labor-statuses")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LaborStatusController {
@@ -31,10 +31,10 @@ public class LaborStatusController {
     }
 
     @GetMapping()
-    ApiResponse<List<LaborStatusResponse>> getLaborStatuss(@RequestParam(required = false, defaultValue = "1") int pageNo,
-                                                           @RequestParam(required = false, defaultValue = "5") int pageSize,
-                                                           @RequestParam(required = false, defaultValue = "name") String sortBy,
-                                                           @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
+    ApiResponse<List<LaborStatusResponse>> getLaborStatuses(@RequestParam(required = false, defaultValue = "1") int pageNo,
+                                                            @RequestParam(required = false, defaultValue = "5") int pageSize,
+                                                            @RequestParam(required = false, defaultValue = "name") String sortBy,
+                                                            @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
         Sort sort = null;
         if (sortDirection.equalsIgnoreCase("asc")) {
             sort = Sort.by(sortBy).ascending();
@@ -43,7 +43,7 @@ public class LaborStatusController {
         }
 
         return ApiResponse.<List<LaborStatusResponse>>builder()
-                .result(laborStatusService.getLaborStatuss(PageRequest.of(pageNo - 1, pageSize, sort)))
+                .result(laborStatusService.getLaborStatuses(PageRequest.of(pageNo - 1, pageSize, sort)))
                 .build();
     }
 

@@ -123,6 +123,10 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, msg, wae);
         }
 
+        return handleKeycloakCreateResponse(resp);
+    }
+
+    private String handleKeycloakCreateResponse(Response resp) {
         try (Response r = resp) {
             if (r.getStatus() != 201) {
                 String respBody = "";
@@ -173,18 +177,7 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException(entityName));
 
         // remove from keycloak
-        try {
-            var realm = keycloakProvider.getInstance().realm(keycloakProvider.getRealm());
-            var usersResource = realm.users();
-            try (Response ignoredResp = usersResource.delete(user.getAuthorizationServiceUserId())) {
-                // consume status to avoid empty-try warning
-                ignoredResp.getStatus();
-            } catch (Exception ignore) {
-                // intentionally ignored: best-effort removal from Keycloak
-            }
-        } catch (Exception ignored) {
-            // intentionally ignored: Keycloak removal is best-effort
-        }
+        deleteKeycloakUser(user);
 
         // remove user roles
         // bulk delete user-role relationships to avoid ConcurrentModificationException
@@ -192,6 +185,24 @@ public class UserService {
 
         // remove user record
         userRepository.deleteById(userId);
+    }
+
+    private void deleteKeycloakUser(User user) {
+        if (user == null || user.getAuthorizationServiceUserId() == null) return;
+        deleteKeycloakUserResource(user.getAuthorizationServiceUserId());
+    }
+
+    private void deleteKeycloakUserResource(String authorizationServiceUserId) {
+        try {
+            var realm = keycloakProvider.getInstance().realm(keycloakProvider.getRealm());
+            var usersResource = realm.users();
+            try (Response ignoredResp = usersResource.delete(authorizationServiceUserId)) {
+                // consume status to avoid empty-try warning
+                ignoredResp.getStatus();
+            }
+        } catch (Exception ignored) {
+            // intentionally ignored: best-effort removal from Keycloak
+        }
     }
 
     public Page<UserResponse> getUsers(Pageable pageable) {

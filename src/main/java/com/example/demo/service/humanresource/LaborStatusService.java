@@ -32,7 +32,7 @@ public class LaborStatusService {
         return laborStatusMapper.toLaborStatusResponse(laborStatusRepository.save(laborStatus));
     }
 
-    public List<LaborStatusResponse> getLaborStatuss(Pageable pageable) {
+    public List<LaborStatusResponse> getLaborStatuses(Pageable pageable) {
         Page<LaborStatus> page = laborStatusRepository.findAll(pageable);
         List<LaborStatusResponse> dtos = page.getContent()
                 .stream().map(laborStatusMapper::toLaborStatusResponse).toList();

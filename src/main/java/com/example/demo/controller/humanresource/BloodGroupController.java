@@ -15,17 +15,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/bloodGroupIds")
+@RequestMapping("/blood-groups")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BloodGroupController {
-    BloodGroupService bloodGroupIdService;
+    BloodGroupService bloodGroupService;
 
     @PostMapping()
     ApiResponse<BloodGroupResponse> createBloodGroup(@Valid @RequestBody BloodGroupRequest request) {
         ApiResponse<BloodGroupResponse> response = new ApiResponse<>();
 
-        response.setResult(bloodGroupIdService.createBloodGroup(request));
+        response.setResult(bloodGroupService.createBloodGroup(request));
 
         return response;
     }
@@ -43,27 +43,27 @@ public class BloodGroupController {
         }
 
         return ApiResponse.<List<BloodGroupResponse>>builder()
-                .result(bloodGroupIdService.getBloodGroups(PageRequest.of(pageNo - 1, pageSize, sort)))
+                .result(bloodGroupService.getBloodGroups(PageRequest.of(pageNo - 1, pageSize, sort)))
                 .build();
     }
 
-    @GetMapping("/{bloodGroupIdId}")
-    ApiResponse<BloodGroupResponse> getBloodGroup(@PathVariable("bloodGroupIdId") Long bloodGroupIdId) {
+    @GetMapping("/{bloodGroupId}")
+    ApiResponse<BloodGroupResponse> getBloodGroup(@PathVariable("bloodGroupId") Long bloodGroupId) {
         return ApiResponse.<BloodGroupResponse>builder()
-                .result(bloodGroupIdService.getBloodGroup(bloodGroupIdId))
+                .result(bloodGroupService.getBloodGroup(bloodGroupId))
                 .build();
     }
 
-    @PutMapping("/{bloodGroupIdId}")
-    ApiResponse<BloodGroupResponse> updateBloodGroup(@PathVariable("bloodGroupIdId") Long bloodGroupIdId, @RequestBody BloodGroupRequest request) {
+    @PutMapping("/{bloodGroupId}")
+    ApiResponse<BloodGroupResponse> updateBloodGroup(@PathVariable("bloodGroupId") Long bloodGroupId, @RequestBody BloodGroupRequest request) {
         return ApiResponse.<BloodGroupResponse>builder()
-                .result(bloodGroupIdService.updateBloodGroup(bloodGroupIdId, request))
+                .result(bloodGroupService.updateBloodGroup(bloodGroupId, request))
                 .build();
     }
 
-    @DeleteMapping("/{bloodGroupIdId}")
-    ApiResponse<String> deleteBloodGroup(@PathVariable Long bloodGroupIdId) {
-        bloodGroupIdService.deleteBloodGroup(bloodGroupIdId);
+    @DeleteMapping("/{bloodGroupId}")
+    ApiResponse<String> deleteBloodGroup(@PathVariable Long bloodGroupId) {
+        bloodGroupService.deleteBloodGroup(bloodGroupId);
         return ApiResponse.<String>builder().result("Blood Group has been deleted").build();
     }
 }

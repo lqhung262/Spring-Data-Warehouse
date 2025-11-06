@@ -43,23 +43,8 @@ public class AuthenticationService {
 
             // If token obtained, check local user enabled status (prevent login if local user exists and is disabled)
             if (accessToken != null) {
-                try {
-                    var realm = keycloakProvider.getInstance().realm(keycloakProvider.getRealm());
-                    List<UserRepresentation> users = realm.users().search(request.getUsername(), 0, 1);
-                    if (users != null && !users.isEmpty()) {
-                        String kcId = users.getFirst().getId();
-                        var local = userRepository.findByAuthorizationServiceUserId(kcId);
-                        if (local.isPresent() && local.get().getIsEnabled() != null && !local.get().getIsEnabled()) {
-                            // user disabled locally -> reject login
-                            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled");
-                        }
-                    }
-                } catch (ResponseStatusException rse) {
-                    // rethrow permission/disabled exceptions
-                    throw rse;
-                } catch (Exception ignored) {
-                    // if any error during admin lookup, allow login (fail-open) or change behavior as needed
-                }
+                // call helper which handles its own exceptions (so no nested try here)
+                ensureLocalUserEnabledIfPresentFailOpen(request.getUsername());
             }
 
             // If Keycloak did not return an access token, treat as invalid credentials
@@ -74,6 +59,27 @@ public class AuthenticationService {
         } catch (UnirestException e) {
             // network/Keycloak error - map to 502 Bad Gateway
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Authentication provider error", e);
+        }
+    }
+
+    /**
+     * Ensure local user is enabled if present; swallow non-fatal errors (fail-open) but rethrow ResponseStatusException
+     */
+    private void ensureLocalUserEnabledIfPresentFailOpen(String username) {
+        try {
+            var realm = keycloakProvider.getInstance().realm(keycloakProvider.getRealm());
+            List<UserRepresentation> users = realm.users().search(username, 0, 1);
+            if (users != null && !users.isEmpty()) {
+                String kcId = users.stream().findFirst().map(UserRepresentation::getId).orElse(null);
+                var local = userRepository.findByAuthorizationServiceUserId(kcId);
+                if (local.isPresent() && local.get().getIsEnabled() != null && !local.get().getIsEnabled()) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled");
+                }
+            }
+        } catch (ResponseStatusException rse) {
+            throw rse; // rethrow deliberate forbidden
+        } catch (Exception ignored) {
+            // swallow any error - fail-open behavior
         }
     }
 

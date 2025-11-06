@@ -15,17 +15,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/ProvinceCities")
+@RequestMapping("/province-cities")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ProvinceCityController {
-    ProvinceCityService ProvinceCityService;
+    ProvinceCityService provinceCityService;
 
     @PostMapping()
     ApiResponse<ProvinceCityResponse> createProvinceCity(@Valid @RequestBody ProvinceCityRequest request) {
         ApiResponse<ProvinceCityResponse> response = new ApiResponse<>();
 
-        response.setResult(ProvinceCityService.createProvinceCity(request));
+        response.setResult(provinceCityService.createProvinceCity(request));
 
         return response;
     }
@@ -43,27 +43,27 @@ public class ProvinceCityController {
         }
 
         return ApiResponse.<List<ProvinceCityResponse>>builder()
-                .result(ProvinceCityService.getProvinceCities(PageRequest.of(pageNo - 1, pageSize, sort)))
+                .result(provinceCityService.getProvinceCities(PageRequest.of(pageNo - 1, pageSize, sort)))
                 .build();
     }
 
-    @GetMapping("/{ProvinceCityId}")
-    ApiResponse<ProvinceCityResponse> getProvinceCity(@PathVariable("ProvinceCityId") Long ProvinceCityId) {
+    @GetMapping("/{provinceCityId}")
+    ApiResponse<ProvinceCityResponse> getProvinceCity(@PathVariable("provinceCityId") Long provinceCityId) {
         return ApiResponse.<ProvinceCityResponse>builder()
-                .result(ProvinceCityService.getProvinceCity(ProvinceCityId))
+                .result(provinceCityService.getProvinceCity(provinceCityId))
                 .build();
     }
 
-    @PutMapping("/{ProvinceCityId}")
-    ApiResponse<ProvinceCityResponse> updateProvinceCity(@PathVariable("ProvinceCityId") Long ProvinceCityId, @RequestBody ProvinceCityRequest request) {
+    @PutMapping("/{provinceCityId}")
+    ApiResponse<ProvinceCityResponse> updateProvinceCity(@PathVariable("provinceCityId") Long provinceCityId, @RequestBody ProvinceCityRequest request) {
         return ApiResponse.<ProvinceCityResponse>builder()
-                .result(ProvinceCityService.updateProvinceCity(ProvinceCityId, request))
+                .result(provinceCityService.updateProvinceCity(provinceCityId, request))
                 .build();
     }
 
-    @DeleteMapping("/{ProvinceCityId}")
-    ApiResponse<String> deleteProvinceCity(@PathVariable Long ProvinceCityId) {
-        ProvinceCityService.deleteProvinceCity(ProvinceCityId);
+    @DeleteMapping("/{provinceCityId}")
+    ApiResponse<String> deleteProvinceCity(@PathVariable Long provinceCityId) {
+        provinceCityService.deleteProvinceCity(provinceCityId);
         return ApiResponse.<String>builder().result(" ProvinceCity has been deleted").build();
     }
 }

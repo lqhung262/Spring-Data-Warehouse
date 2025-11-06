@@ -15,17 +15,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/Wards")
+@RequestMapping("/wards")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class WardController {
-    WardService WardService;
+    WardService wardService;
 
     @PostMapping()
     ApiResponse<WardResponse> createWard(@Valid @RequestBody WardRequest request) {
         ApiResponse<WardResponse> response = new ApiResponse<>();
 
-        response.setResult(WardService.createWard(request));
+        response.setResult(wardService.createWard(request));
 
         return response;
     }
@@ -43,27 +43,27 @@ public class WardController {
         }
 
         return ApiResponse.<List<WardResponse>>builder()
-                .result(WardService.getWards(PageRequest.of(pageNo - 1, pageSize, sort)))
+                .result(wardService.getWards(PageRequest.of(pageNo - 1, pageSize, sort)))
                 .build();
     }
 
-    @GetMapping("/{WardId}")
-    ApiResponse<WardResponse> getWard(@PathVariable("WardId") Long WardId) {
+    @GetMapping("/{wardId}")
+    ApiResponse<WardResponse> getWard(@PathVariable("wardId") Long wardId) {
         return ApiResponse.<WardResponse>builder()
-                .result(WardService.getWard(WardId))
+                .result(wardService.getWard(wardId))
                 .build();
     }
 
-    @PutMapping("/{WardId}")
-    ApiResponse<WardResponse> updateWard(@PathVariable("WardId") Long WardId, @RequestBody WardRequest request) {
+    @PutMapping("/{wardId}")
+    ApiResponse<WardResponse> updateWard(@PathVariable("wardId") Long wardId, @RequestBody WardRequest request) {
         return ApiResponse.<WardResponse>builder()
-                .result(WardService.updateWard(WardId, request))
+                .result(wardService.updateWard(wardId, request))
                 .build();
     }
 
-    @DeleteMapping("/{WardId}")
-    ApiResponse<String> deleteWard(@PathVariable Long WardId) {
-        WardService.deleteWard(WardId);
+    @DeleteMapping("/{wardId}")
+    ApiResponse<String> deleteWard(@PathVariable Long wardId) {
+        wardService.deleteWard(wardId);
         return ApiResponse.<String>builder().result(" Ward has been deleted").build();
     }
 }

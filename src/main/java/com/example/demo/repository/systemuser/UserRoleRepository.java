@@ -17,4 +17,7 @@ public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
     @Modifying
     @Query("delete from UserRole ur where ur.userId = :user")
     void deleteByUser(@Param("user") User user);
+
+    @Query("select ur.roleId.shortName from UserRole ur where ur.userId = :user")
+    List<String> findRoleShortNamesByUser(@Param("user") User user);
 }

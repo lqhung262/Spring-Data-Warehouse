@@ -20,42 +20,42 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class WardService {
-    final WardRepository WardRepository;
-    final WardMapper WardMapper;
+    final WardRepository wardRepository;
+    final WardMapper wardMapper;
 
     @Value("${entities.humanresource.ward}")
     private String entityName;
 
     public WardResponse createWard(WardRequest request) {
-        Ward Ward = WardMapper.toWard(request);
+        Ward ward = wardMapper.toWard(request);
 
-        return WardMapper.toWardResponse(WardRepository.save(Ward));
+        return wardMapper.toWardResponse(wardRepository.save(ward));
     }
 
     public List<WardResponse> getWards(Pageable pageable) {
-        Page<Ward> page = WardRepository.findAll(pageable);
+        Page<Ward> page = wardRepository.findAll(pageable);
         List<WardResponse> dtos = page.getContent()
-                .stream().map(WardMapper::toWardResponse).toList();
+                .stream().map(wardMapper::toWardResponse).toList();
         return dtos;
     }
 
     public WardResponse getWard(Long id) {
-        return WardMapper.toWardResponse(WardRepository.findById(id)
+        return wardMapper.toWardResponse(wardRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName)));
     }
 
     public WardResponse updateWard(Long id, WardRequest request) {
-        Ward Ward = WardRepository.findById(id)
+        Ward ward = wardRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
 
-        WardMapper.updateWard(Ward, request);
+        wardMapper.updateWard(ward, request);
 
-        return WardMapper.toWardResponse(WardRepository.save(Ward));
+        return wardMapper.toWardResponse(wardRepository.save(ward));
     }
 
     public void deleteWard(Long id) {
-        Ward Ward = WardRepository.findById(id)
+        Ward ward = wardRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
-        WardRepository.deleteById(id);
+        wardRepository.deleteById(id);
     }
 }

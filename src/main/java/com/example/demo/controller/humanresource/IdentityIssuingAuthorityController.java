@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/IdentityIssuingAuthorities")
+@RequestMapping("/identity-issuing-authorities")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class IdentityIssuingAuthorityController {
