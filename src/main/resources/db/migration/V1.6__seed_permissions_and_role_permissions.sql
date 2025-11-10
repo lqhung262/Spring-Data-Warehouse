@@ -1,6 +1,4 @@
 -- V1.6__seed_permissions_and_role_permissions.sql
--- Seed permissions for controller base paths (match @RequestMapping values)
--- Idempotent via INSERT IGNORE (MySQL). If you use a different DB adjust accordingly.
 
 INSERT IGNORE INTO permission (short_name, description, url, method, is_public)
 VALUES ('ROLE_LIST', 'List roles', '/roles', 'GET', FALSE),

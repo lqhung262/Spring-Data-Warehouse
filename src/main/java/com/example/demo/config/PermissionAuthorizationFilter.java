@@ -62,6 +62,7 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
         for (String pattern : SWAGGER_WHITELIST) {
             if (pathMatcher.match(pattern, uri)) {
                 filterChain.doFilter(request, response);
+
                 return;
             }
         }
@@ -71,6 +72,7 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
         // require JWT principal to proceed with permission checks; otherwise continue and let security handle auth
         if (auth == null || !(auth.getPrincipal() instanceof Jwt jwt)) {
             filterChain.doFilter(request, response);
+
             return;
         }
 
@@ -78,6 +80,7 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
             String subject = jwt.getSubject();
             if (subject == null || subject.isBlank()) {
                 respondForbidden(response, "no_subject");
+
                 return;
             }
 
@@ -85,6 +88,7 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
             Optional<User> localOpt = userRepository.findByAuthorizationServiceUserId(subject);
             if (localOpt.isEmpty()) {
                 respondForbidden(response, "user_not_found_local");
+
                 return;
             }
             User local = localOpt.get();
@@ -112,11 +116,13 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
             boolean allowed = permissions.stream().anyMatch(p -> {
                 boolean methodMatches = p.getMethod().equalsIgnoreCase(reqMethod);
                 boolean pathMatches = pathMatcher.match(p.getUrl(), uri) || pathMatcher.match(p.getUrl() + "/**", uri);
+
                 return methodMatches && pathMatches;
             });
 
             if (!allowed) {
                 respondForbidden(response, "forbidden_by_permission");
+
                 return;
             }
 
@@ -138,9 +144,11 @@ public class PermissionAuthorizationFilter extends OncePerRequestFilter {
         return rolePermCache.computeIfAbsent(roleShortName, rn -> {
             try {
                 List<Permission> perms = rolePermissionRepository.findPermissionsByRoleShortName(rn);
+
                 return perms != null ? perms : Collections.emptyList();
             } catch (Exception e) {
                 log.warn("Failed to load permissions for role {}: {}", rn, e.getMessage());
+
                 return Collections.emptyList();
             }
         });

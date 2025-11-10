@@ -19,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,24 +37,26 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final UserMapper userMapper;
     private final KeycloakProvider keycloakProvider;
     private final RolePermissionRepository rolePermissionRepository;
     private final RoleRepository roleRepository;
-
     @Value("${entities.systemuser.user}")
     private String entityName;
 
     @Transactional
     public UserResponse createUser(UserRequest request, String defaultRealmRole) {
-        // check uniqueness of username and email in local DB before creating Keycloak user
+        // check uniqueness of username and email before creating Keycloak user
         userRepository.findByUserName(request.getUserName()).ifPresent(u -> {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "username already exists");
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT, "username already exists");
         });
         userRepository.findByEmailAddress(request.getEmailAddress()).ifPresent(u -> {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "email address already exists");
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT, "email address already exists");
         });
 
         // create Keycloak user and set password
@@ -60,7 +64,7 @@ public class UserService {
 
         var realm = keycloakProvider.getInstance().realm(keycloakProvider.getRealm());
         var usersResource = realm.users();
-
+        // set password for the user just created
         CredentialRepresentation cred = new CredentialRepresentation();
         cred.setTemporary(false);
         cred.setType(CredentialRepresentation.PASSWORD);
@@ -74,26 +78,43 @@ public class UserService {
         User entity = userMapper.toUser(request);
         entity.setAuthorizationServiceUserId(keycloakId);
         entity.setFullName(request.getFirstName() + " " + request.getLastName());
+
         if (request.getIsEnabled() != null) entity.setIsEnabled(request.getIsEnabled());
-        User saved = userRepository.save(entity);
 
-        // persist user roles (local join table) if roleIds provided
-        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
-            Set<UserRole> urs = request.getRoleIds().stream().map(rid -> {
-                UserRole ur = new UserRole();
-                ur.setUserId(saved);
-                Role rr = new Role();
-                rr.setRoleId(rid);
-                ur.setRoleId(rr);
-                return ur;
-            }).collect(Collectors.toSet());
-            userRoleRepository.saveAll(urs);
+        try {
+            User saved = userRepository.save(entity);
+
+            // persist user roles if roleIds provided
+            if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
+                Set<UserRole> urs = request.getRoleIds().stream().map(rid -> {
+                    UserRole ur = new UserRole();
+                    ur.setUserId(saved);
+                    Role rr = new Role();
+                    rr.setRoleId(rid);
+                    ur.setRoleId(rr);
+                    return ur;
+                }).collect(Collectors.toSet());
+
+                userRoleRepository.saveAll(urs);
+            }
+
+            // build response with roles
+            UserResponse respU = userMapper.toUserResponse(saved);
+            respU.setRoles(getRolesForUser(saved));
+
+            return respU;
+        } catch (Exception e) {
+            // If local DB persistence failed after creating the Keycloak user, attempt to remove the Keycloak user to avoid orphaned accounts.
+            try {
+                log.warn("Local DB save failed after creating Keycloak user {}. Attempting to delete Keycloak user. Cause: {}", keycloakId, e.getMessage());
+                deleteKeycloakUserResource(keycloakId);
+                log.info("Deleted Keycloak user {} due to local persistence failure", keycloakId);
+            } catch (Exception ex) {
+                // failed to delete
+                log.warn("Failed to delete Keycloak user {} after local persistence failure: {}", keycloakId, ex.getMessage());
+            }
+            throw e;
         }
-
-        // build response with roles
-        UserResponse respU = userMapper.toUserResponse(saved);
-        respU.setRoles(getRolesForUser(saved));
-        return respU;
     }
 
     private String createKeycloakUser(UserRequest request) {
@@ -222,16 +243,16 @@ public class UserService {
         return ur;
     }
 
-    public Page<UserResponse> searchUsers(String q, Pageable pageable) {
-        String query = q == null ? "" : q;
-        return userRepository
-                .findByUserNameContainingIgnoreCaseOrEmailAddressContainingIgnoreCase(query, query, pageable)
-                .map(user -> {
-                    UserResponse ur = userMapper.toUserResponse(user);
-                    ur.setRoles(getRolesForUser(user));
-                    return ur;
-                });
-    }
+//    public Page<UserResponse> searchUsers(String q, Pageable pageable) {
+//        String query = q == null ? "" : q;
+//        return userRepository
+//                .findByUserNameContainingIgnoreCaseOrEmailAddressContainingIgnoreCase(query, query, pageable)
+//                .map(user -> {
+//                    UserResponse ur = userMapper.toUserResponse(user);
+//                    ur.setRoles(getRolesForUser(user));
+//                    return ur;
+//                });
+//    }
 
     @Transactional
     public UserResponse updateUser(Long userId, UserRequest request) {

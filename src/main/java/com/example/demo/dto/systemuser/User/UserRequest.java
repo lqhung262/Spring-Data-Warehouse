@@ -28,9 +28,8 @@ public class UserRequest {
     @NotBlank
     private String emailAddress;
 
-    // change: accept role IDs instead of entity payload to decouple API from JPA entities
     private Set<Long> roleIds;
 
-    // optional flag to set enabled/disabled
+    // optional flag to set enabled/disabled, needed for POST API and when creating user & Keycloak user
     private Boolean isEnabled;
 }

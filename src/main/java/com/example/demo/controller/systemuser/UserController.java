@@ -20,7 +20,6 @@ public class UserController {
 
     @PostMapping
     public ApiResponse<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
-        // mặc định gán role từ Keycloak realm role name (ví dụ "ROLE_DDC_HR_VIEWER")
         String defaultRole = "ROLE_DDC_HR_VIEWER";
         return ApiResponse.<UserResponse>builder()
                 .result(userService.createUser(request, defaultRole))
@@ -66,21 +65,21 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping("/search")
-    public ApiResponse<List<UserResponse>> searchUsers(@RequestParam("q") String q,
-                                                       @RequestParam(required = false, defaultValue = "1") int pageNo,
-                                                       @RequestParam(required = false, defaultValue = "5") int pageSize,
-                                                       @RequestParam(required = false, defaultValue = "userName") String sortBy,
-                                                       @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
-        Sort sort;
-        if (sortDirection.equalsIgnoreCase("asc")) {
-            sort = Sort.by(sortBy).ascending();
-        } else {
-            sort = Sort.by(sortBy).descending();
-        }
-
-        return ApiResponse.<List<UserResponse>>builder()
-                .result(userService.searchUsers(q, PageRequest.of(pageNo - 1, pageSize, sort)).getContent())
-                .build();
-    }
+//    @GetMapping("/search")
+//    public ApiResponse<List<UserResponse>> searchUsers(@RequestParam("q") String q,
+//                                                       @RequestParam(required = false, defaultValue = "1") int pageNo,
+//                                                       @RequestParam(required = false, defaultValue = "5") int pageSize,
+//                                                       @RequestParam(required = false, defaultValue = "userName") String sortBy,
+//                                                       @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
+//        Sort sort;
+//        if (sortDirection.equalsIgnoreCase("asc")) {
+//            sort = Sort.by(sortBy).ascending();
+//        } else {
+//            sort = Sort.by(sortBy).descending();
+//        }
+//
+//        return ApiResponse.<List<UserResponse>>builder()
+//                .result(userService.searchUsers(q, PageRequest.of(pageNo - 1, pageSize, sort)).getContent())
+//                .build();
+//    }
 }
