@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class BloodGroupController {
     BloodGroupService bloodGroupService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<BloodGroupResponse> createBloodGroup(@Valid @RequestBody BloodGroupRequest request) {
         ApiResponse<BloodGroupResponse> response = new ApiResponse<>();
 
         response.setResult(bloodGroupService.createBloodGroup(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<BloodGroupResponse>> bulkBloodGroupUpsert(@Valid @RequestBody List<BloodGroupRequest> requests) {
+        return ApiResponse.<List<BloodGroupResponse>>builder()
+                .result(bloodGroupService.bulkUpsertBloodGroups(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteBloodGroups(@Valid @RequestParam("ids") List<Long> bloodGroupIds) {
+        bloodGroupService.bulkDeleteBloodGroups(bloodGroupIds);
+        return ApiResponse.<String>builder()
+                .result(bloodGroupIds.size() + " bloodGroups have been deleted.")
+                .build();
     }
 
     @GetMapping()

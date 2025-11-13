@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class NationalityController {
     NationalityService nationalityService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<NationalityResponse> createNationality(@Valid @RequestBody NationalityRequest request) {
         ApiResponse<NationalityResponse> response = new ApiResponse<>();
 
@@ -30,11 +32,26 @@ public class NationalityController {
         return response;
     }
 
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<NationalityResponse>> bulkNationalityUpsert(@Valid @RequestBody List<NationalityRequest> requests) {
+        return ApiResponse.<List<NationalityResponse>>builder()
+                .result(nationalityService.bulkUpsertNationalities(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteNationalities(@Valid @RequestParam("ids") List<Long> nationalityIds) {
+        nationalityService.bulkDeleteNationalities(nationalityIds);
+        return ApiResponse.<String>builder()
+                .result(nationalityIds.size() + " nationalities have been deleted.")
+                .build();
+    }
+
     @GetMapping()
-    ApiResponse<List<NationalityResponse>> getNationalitys(@RequestParam(required = false, defaultValue = "1") int pageNo,
-                                                           @RequestParam(required = false, defaultValue = "5") int pageSize,
-                                                           @RequestParam(required = false, defaultValue = "name") String sortBy,
-                                                           @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
+    ApiResponse<List<NationalityResponse>> getNationalities(@RequestParam(required = false, defaultValue = "1") int pageNo,
+                                                            @RequestParam(required = false, defaultValue = "5") int pageSize,
+                                                            @RequestParam(required = false, defaultValue = "name") String sortBy,
+                                                            @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
         Sort sort = null;
         if (sortDirection.equalsIgnoreCase("asc")) {
             sort = Sort.by(sortBy).ascending();

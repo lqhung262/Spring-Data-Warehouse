@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class CountryController {
     CountryService countryService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CountryResponse> createCountry(@Valid @RequestBody CountryRequest request) {
         ApiResponse<CountryResponse> response = new ApiResponse<>();
 

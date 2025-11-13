@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class MaritalStatusController {
     MaritalStatusService maritalStatusService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<MaritalStatusResponse> createMaritalStatus(@Valid @RequestBody MaritalStatusRequest request) {
         ApiResponse<MaritalStatusResponse> response = new ApiResponse<>();
 
         response.setResult(maritalStatusService.createMaritalStatus(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<MaritalStatusResponse>> bulkMaritalStatusUpsert(@Valid @RequestBody List<MaritalStatusRequest> requests) {
+        return ApiResponse.<List<MaritalStatusResponse>>builder()
+                .result(maritalStatusService.bulkUpsertMaritalStatuses(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteMaritalStatuses(@Valid @RequestParam("ids") List<Long> maritalStatusIds) {
+        maritalStatusService.bulkDeleteMaritalStatuses(maritalStatusIds);
+        return ApiResponse.<String>builder()
+                .result(maritalStatusIds.size() + " marital Statuses have been deleted.")
+                .build();
     }
 
     @GetMapping()

@@ -5,15 +5,12 @@ import com.example.demo.dto.systemuser.Authentication.AuthenticationRequest;
 import com.example.demo.dto.systemuser.Authentication.AuthenticationResponse;
 import com.example.demo.dto.systemuser.Introspect.IntrospectRequest;
 import com.example.demo.dto.systemuser.Introspect.IntrospectResponse;
+import com.example.demo.service.systemuser.AuthenticationService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.example.demo.service.systemuser.AuthenticationService;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -24,6 +21,7 @@ public class AuthenticationController {
 
 
     @PostMapping("/token")
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest authenticationRequest) {
         var result = authenticationService.authenticate(authenticationRequest);
 

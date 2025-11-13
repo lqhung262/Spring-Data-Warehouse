@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class WardController {
     WardService wardService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<WardResponse> createWard(@Valid @RequestBody WardRequest request) {
         ApiResponse<WardResponse> response = new ApiResponse<>();
 
         response.setResult(wardService.createWard(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<WardResponse>> bulkWardUpsert(@Valid @RequestBody List<WardRequest> requests) {
+        return ApiResponse.<List<WardResponse>>builder()
+                .result(wardService.bulkUpsertWards(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteWards(@Valid @RequestParam("ids") List<Long> wardIds) {
+        wardService.bulkDeleteWards(wardIds);
+        return ApiResponse.<String>builder()
+                .result(wardIds.size() + " wards have been deleted.")
+                .build();
     }
 
     @GetMapping()

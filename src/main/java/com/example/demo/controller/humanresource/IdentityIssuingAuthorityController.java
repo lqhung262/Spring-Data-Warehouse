@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class IdentityIssuingAuthorityController {
     IdentityIssuingAuthorityService identityIssuingAuthorityService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<IdentityIssuingAuthorityResponse> createIdentityIssuingAuthority(@Valid @RequestBody IdentityIssuingAuthorityRequest request) {
         ApiResponse<IdentityIssuingAuthorityResponse> response = new ApiResponse<>();
 
         response.setResult(identityIssuingAuthorityService.createIdentityIssuingAuthority(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<IdentityIssuingAuthorityResponse>> bulkIdentityIssuingAuthorityUpsert(@Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
+        return ApiResponse.<List<IdentityIssuingAuthorityResponse>>builder()
+                .result(identityIssuingAuthorityService.bulkUpsertIdentityIssuingAuthorities(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteIdentityIssuingAuthorities(@Valid @RequestParam("ids") List<Long> identityIssuingAuthorityIds) {
+        identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(identityIssuingAuthorityIds);
+        return ApiResponse.<String>builder()
+                .result(identityIssuingAuthorityIds.size() + " identity Issuing Authorities have been deleted.")
+                .build();
     }
 
     @GetMapping()

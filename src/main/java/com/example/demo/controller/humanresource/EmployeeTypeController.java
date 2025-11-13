@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class EmployeeTypeController {
     EmployeeTypeService employeeTypeService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<EmployeeTypeResponse> createEmployeeType(@Valid @RequestBody EmployeeTypeRequest request) {
         ApiResponse<EmployeeTypeResponse> response = new ApiResponse<>();
 
         response.setResult(employeeTypeService.createEmployeeType(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<EmployeeTypeResponse>> bulkEmployeeTypeUpsert(@Valid @RequestBody List<EmployeeTypeRequest> requests) {
+        return ApiResponse.<List<EmployeeTypeResponse>>builder()
+                .result(employeeTypeService.bulkUpsertEmployeeTypes(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteEmployeeTypes(@Valid @RequestParam("ids") List<Long> employeeTypeIds) {
+        employeeTypeService.bulkDeleteEmployeeTypes(employeeTypeIds);
+        return ApiResponse.<String>builder()
+                .result(employeeTypeIds.size() + " employee Types have been deleted.")
+                .build();
     }
 
     @GetMapping()

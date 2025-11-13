@@ -9,8 +9,8 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AttendanceTypeResponse {
-    Long workShiftId;
-    String workShiftCode;
+    Long attendanceTypeId;
+    String attendanceTypeCode;
     String sourceId;
     String name;
 }

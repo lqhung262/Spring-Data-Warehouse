@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class DepartmentController {
     DepartmentService departmentService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<DepartmentResponse> createDepartment(@Valid @RequestBody DepartmentRequest request) {
         ApiResponse<DepartmentResponse> response = new ApiResponse<>();
 
         response.setResult(departmentService.createDepartment(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<DepartmentResponse>> bulkDepartmentUpsert(@Valid @RequestBody List<DepartmentRequest> requests) {
+        return ApiResponse.<List<DepartmentResponse>>builder()
+                .result(departmentService.bulkUpsertDepartments(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteDepartments(@Valid @RequestParam("ids") List<Long> departmentIds) {
+        departmentService.bulkDeleteDepartments(departmentIds);
+        return ApiResponse.<String>builder()
+                .result(departmentIds.size() + " departments have been deleted.")
+                .build();
     }
 
     @GetMapping()

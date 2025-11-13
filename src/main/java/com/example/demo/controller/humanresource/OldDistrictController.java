@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class OldDistrictController {
     OldDistrictService oldDistrictService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<OldDistrictResponse> createOldDistrict(@Valid @RequestBody OldDistrictRequest request) {
         ApiResponse<OldDistrictResponse> response = new ApiResponse<>();
 
         response.setResult(oldDistrictService.createOldDistrict(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<OldDistrictResponse>> bulkOldDistrictUpsert(@Valid @RequestBody List<OldDistrictRequest> requests) {
+        return ApiResponse.<List<OldDistrictResponse>>builder()
+                .result(oldDistrictService.bulkUpsertOldDistricts(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteOldDistricts(@Valid @RequestParam("ids") List<Long> oldDistrictIds) {
+        oldDistrictService.bulkDeleteOldDistricts(oldDistrictIds);
+        return ApiResponse.<String>builder()
+                .result(oldDistrictIds.size() + " old Districts have been deleted.")
+                .build();
     }
 
     @GetMapping()

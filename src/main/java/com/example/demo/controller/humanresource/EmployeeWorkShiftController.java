@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class EmployeeWorkShiftController {
     EmployeeWorkShiftService employeeWorkShiftService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<EmployeeWorkShiftResponse> createEmployeeWorkShift(@Valid @RequestBody EmployeeWorkShiftRequest request) {
         ApiResponse<EmployeeWorkShiftResponse> response = new ApiResponse<>();
 
         response.setResult(employeeWorkShiftService.createEmployeeWorkShift(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<EmployeeWorkShiftResponse>> bulkEmployeeWorkShiftUpsert(@Valid @RequestBody List<EmployeeWorkShiftRequest> requests) {
+        return ApiResponse.<List<EmployeeWorkShiftResponse>>builder()
+                .result(employeeWorkShiftService.bulkUpsertEmployeeWorkShifts(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteEmployeeWorkShifts(@Valid @RequestParam("ids") List<Long> employeeWorkShiftIds) {
+        employeeWorkShiftService.bulkDeleteEmployeeWorkShifts(employeeWorkShiftIds);
+        return ApiResponse.<String>builder()
+                .result(employeeWorkShiftIds.size() + " employee Work Shifts have been deleted.")
+                .build();
     }
 
     @GetMapping()

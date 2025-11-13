@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class OtTypeController {
     OtTypeService otTypeService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<OtTypeResponse> createOtType(@Valid @RequestBody OtTypeRequest request) {
         ApiResponse<OtTypeResponse> response = new ApiResponse<>();
 
         response.setResult(otTypeService.createOtType(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<OtTypeResponse>> bulkOtTypeUpsert(@Valid @RequestBody List<OtTypeRequest> requests) {
+        return ApiResponse.<List<OtTypeResponse>>builder()
+                .result(otTypeService.bulkUpsertOtTypes(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteOtTypes(@Valid @RequestParam("ids") List<Long> otTypeIds) {
+        otTypeService.bulkDeleteOtTypes(otTypeIds);
+        return ApiResponse.<String>builder()
+                .result(otTypeIds.size() + " ot Types have been deleted.")
+                .build();
     }
 
     @GetMapping()

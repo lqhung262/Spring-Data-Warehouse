@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.EducationLevel;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.EducationLevelMapper;
 import com.example.demo.repository.humanresource.EducationLevelRepository;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,16 +30,80 @@ public class EducationLevelService {
     private String entityName;
 
     public EducationLevelResponse createEducationLevel(EducationLevelRequest request) {
+        educationLevelRepository.findByEducationLevelCode(request.getEducationLevelCode()).ifPresent(b -> {
+            throw new IllegalArgumentException(entityName + " with education Level Code " + request.getEducationLevelCode() + " already exists.");
+        });
+
         EducationLevel educationLevel = educationLevelMapper.toEducationLevel(request);
 
         return educationLevelMapper.toEducationLevelResponse(educationLevelRepository.save(educationLevel));
     }
 
+
+    /**
+     * Xử lý Bulk Upsert
+     */
+    @Transactional
+    public List<EducationLevelResponse> bulkUpsertEducationLevels(List<EducationLevelRequest> requests) {
+
+        // Lấy tất cả educationLevelCodes từ request
+        List<String> educationLevelCodes = requests.stream()
+                .map(EducationLevelRequest::getEducationLevelCode)
+                .toList();
+
+        // Tìm tất cả các educationLevel đã tồn tại TRONG 1 CÂU QUERY
+        Map<String, EducationLevel> existingEducationLevelsMap = educationLevelRepository.findByEducationLevelCodeIn(educationLevelCodes).stream()
+                .collect(Collectors.toMap(EducationLevel::getEducationLevelCode, educationLevel -> educationLevel));
+
+        List<EducationLevel> educationLevelsToSave = new java.util.ArrayList<>();
+
+        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+        for (EducationLevelRequest request : requests) {
+            EducationLevel educationLevel = existingEducationLevelsMap.get(request.getEducationLevelCode());
+
+            if (educationLevel != null) {
+                // --- Logic UPDATE ---
+                // EducationLevel đã tồn tại -> Cập nhật
+                educationLevelMapper.updateEducationLevel(educationLevel, request);
+                educationLevelsToSave.add(educationLevel);
+            } else {
+                // --- Logic INSERT ---
+                // EducationLevel chưa tồn tại -> Tạo mới
+                EducationLevel newEducationLevel = educationLevelMapper.toEducationLevel(request);
+                educationLevelsToSave.add(newEducationLevel);
+            }
+        }
+
+        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+        List<EducationLevel> savedEducationLevels = educationLevelRepository.saveAll(educationLevelsToSave);
+
+        // Map sang Response DTO và trả về
+        return savedEducationLevels.stream()
+                .map(educationLevelMapper::toEducationLevelResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteEducationLevels(List<Long> ids) {
+        // Kiểm tra xem có bao nhiêu ID tồn tại
+        long existingCount = educationLevelRepository.countByEducationLevelIdIn(ids);
+        if (existingCount != ids.size()) {
+            // Không phải tất cả ID đều tồn tại
+            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+        }
+
+        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+        educationLevelRepository.deleteAllById(ids);
+    }
+
+
     public List<EducationLevelResponse> getEducationLevels(Pageable pageable) {
         Page<EducationLevel> page = educationLevelRepository.findAll(pageable);
-        List<EducationLevelResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(educationLevelMapper::toEducationLevelResponse).toList();
-        return dtos;
     }
 
     public EducationLevelResponse getEducationLevel(Long id) {

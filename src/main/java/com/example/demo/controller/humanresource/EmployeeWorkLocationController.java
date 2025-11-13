@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,12 +24,28 @@ public class EmployeeWorkLocationController {
     EmployeeWorkLocationService employeeWorkLocationService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<EmployeeWorkLocationResponse> createEmployeeWorkLocation(@Valid @RequestBody EmployeeWorkLocationRequest request) {
         ApiResponse<EmployeeWorkLocationResponse> response = new ApiResponse<>();
 
         response.setResult(employeeWorkLocationService.createEmployeeWorkLocation(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<EmployeeWorkLocationResponse>> bulkEmployeeWorkLocationUpsert(@Valid @RequestBody List<EmployeeWorkLocationRequest> requests) {
+        return ApiResponse.<List<EmployeeWorkLocationResponse>>builder()
+                .result(employeeWorkLocationService.bulkUpsertEmployeeWorkLocations(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteEmployeeWorkLocations(@Valid @RequestParam("ids") List<Long> employeeWorkLocationIds) {
+        employeeWorkLocationService.bulkDeleteEmployeeWorkLocations(employeeWorkLocationIds);
+        return ApiResponse.<String>builder()
+                .result(employeeWorkLocationIds.size() + " employeeWorkLocations have been deleted.")
+                .build();
     }
 
     @GetMapping()

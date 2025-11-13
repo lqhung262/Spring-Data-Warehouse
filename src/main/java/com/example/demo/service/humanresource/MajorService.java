@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.Major;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MajorMapper;
 import com.example.demo.repository.humanresource.MajorRepository;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,16 +30,79 @@ public class MajorService {
     private String entityName;
 
     public MajorResponse createMajor(MajorRequest request) {
+        majorRepository.findByMajorCode(request.getMajorCode()).ifPresent(b -> {
+            throw new IllegalArgumentException(entityName + " with major Code " + request.getMajorCode() + " already exists.");
+        });
+
         Major major = majorMapper.toMajor(request);
 
         return majorMapper.toMajorResponse(majorRepository.save(major));
     }
 
+    /**
+     * Xử lý Bulk Upsert
+     */
+    @Transactional
+    public List<MajorResponse> bulkUpsertMajors(List<MajorRequest> requests) {
+
+        // Lấy tất cả majorCodes từ request
+        List<String> majorCodes = requests.stream()
+                .map(MajorRequest::getMajorCode)
+                .toList();
+
+        // Tìm tất cả các major đã tồn tại TRONG 1 CÂU QUERY
+        Map<String, Major> existingMajorsMap = majorRepository.findByMajorCodeIn(majorCodes).stream()
+                .collect(Collectors.toMap(Major::getMajorCode, major -> major));
+
+        List<Major> majorsToSave = new java.util.ArrayList<>();
+
+        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+        for (MajorRequest request : requests) {
+            Major major = existingMajorsMap.get(request.getMajorCode());
+
+            if (major != null) {
+                // --- Logic UPDATE ---
+                // Major đã tồn tại -> Cập nhật
+                majorMapper.updateMajor(major, request);
+                majorsToSave.add(major);
+            } else {
+                // --- Logic INSERT ---
+                // Major chưa tồn tại -> Tạo mới
+                Major newMajor = majorMapper.toMajor(request);
+                majorsToSave.add(newMajor);
+            }
+        }
+
+        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+        List<Major> savedMajors = majorRepository.saveAll(majorsToSave);
+
+        // Map sang Response DTO và trả về
+        return savedMajors.stream()
+                .map(majorMapper::toMajorResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteMajors(List<Long> ids) {
+        // Kiểm tra xem có bao nhiêu ID tồn tại
+        long existingCount = majorRepository.countByMajorIdIn(ids);
+        if (existingCount != ids.size()) {
+            // Không phải tất cả ID đều tồn tại
+            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+        }
+
+        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+        majorRepository.deleteAllById(ids);
+    }
+
+
     public List<MajorResponse> getMajors(Pageable pageable) {
         Page<Major> page = majorRepository.findAll(pageable);
-        List<MajorResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(majorMapper::toMajorResponse).toList();
-        return dtos;
     }
 
     public MajorResponse getMajor(Long id) {

@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.Specialization;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.SpecializationMapper;
 import com.example.demo.repository.humanresource.SpecializationRepository;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,16 +30,79 @@ public class SpecializationService {
     private String entityName;
 
     public SpecializationResponse createSpecialization(SpecializationRequest request) {
+        specializationRepository.findBySpecializationCode(request.getSpecializationCode()).ifPresent(b -> {
+            throw new IllegalArgumentException(entityName + " with specialization Code " + request.getSpecializationCode() + " already exists.");
+        });
+
         Specialization specialization = specializationMapper.toSpecialization(request);
 
         return specializationMapper.toSpecializationResponse(specializationRepository.save(specialization));
     }
 
+    /**
+     * Xử lý Bulk Upsert
+     */
+    @Transactional
+    public List<SpecializationResponse> bulkUpsertSpecializations(List<SpecializationRequest> requests) {
+
+        // Lấy tất cả specializationCodes từ request
+        List<String> specializationCodes = requests.stream()
+                .map(SpecializationRequest::getSpecializationCode)
+                .toList();
+
+        // Tìm tất cả các specialization đã tồn tại TRONG 1 CÂU QUERY
+        Map<String, Specialization> existingSpecializationsMap = specializationRepository.findBySpecializationCodeIn(specializationCodes).stream()
+                .collect(Collectors.toMap(Specialization::getSpecializationCode, specialization -> specialization));
+
+        List<Specialization> specializationsToSave = new java.util.ArrayList<>();
+
+        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+        for (SpecializationRequest request : requests) {
+            Specialization specialization = existingSpecializationsMap.get(request.getSpecializationCode());
+
+            if (specialization != null) {
+                // --- Logic UPDATE ---
+                // Specialization đã tồn tại -> Cập nhật
+                specializationMapper.updateSpecialization(specialization, request);
+                specializationsToSave.add(specialization);
+            } else {
+                // --- Logic INSERT ---
+                // Specialization chưa tồn tại -> Tạo mới
+                Specialization newSpecialization = specializationMapper.toSpecialization(request);
+                specializationsToSave.add(newSpecialization);
+            }
+        }
+
+        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+        List<Specialization> savedSpecializations = specializationRepository.saveAll(specializationsToSave);
+
+        // Map sang Response DTO và trả về
+        return savedSpecializations.stream()
+                .map(specializationMapper::toSpecializationResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteSpecializations(List<Long> ids) {
+        // Kiểm tra xem có bao nhiêu ID tồn tại
+        long existingCount = specializationRepository.countBySpecializationIdIn(ids);
+        if (existingCount != ids.size()) {
+            // Không phải tất cả ID đều tồn tại
+            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+        }
+
+        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+        specializationRepository.deleteAllById(ids);
+    }
+
+
     public List<SpecializationResponse> getSpecializations(Pageable pageable) {
         Page<Specialization> page = specializationRepository.findAll(pageable);
-        List<SpecializationResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(specializationMapper::toSpecializationResponse).toList();
-        return dtos;
     }
 
     public SpecializationResponse getSpecialization(Long id) {

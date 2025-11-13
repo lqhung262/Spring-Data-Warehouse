@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class SpecializationController {
     SpecializationService specializationService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<SpecializationResponse> createSpecialization(@Valid @RequestBody SpecializationRequest request) {
         ApiResponse<SpecializationResponse> response = new ApiResponse<>();
 
         response.setResult(specializationService.createSpecialization(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<SpecializationResponse>> bulkSpecializationUpsert(@Valid @RequestBody List<SpecializationRequest> requests) {
+        return ApiResponse.<List<SpecializationResponse>>builder()
+                .result(specializationService.bulkUpsertSpecializations(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteSpecializations(@Valid @RequestParam("ids") List<Long> specializationIds) {
+        specializationService.bulkDeleteSpecializations(specializationIds);
+        return ApiResponse.<String>builder()
+                .result(specializationIds.size() + " specializations have been deleted.")
+                .build();
     }
 
     @GetMapping()

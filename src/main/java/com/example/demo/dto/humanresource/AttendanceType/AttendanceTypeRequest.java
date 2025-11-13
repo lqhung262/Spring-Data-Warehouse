@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class AttendanceTypeRequest {
     @NotBlank
-    private String workShiftCode;
+    private String attendanceTypeCode;
 
     @NotBlank
     private String sourceId;

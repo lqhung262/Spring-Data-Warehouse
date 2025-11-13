@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class WorkShiftController {
     WorkShiftService workShiftService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<WorkShiftResponse> createWorkShift(@Valid @RequestBody WorkShiftRequest request) {
         ApiResponse<WorkShiftResponse> response = new ApiResponse<>();
 
         response.setResult(workShiftService.createWorkShift(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<WorkShiftResponse>> bulkWorkShiftUpsert(@Valid @RequestBody List<WorkShiftRequest> requests) {
+        return ApiResponse.<List<WorkShiftResponse>>builder()
+                .result(workShiftService.bulkUpsertWorkShifts(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteWorkShifts(@Valid @RequestParam("ids") List<Long> workShiftIds) {
+        workShiftService.bulkDeleteWorkShifts(workShiftIds);
+        return ApiResponse.<String>builder()
+                .result(workShiftIds.size() + " workShifts have been deleted.")
+                .build();
     }
 
     @GetMapping()

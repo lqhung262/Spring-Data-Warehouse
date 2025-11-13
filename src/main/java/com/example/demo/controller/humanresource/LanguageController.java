@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class LanguageController {
     LanguageService languageService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<LanguageResponse> createLanguage(@Valid @RequestBody LanguageRequest request) {
         ApiResponse<LanguageResponse> response = new ApiResponse<>();
 
         response.setResult(languageService.createLanguage(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<LanguageResponse>> bulkLanguageUpsert(@Valid @RequestBody List<LanguageRequest> requests) {
+        return ApiResponse.<List<LanguageResponse>>builder()
+                .result(languageService.bulkUpsertLanguages(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteLanguages(@Valid @RequestParam("ids") List<Long> languageIds) {
+        languageService.bulkDeleteLanguages(languageIds);
+        return ApiResponse.<String>builder()
+                .result(languageIds.size() + " languages have been deleted.")
+                .build();
     }
 
     @GetMapping()

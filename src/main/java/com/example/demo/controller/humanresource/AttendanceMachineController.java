@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class AttendanceMachineController {
     AttendanceMachineService attendanceMachineService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<AttendanceMachineResponse> createAttendanceMachine(@Valid @RequestBody AttendanceMachineRequest request) {
         ApiResponse<AttendanceMachineResponse> response = new ApiResponse<>();
 
@@ -29,6 +31,22 @@ public class AttendanceMachineController {
 
         return response;
     }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<AttendanceMachineResponse>> bulkAttendanceMachineUpsert(@Valid @RequestBody List<AttendanceMachineRequest> requests) {
+        return ApiResponse.<List<AttendanceMachineResponse>>builder()
+                .result(attendanceMachineService.bulkUpsertAttendanceMachines(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteAttendanceMachines(@Valid @RequestParam("ids") List<Long> attendanceMachineIds) {
+        attendanceMachineService.bulkDeleteAttendanceMachines(attendanceMachineIds);
+        return ApiResponse.<String>builder()
+                .result(attendanceMachineIds.size() + " Attendance Machines have been deleted.")
+                .build();
+    }
+
 
     @GetMapping()
     ApiResponse<List<AttendanceMachineResponse>> getAttendanceMachines(@RequestParam(required = false, defaultValue = "1") int pageNo,

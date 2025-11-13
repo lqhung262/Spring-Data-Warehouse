@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class EducationLevelController {
     EducationLevelService educationLevelService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<EducationLevelResponse> createEducationLevel(@Valid @RequestBody EducationLevelRequest request) {
         ApiResponse<EducationLevelResponse> response = new ApiResponse<>();
 
         response.setResult(educationLevelService.createEducationLevel(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<EducationLevelResponse>> bulkEducationLevelUpsert(@Valid @RequestBody List<EducationLevelRequest> requests) {
+        return ApiResponse.<List<EducationLevelResponse>>builder()
+                .result(educationLevelService.bulkUpsertEducationLevels(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteEducationLevels(@Valid @RequestParam("ids") List<Long> educationLevelIds) {
+        educationLevelService.bulkDeleteEducationLevels(educationLevelIds);
+        return ApiResponse.<String>builder()
+                .result(educationLevelIds.size() + " education Levels have been deleted.")
+                .build();
     }
 
     @GetMapping()

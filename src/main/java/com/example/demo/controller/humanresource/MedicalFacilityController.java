@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class MedicalFacilityController {
     MedicalFacilityService medicalFacilityService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<MedicalFacilityResponse> createMedicalFacility(@Valid @RequestBody MedicalFacilityRequest request) {
         ApiResponse<MedicalFacilityResponse> response = new ApiResponse<>();
 
         response.setResult(medicalFacilityService.createMedicalFacility(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<MedicalFacilityResponse>> bulkMedicalFacilityUpsert(@Valid @RequestBody List<MedicalFacilityRequest> requests) {
+        return ApiResponse.<List<MedicalFacilityResponse>>builder()
+                .result(medicalFacilityService.bulkUpsertMedicalFacilities(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteMedicalFacilities(@Valid @RequestParam("ids") List<Long> medicalFacilityIds) {
+        medicalFacilityService.bulkDeleteMedicalFacilities(medicalFacilityIds);
+        return ApiResponse.<String>builder()
+                .result(medicalFacilityIds.size() + " medical Facilities have been deleted.")
+                .build();
     }
 
     @GetMapping()

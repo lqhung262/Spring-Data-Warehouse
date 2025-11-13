@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class OldProvinceCityController {
     OldProvinceCityService oldProvinceCityService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<OldProvinceCityResponse> createOldProvinceCity(@Valid @RequestBody OldProvinceCityRequest request) {
         ApiResponse<OldProvinceCityResponse> response = new ApiResponse<>();
 
         response.setResult(oldProvinceCityService.createOldProvinceCity(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<OldProvinceCityResponse>> bulkOldProvinceCityUpsert(@Valid @RequestBody List<OldProvinceCityRequest> requests) {
+        return ApiResponse.<List<OldProvinceCityResponse>>builder()
+                .result(oldProvinceCityService.bulkUpsertOldProvinceCities(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteOldProvinceCities(@Valid @RequestParam("ids") List<Long> oldProvinceCityIds) {
+        oldProvinceCityService.bulkDeleteOldProvinceCities(oldProvinceCityIds);
+        return ApiResponse.<String>builder()
+                .result(oldProvinceCityIds.size() + " oldProvinceCities have been deleted.")
+                .build();
     }
 
     @GetMapping()

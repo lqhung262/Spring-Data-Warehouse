@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.MaritalStatus;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MaritalStatusMapper;
 import com.example.demo.repository.humanresource.MaritalStatusRepository;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,16 +31,79 @@ public class MaritalStatusService {
 
 
     public MaritalStatusResponse createMaritalStatus(MaritalStatusRequest request) {
+        maritalStatusRepository.findByMaritalStatusCode(request.getMaritalStatusCode()).ifPresent(b -> {
+            throw new IllegalArgumentException(entityName + " with marital Status Code " + request.getMaritalStatusCode() + " already exists.");
+        });
+
         MaritalStatus maritalStatus = maritalStatusMapper.toMaritalStatus(request);
 
         return maritalStatusMapper.toMaritalStatusResponse(maritalStatusRepository.save(maritalStatus));
     }
 
+
+    /**
+     * Xử lý Bulk Upsert
+     */
+    @Transactional
+    public List<MaritalStatusResponse> bulkUpsertMaritalStatuses(List<MaritalStatusRequest> requests) {
+
+        // Lấy tất cả maritalStatusCodes từ request
+        List<String> maritalStatusCodes = requests.stream()
+                .map(MaritalStatusRequest::getMaritalStatusCode)
+                .toList();
+
+        // Tìm tất cả các maritalStatus đã tồn tại TRONG 1 CÂU QUERY
+        Map<String, MaritalStatus> existingMaritalStatusesMap = maritalStatusRepository.findByMaritalStatusCodeIn(maritalStatusCodes).stream()
+                .collect(Collectors.toMap(MaritalStatus::getMaritalStatusCode, maritalStatus -> maritalStatus));
+
+        List<MaritalStatus> maritalStatusesToSave = new java.util.ArrayList<>();
+
+        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+        for (MaritalStatusRequest request : requests) {
+            MaritalStatus maritalStatus = existingMaritalStatusesMap.get(request.getMaritalStatusCode());
+
+            if (maritalStatus != null) {
+                // --- Logic UPDATE ---
+                // MaritalStatus đã tồn tại -> Cập nhật
+                maritalStatusMapper.updateMaritalStatus(maritalStatus, request);
+                maritalStatusesToSave.add(maritalStatus);
+            } else {
+                // --- Logic INSERT ---
+                // MaritalStatus chưa tồn tại -> Tạo mới
+                MaritalStatus newMaritalStatus = maritalStatusMapper.toMaritalStatus(request);
+                maritalStatusesToSave.add(newMaritalStatus);
+            }
+        }
+
+        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+        List<MaritalStatus> savedMaritalStatuses = maritalStatusRepository.saveAll(maritalStatusesToSave);
+
+        // Map sang Response DTO và trả về
+        return savedMaritalStatuses.stream()
+                .map(maritalStatusMapper::toMaritalStatusResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteMaritalStatuses(List<Long> ids) {
+        // Kiểm tra xem có bao nhiêu ID tồn tại
+        long existingCount = maritalStatusRepository.countByMaritalStatusIdIn(ids);
+        if (existingCount != ids.size()) {
+            // Không phải tất cả ID đều tồn tại
+            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+        }
+
+        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+        maritalStatusRepository.deleteAllById(ids);
+    }
+
     public List<MaritalStatusResponse> getMaritalStatuses(Pageable pageable) {
         Page<MaritalStatus> page = maritalStatusRepository.findAll(pageable);
-        List<MaritalStatusResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(maritalStatusMapper::toMaritalStatusResponse).toList();
-        return dtos;
     }
 
     public MaritalStatusResponse getMaritalStatus(Long id) {

@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.OldDistrict;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.OldDistrictMapper;
 import com.example.demo.repository.humanresource.OldDistrictRepository;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,11 +35,70 @@ public class OldDistrictService {
         return oldDistrictMapper.toOldDistrictResponse(oldDistrictRepository.save(oldDistrict));
     }
 
+    /**
+     * Xử lý Bulk Upsert
+     */
+    @Transactional
+    public List<OldDistrictResponse> bulkUpsertOldDistricts(List<OldDistrictRequest> requests) {
+
+        // Lấy tất cả oldDistrictCodes từ request
+        List<String> oldDistrictCodes = requests.stream()
+                .map(OldDistrictRequest::getOldDistrictCode)
+                .toList();
+
+        // Tìm tất cả các oldDistrict đã tồn tại TRONG 1 CÂU QUERY
+        Map<String, OldDistrict> existingOldDistrictsMap = oldDistrictRepository.findByOldDistrictCodeIn(oldDistrictCodes).stream()
+                .collect(Collectors.toMap(OldDistrict::getOldDistrictCode, oldDistrict -> oldDistrict));
+
+        List<OldDistrict> oldDistrictsToSave = new java.util.ArrayList<>();
+
+        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+        for (OldDistrictRequest request : requests) {
+            OldDistrict oldDistrict = existingOldDistrictsMap.get(request.getOldDistrictCode());
+
+            if (oldDistrict != null) {
+                // --- Logic UPDATE ---
+                // OldDistrict đã tồn tại -> Cập nhật
+                oldDistrictMapper.updateOldDistrict(oldDistrict, request);
+                oldDistrictsToSave.add(oldDistrict);
+            } else {
+                // --- Logic INSERT ---
+                // OldDistrict chưa tồn tại -> Tạo mới
+                OldDistrict newOldDistrict = oldDistrictMapper.toOldDistrict(request);
+                oldDistrictsToSave.add(newOldDistrict);
+            }
+        }
+
+        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+        List<OldDistrict> savedOldDistricts = oldDistrictRepository.saveAll(oldDistrictsToSave);
+
+        // Map sang Response DTO và trả về
+        return savedOldDistricts.stream()
+                .map(oldDistrictMapper::toOldDistrictResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteOldDistricts(List<Long> ids) {
+        // Kiểm tra xem có bao nhiêu ID tồn tại
+        long existingCount = oldDistrictRepository.countByOldDistrictIdIn(ids);
+        if (existingCount != ids.size()) {
+            // Không phải tất cả ID đều tồn tại
+            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+        }
+
+        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+        oldDistrictRepository.deleteAllById(ids);
+    }
+
+
     public List<OldDistrictResponse> getOldDistricts(Pageable pageable) {
         Page<OldDistrict> page = oldDistrictRepository.findAll(pageable);
-        List<OldDistrictResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(oldDistrictMapper::toOldDistrictResponse).toList();
-        return dtos;
     }
 
     public OldDistrictResponse getOldDistrict(Long id) {

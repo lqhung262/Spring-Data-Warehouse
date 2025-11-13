@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class ExpenseTypeController {
     ExpenseTypeService expenseTypeService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<ExpenseTypeResponse> createExpenseType(@Valid @RequestBody ExpenseTypeRequest request) {
         ApiResponse<ExpenseTypeResponse> response = new ApiResponse<>();
 
         response.setResult(expenseTypeService.createExpenseType(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<ExpenseTypeResponse>> bulkExpenseTypeUpsert(@Valid @RequestBody List<ExpenseTypeRequest> requests) {
+        return ApiResponse.<List<ExpenseTypeResponse>>builder()
+                .result(expenseTypeService.bulkUpsertExpenseTypes(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteExpenseTypes(@Valid @RequestParam("ids") List<Long> expenseTypeIds) {
+        expenseTypeService.bulkDeleteExpenseTypes(expenseTypeIds);
+        return ApiResponse.<String>builder()
+                .result(expenseTypeIds.size() + " expense Types have been deleted.")
+                .build();
     }
 
     @GetMapping()

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class WorkLocationController {
     WorkLocationService workLocationService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<WorkLocationResponse> createWorkLocation(@Valid @RequestBody WorkLocationRequest request) {
         ApiResponse<WorkLocationResponse> response = new ApiResponse<>();
 
         response.setResult(workLocationService.createWorkLocation(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<WorkLocationResponse>> bulkWorkLocationUpsert(@Valid @RequestBody List<WorkLocationRequest> requests) {
+        return ApiResponse.<List<WorkLocationResponse>>builder()
+                .result(workLocationService.bulkUpsertWorkLocations(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteWorkLocations(@Valid @RequestParam("ids") List<Long> workLocationIds) {
+        workLocationService.bulkDeleteWorkLocations(workLocationIds);
+        return ApiResponse.<String>builder()
+                .result(workLocationIds.size() + " work Locations have been deleted.")
+                .build();
     }
 
     @GetMapping()

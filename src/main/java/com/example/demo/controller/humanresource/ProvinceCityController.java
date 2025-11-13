@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class ProvinceCityController {
     ProvinceCityService provinceCityService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<ProvinceCityResponse> createProvinceCity(@Valid @RequestBody ProvinceCityRequest request) {
         ApiResponse<ProvinceCityResponse> response = new ApiResponse<>();
 
         response.setResult(provinceCityService.createProvinceCity(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<ProvinceCityResponse>> bulkProvinceCityUpsert(@Valid @RequestBody List<ProvinceCityRequest> requests) {
+        return ApiResponse.<List<ProvinceCityResponse>>builder()
+                .result(provinceCityService.bulkUpsertProvinceCities(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteProvinceCities(@Valid @RequestParam("ids") List<Long> provinceCityIds) {
+        provinceCityService.bulkDeleteProvinceCities(provinceCityIds);
+        return ApiResponse.<String>builder()
+                .result(provinceCityIds.size() + " province Cities have been deleted.")
+                .build();
     }
 
     @GetMapping()

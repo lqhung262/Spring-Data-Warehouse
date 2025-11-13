@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,29 @@ public class BankController {
     BankService bankService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
+        // 201 Created
     ApiResponse<BankResponse> createBank(@Valid @RequestBody BankRequest request) {
         ApiResponse<BankResponse> response = new ApiResponse<>();
 
         response.setResult(bankService.createBank(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<BankResponse>> bulkBankUpsert(@Valid @RequestBody List<BankRequest> requests) {
+        return ApiResponse.<List<BankResponse>>builder()
+                .result(bankService.bulkUpsertBanks(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteBanks(@Valid @RequestParam("ids") List<Long> bankIds) {
+        bankService.bulkDeleteBanks(bankIds);
+        return ApiResponse.<String>builder()
+                .result(bankIds.size() + " banks have been deleted.")
+                .build();
     }
 
     @GetMapping()

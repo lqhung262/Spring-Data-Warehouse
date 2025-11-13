@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class AttendanceTypeController {
     AttendanceTypeService attendanceTypeService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<AttendanceTypeResponse> createAttendanceType(@Valid @RequestBody AttendanceTypeRequest request) {
         ApiResponse<AttendanceTypeResponse> response = new ApiResponse<>();
 
@@ -29,6 +31,22 @@ public class AttendanceTypeController {
 
         return response;
     }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<AttendanceTypeResponse>> bulkAttendanceTypeUpsert(@Valid @RequestBody List<AttendanceTypeRequest> requests) {
+        return ApiResponse.<List<AttendanceTypeResponse>>builder()
+                .result(attendanceTypeService.bulkUpsertAttendanceTypes(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteAttendanceTypes(@Valid @RequestParam("ids") List<Long> attendanceTypeIds) {
+        attendanceTypeService.bulkDeleteAttendanceTypes(attendanceTypeIds);
+        return ApiResponse.<String>builder()
+                .result(attendanceTypeIds.size() + " attendanceTypes have been deleted.")
+                .build();
+    }
+
 
     @GetMapping()
     ApiResponse<List<AttendanceTypeResponse>> getAttendanceTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,

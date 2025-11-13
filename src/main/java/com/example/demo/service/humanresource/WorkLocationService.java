@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.WorkLocation;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkLocationMapper;
 import com.example.demo.repository.humanresource.WorkLocationRepository;
+import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,16 +31,79 @@ public class WorkLocationService {
 
 
     public WorkLocationResponse createWorkLocation(WorkLocationRequest request) {
+        workLocationRepository.findByWorkLocationCode(request.getWorkLocationCode()).ifPresent(b -> {
+            throw new IllegalArgumentException(entityName + " with work Location Code " + request.getWorkLocationCode() + " already exists.");
+        });
+
         WorkLocation workLocation = workLocationMapper.toWorkLocation(request);
 
         return workLocationMapper.toWorkLocationResponse(workLocationRepository.save(workLocation));
     }
 
+    /**
+     * Xử lý Bulk Upsert
+     */
+    @Transactional
+    public List<WorkLocationResponse> bulkUpsertWorkLocations(List<WorkLocationRequest> requests) {
+
+        // Lấy tất cả workLocationCodes từ request
+        List<String> workLocationCodes = requests.stream()
+                .map(WorkLocationRequest::getWorkLocationCode)
+                .toList();
+
+        // Tìm tất cả các workLocation đã tồn tại TRONG 1 CÂU QUERY
+        Map<String, WorkLocation> existingWorkLocationsMap = workLocationRepository.findByWorkLocationCodeIn(workLocationCodes).stream()
+                .collect(Collectors.toMap(WorkLocation::getWorkLocationCode, workLocation -> workLocation));
+
+        List<WorkLocation> workLocationsToSave = new java.util.ArrayList<>();
+
+        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+        for (WorkLocationRequest request : requests) {
+            WorkLocation workLocation = existingWorkLocationsMap.get(request.getWorkLocationCode());
+
+            if (workLocation != null) {
+                // --- Logic UPDATE ---
+                // WorkLocation đã tồn tại -> Cập nhật
+                workLocationMapper.updateWorkLocation(workLocation, request);
+                workLocationsToSave.add(workLocation);
+            } else {
+                // --- Logic INSERT ---
+                // WorkLocation chưa tồn tại -> Tạo mới
+                WorkLocation newWorkLocation = workLocationMapper.toWorkLocation(request);
+                workLocationsToSave.add(newWorkLocation);
+            }
+        }
+
+        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+        List<WorkLocation> savedWorkLocations = workLocationRepository.saveAll(workLocationsToSave);
+
+        // Map sang Response DTO và trả về
+        return savedWorkLocations.stream()
+                .map(workLocationMapper::toWorkLocationResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteWorkLocations(List<Long> ids) {
+        // Kiểm tra xem có bao nhiêu ID tồn tại
+        long existingCount = workLocationRepository.countByWorkLocationIdIn(ids);
+        if (existingCount != ids.size()) {
+            // Không phải tất cả ID đều tồn tại
+            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+        }
+
+        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+        workLocationRepository.deleteAllById(ids);
+    }
+
+
     public List<WorkLocationResponse> getWorkLocations(Pageable pageable) {
         Page<WorkLocation> page = workLocationRepository.findAll(pageable);
-        List<WorkLocationResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(workLocationMapper::toWorkLocationResponse).toList();
-        return dtos;
     }
 
     public WorkLocationResponse getWorkLocation(Long id) {

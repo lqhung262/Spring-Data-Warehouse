@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,28 @@ public class JobPositionController {
     JobPositionService jobPositionService;
 
     @PostMapping()
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<JobPositionResponse> createJobPosition(@Valid @RequestBody JobPositionRequest request) {
         ApiResponse<JobPositionResponse> response = new ApiResponse<>();
 
         response.setResult(jobPositionService.createJobPosition(request));
 
         return response;
+    }
+
+    @PostMapping("/_bulk-upsert")
+    ApiResponse<List<JobPositionResponse>> bulkJobPositionUpsert(@Valid @RequestBody List<JobPositionRequest> requests) {
+        return ApiResponse.<List<JobPositionResponse>>builder()
+                .result(jobPositionService.bulkUpsertJobPositions(requests))
+                .build();
+    }
+
+    @DeleteMapping("/_bulk-delete")
+    public ApiResponse<String> bulkDeleteJobPositions(@Valid @RequestParam("ids") List<Long> jobPositionIds) {
+        jobPositionService.bulkDeleteJobPositions(jobPositionIds);
+        return ApiResponse.<String>builder()
+                .result(jobPositionIds.size() + " job Positions have been deleted.")
+                .build();
     }
 
     @GetMapping()
