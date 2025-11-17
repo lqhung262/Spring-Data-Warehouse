@@ -14,8 +14,9 @@ public class EmployeeWorkLocation {
     private Long employeeWorkLocationId;
 
     @NotNull
-    @Column(name = "employee_id", nullable = false)
-    private Long employeeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     @NotNull
     @Column(name = "work_location_id", nullable = false)

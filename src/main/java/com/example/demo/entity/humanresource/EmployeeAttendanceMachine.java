@@ -14,8 +14,9 @@ public class EmployeeAttendanceMachine {
     private Long employeeAttendanceMachineId;
 
     @NotNull
-    @Column(name = "employee_id", nullable = false)
-    private Long employeeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     @NotNull
     @Column(name = "machine_id", nullable = false)

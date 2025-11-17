@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class EmployeeDecisionResponse {
     Long employeeDecisionId;
     Long employeeId;
-    String sourceId;
+    String decisionNo;
     LocalDateTime decisionDate;
     Long departmentId;
     Long employeeTypeId;

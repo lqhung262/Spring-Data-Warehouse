@@ -1,16 +1,20 @@
 package com.example.demo.entity.humanresource;
 
 import jakarta.persistence.*;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Table(name = "employee")
 @Data
-@SoftDelete(columnName = "is_deleted")
+@SQLDelete(sql = "UPDATE employee SET is_deleted = true WHERE employee_id = ?")
+@SQLRestriction("is_deleted = false")
 public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -162,6 +166,9 @@ public class Employee {
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+
     @Column(name = "current_address_street", length = 255)
     private String currentAddressStreet;
 
@@ -232,4 +239,18 @@ public class Employee {
     @Column(name = "medical_registration")
     private Long medicalRegistration;
 
+    @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
+    private Set<EmployeeDecision> employeeDecisionList;
+
+    @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
+    private Set<EmployeeEducation> employeeEducationList;
+
+    @OneToOne(mappedBy = "employee")
+    private EmployeeWorkShift employeeWorkShift;
+
+    @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
+    private Set<EmployeeAttendanceMachine> employeeAttendanceMachineList;
+
+    @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
+    private Set<EmployeeWorkLocation> employeeWorkLocationList;
 }

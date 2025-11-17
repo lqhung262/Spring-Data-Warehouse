@@ -16,12 +16,13 @@ public class EmployeeDecision {
     private Long employeeDecisionId;
 
     @NotNull
-    @Column(name = "employee_id")
-    private Long employeeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     @NotNull
     @Column(name = "decision_no", nullable = false, unique = true, length = 100)
-    private String sourceId;
+    private String decisionNo;
 
     @Column(name = "decision_date")
     private LocalDateTime decisionDate;

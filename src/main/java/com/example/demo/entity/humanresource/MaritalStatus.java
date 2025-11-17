@@ -3,14 +3,16 @@ package com.example.demo.entity.humanresource;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "marital_status")
 @Data
-@SoftDelete(columnName = "is_deleted")
+@SQLDelete(sql = "UPDATE marital_status SET is_deleted = true WHERE marital_status_id = ?")
+@SQLRestriction("is_deleted = false")
 public class MaritalStatus {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,4 +44,7 @@ public class MaritalStatus {
 
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
 }

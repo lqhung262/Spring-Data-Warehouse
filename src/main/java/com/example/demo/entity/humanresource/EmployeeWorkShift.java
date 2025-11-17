@@ -14,8 +14,9 @@ public class EmployeeWorkShift {
     private Long employeeWorkShiftId;
 
     @NotNull
-    @Column(name = "employee_id", nullable = false)
-    private Long employeeId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false, unique = true)
+    private Employee employee;
 
     @Column(name = "attendance_code", length = 100)
     private String attendanceCode;

@@ -1,9 +1,15 @@
 package com.example.demo.dto.humanresource.Employee;
 
+import com.example.demo.dto.humanresource.EmployeeAttendanceMachine.EmployeeAttendanceMachineResponse;
+import com.example.demo.dto.humanresource.EmployeeDecision.EmployeeDecisionResponse;
+import com.example.demo.dto.humanresource.EmployeeEducation.EmployeeEducationResponse;
+import com.example.demo.dto.humanresource.EmployeeWorkLocation.EmployeeWorkLocationResponse;
+import com.example.demo.dto.humanresource.EmployeeWorkShift.EmployeeWorkShiftResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -75,4 +81,11 @@ public class EmployeeResponse {
     String socialInsuranceCode;
     String healthInsuranceCard;
     Long medicalRegistration;
+
+    // child responses
+    Set<EmployeeDecisionResponse> employeeDecisions;
+    Set<EmployeeEducationResponse> employeeEducations;
+    EmployeeWorkShiftResponse employeeWorkShift;
+    Set<EmployeeAttendanceMachineResponse> employeeAttendanceMachines;
+    Set<EmployeeWorkLocationResponse> employeeWorkLocations;
 }

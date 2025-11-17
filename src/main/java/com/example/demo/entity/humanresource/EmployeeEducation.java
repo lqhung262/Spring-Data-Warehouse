@@ -14,8 +14,9 @@ public class EmployeeEducation {
     private Long employeeEducationId;
 
     @NotNull
-    @Column(name = "employee_id")
-    private Long employeeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     @Column(name = "major_id")
     private Long majorId;

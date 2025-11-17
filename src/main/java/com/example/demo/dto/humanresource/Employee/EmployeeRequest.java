@@ -1,5 +1,11 @@
 package com.example.demo.dto.humanresource.Employee;
 
+import com.example.demo.dto.humanresource.EmployeeAttendanceMachine.EmployeeAttendanceMachineRequest;
+import com.example.demo.dto.humanresource.EmployeeDecision.EmployeeDecisionRequest;
+import com.example.demo.dto.humanresource.EmployeeEducation.EmployeeEducationRequest;
+import com.example.demo.dto.humanresource.EmployeeWorkLocation.EmployeeWorkLocationRequest;
+import com.example.demo.dto.humanresource.EmployeeWorkShift.EmployeeWorkShiftRequest;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -8,6 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -80,6 +87,7 @@ public class EmployeeRequest {
     @NotBlank
     private String taxCode;
 
+    @NotNull
     private Long managerId;
 
     @NotNull
@@ -136,6 +144,8 @@ public class EmployeeRequest {
     @NotNull
     private Long sourceSystemId;
 
+    private Long createdBy;
+    private Long updatedBy;
 
     @NotBlank
     private String currentAddressStreet;
@@ -203,4 +213,19 @@ public class EmployeeRequest {
     @NotNull
     private Long medicalRegistration;
 
+    // Related child objects. These are created/updated only via Employee APIs.
+    @Valid
+    private Set<EmployeeDecisionRequest> employeeDecisions;
+
+    @Valid
+    private Set<EmployeeEducationRequest> employeeEducations;
+
+    @Valid
+    private EmployeeWorkShiftRequest employeeWorkShift;
+
+    @Valid
+    private Set<EmployeeAttendanceMachineRequest> employeeAttendanceMachines;
+
+    @Valid
+    private Set<EmployeeWorkLocationRequest> employeeWorkLocations;
 }

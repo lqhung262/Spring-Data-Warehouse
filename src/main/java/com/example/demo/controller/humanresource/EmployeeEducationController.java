@@ -9,10 +9,9 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -23,66 +22,33 @@ import java.util.List;
 public class EmployeeEducationController {
     EmployeeEducationService employeeEducationService;
 
+    // All operations on this resource are disallowed. Manage via Employee endpoints only.
     @PostMapping()
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     ApiResponse<EmployeeEducationResponse> createEmployeeEducation(@Valid @RequestBody EmployeeEducationRequest request) {
-        ApiResponse<EmployeeEducationResponse> response = new ApiResponse<>();
-
-        response.setResult(employeeEducationService.createEmployeeEducation(request));
-
-        return response;
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeEducation via Employee endpoints only");
     }
-
-//    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<EmployeeEducationResponse>> bulkEmployeeEducationUpsert(@Valid @RequestBody List<EmployeeEducationRequest> requests) {
-//        return ApiResponse.<List<EmployeeEducationResponse>>builder()
-//                .result(employeeEducationService.bulkUpsertEmployeeEducations(requests))
-//                .build();
-//    }
-//
-//    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteEmployeeEducations(@Valid @RequestParam("ids") List<Long> employeeEducationIds) {
-//        employeeEducationService.bulkDeleteEmployeeEducations(employeeEducationIds);
-//        return ApiResponse.<String>builder()
-//                .result(employeeEducationIds.size() + " employee Educations have been deleted.")
-//                .build();
-//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeEducationResponse>> getEmployeeEducations(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                        @RequestParam(required = false, defaultValue = "5") int pageSize,
                                                                        @RequestParam(required = false, defaultValue = "employeeId") String sortBy,
                                                                        @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
-        Sort sort = null;
-        if (sortDirection.equalsIgnoreCase("asc")) {
-            sort = Sort.by(sortBy).ascending();
-        } else {
-            sort = Sort.by(sortBy).descending();
-        }
-
-        return ApiResponse.<List<EmployeeEducationResponse>>builder()
-                .result(employeeEducationService.getEmployeeEducations(PageRequest.of(pageNo - 1, pageSize, sort)))
-                .build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeEducation via Employee endpoints only");
     }
 
     @GetMapping("/{employeeEducationId}")
     ApiResponse<EmployeeEducationResponse> getEmployeeEducation(@PathVariable("employeeEducationId") Long employeeEducationId) {
-        return ApiResponse.<EmployeeEducationResponse>builder()
-                .result(employeeEducationService.getEmployeeEducation(employeeEducationId))
-                .build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeEducation via Employee endpoints only");
     }
 
     @PutMapping("/{employeeEducationId}")
     ApiResponse<EmployeeEducationResponse> updateEmployeeEducation(@PathVariable("employeeEducationId") Long employeeEducationId, @RequestBody EmployeeEducationRequest request) {
-        return ApiResponse.<EmployeeEducationResponse>builder()
-                .result(employeeEducationService.updateEmployeeEducation(employeeEducationId, request))
-                .build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeEducation via Employee endpoints only");
     }
 
     @DeleteMapping("/{employeeEducationId}")
     ApiResponse<String> deleteEmployeeEducation(@PathVariable("employeeEducationId") Long id) {
-        employeeEducationService.deleteEmployeeEducation(id);
-
-        return ApiResponse.<String>builder().result("Employee Education has been deleted").build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeEducation via Employee endpoints only");
     }
 }

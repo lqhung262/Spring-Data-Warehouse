@@ -19,7 +19,7 @@ public class EmployeeDecisionRequest {
     private Long employeeId;
 
     @NotBlank
-    private String sourceId;
+    private String decisionNo; // revert to original field name
 
     @NotNull
     private LocalDateTime decisionDate;

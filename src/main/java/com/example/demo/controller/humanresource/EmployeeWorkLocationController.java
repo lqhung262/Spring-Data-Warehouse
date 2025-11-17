@@ -9,10 +9,9 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -24,65 +23,31 @@ public class EmployeeWorkLocationController {
     EmployeeWorkLocationService employeeWorkLocationService;
 
     @PostMapping()
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     ApiResponse<EmployeeWorkLocationResponse> createEmployeeWorkLocation(@Valid @RequestBody EmployeeWorkLocationRequest request) {
-        ApiResponse<EmployeeWorkLocationResponse> response = new ApiResponse<>();
-
-        response.setResult(employeeWorkLocationService.createEmployeeWorkLocation(request));
-
-        return response;
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeWorkLocation via Employee endpoints only");
     }
-
-//    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<EmployeeWorkLocationResponse>> bulkEmployeeWorkLocationUpsert(@Valid @RequestBody List<EmployeeWorkLocationRequest> requests) {
-//        return ApiResponse.<List<EmployeeWorkLocationResponse>>builder()
-//                .result(employeeWorkLocationService.bulkUpsertEmployeeWorkLocations(requests))
-//                .build();
-//    }
-//
-//    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteEmployeeWorkLocations(@Valid @RequestParam("ids") List<Long> employeeWorkLocationIds) {
-//        employeeWorkLocationService.bulkDeleteEmployeeWorkLocations(employeeWorkLocationIds);
-//        return ApiResponse.<String>builder()
-//                .result(employeeWorkLocationIds.size() + " employeeWorkLocations have been deleted.")
-//                .build();
-//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeWorkLocationResponse>> getEmployeeWorkLocations(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                              @RequestParam(required = false, defaultValue = "5") int pageSize,
                                                                              @RequestParam(required = false, defaultValue = "employeeId") String sortBy,
                                                                              @RequestParam(required = false, defaultValue = "asc") String sortDirection) {
-        Sort sort = null;
-        if (sortDirection.equalsIgnoreCase("asc")) {
-            sort = Sort.by(sortBy).ascending();
-        } else {
-            sort = Sort.by(sortBy).descending();
-        }
-
-        return ApiResponse.<List<EmployeeWorkLocationResponse>>builder()
-                .result(employeeWorkLocationService.getEmployeeWorkLocations(PageRequest.of(pageNo - 1, pageSize, sort)))
-                .build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeWorkLocation via Employee endpoints only");
     }
 
     @GetMapping("/{employeeWorkLocationId}")
     ApiResponse<EmployeeWorkLocationResponse> getEmployeeWorkLocation(@PathVariable("employeeWorkLocationId") Long employeeWorkLocationId) {
-        return ApiResponse.<EmployeeWorkLocationResponse>builder()
-                .result(employeeWorkLocationService.getEmployeeWorkLocation(employeeWorkLocationId))
-                .build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeWorkLocation via Employee endpoints only");
     }
 
     @PutMapping("/{employeeWorkLocationId}")
     ApiResponse<EmployeeWorkLocationResponse> updateEmployeeWorkLocation(@PathVariable("employeeWorkLocationId") Long employeeWorkLocationId, @RequestBody EmployeeWorkLocationRequest request) {
-        return ApiResponse.<EmployeeWorkLocationResponse>builder()
-                .result(employeeWorkLocationService.updateEmployeeWorkLocation(employeeWorkLocationId, request))
-                .build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeWorkLocation via Employee endpoints only");
     }
 
     @DeleteMapping("/{employeeWorkLocationId}")
     ApiResponse<String> deleteEmployeeWorkLocation(@PathVariable("employeeWorkLocationId") Long id) {
-        employeeWorkLocationService.deleteEmployeeWorkLocation(id);
-
-        return ApiResponse.<String>builder().result("Employee Work Location has been deleted").build();
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Manage EmployeeWorkLocation via Employee endpoints only");
     }
 }
