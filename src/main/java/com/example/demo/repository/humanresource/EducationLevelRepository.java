@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface EducationLevelRepository extends JpaRepository<EducationLevel, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả educationLevels tồn tại trong 1 câu query.
-     */
-    List<EducationLevel> findByEducationLevelCodeIn(Collection<String> educationLevelCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 educationLevel bằng educationLevelCode
-     */
-    Optional<EducationLevel> findByEducationLevelCode(String educationLevelCode);
-
-    Long countByEducationLevelIdIn(Collection<Long> educationLevelIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả educationLevels tồn tại trong 1 câu query.
+//     */
+//    List<EducationLevel> findByEducationLevelCodeIn(Collection<String> educationLevelCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 educationLevel bằng educationLevelCode
+//     */
+//    Optional<EducationLevel> findByEducationLevelCode(String educationLevelCode);
+//
+//    Long countByEducationLevelIdIn(Collection<Long> educationLevelIds);
 }

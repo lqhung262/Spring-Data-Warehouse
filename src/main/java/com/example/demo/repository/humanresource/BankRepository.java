@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface BankRepository extends JpaRepository<Bank, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả banks tồn tại trong 1 câu query.
-     */
-    List<Bank> findByBankCodeIn(Collection<String> bankCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 bank bằng bankCode
-     */
-    Optional<Bank> findByBankCode(String bankCode);
-
-    Long countByBankIdIn(Collection<Long> bankIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả banks tồn tại trong 1 câu query.
+//     */
+//    List<Bank> findByBankCodeIn(Collection<String> bankCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 bank bằng bankCode
+//     */
+//    Optional<Bank> findByBankCode(String bankCode);
+//
+//    Long countByBankIdIn(Collection<Long> bankIds);
 }

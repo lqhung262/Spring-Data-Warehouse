@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface EmployeeDecisionRepository extends JpaRepository<EmployeeDecision, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả employeeDecisions tồn tại trong 1 câu query.
-     */
-    List<EmployeeDecision> findByEmployeeDecisionCodeIn(Collection<String> employeeDecisionCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 employeeDecision bằng employeeDecisionCode
-     */
-    Optional<EmployeeDecision> findByEmployeeDecisionId(Long employeeDecisionId);
-
-    Long countByEmployeeDecisionIdIn(Collection<Long> employeeDecisionIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả employeeDecisions tồn tại trong 1 câu query.
+//     */
+////    List<EmployeeDecision> findByEmployeeDecisionCodeIn(Collection<String> employeeDecisionCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 employeeDecision bằng employeeDecisionCode
+//     */
+//    Optional<EmployeeDecision> findByEmployeeDecisionId(Long employeeDecisionId);
+//
+//    Long countByEmployeeDecisionIdIn(Collection<Long> employeeDecisionIds);
 }

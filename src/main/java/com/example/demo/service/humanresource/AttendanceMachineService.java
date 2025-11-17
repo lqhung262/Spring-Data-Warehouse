@@ -31,9 +31,9 @@ public class AttendanceMachineService {
 
 
     public AttendanceMachineResponse createAttendanceMachine(AttendanceMachineRequest request) {
-        attendanceMachineRepository.findByAttendanceMachineCode(request.getAttendanceMachineCode()).ifPresent(b -> {
-            throw new IllegalArgumentException(entityName + " with Attendance Machine Code " + request.getAttendanceMachineCode() + " already exists.");
-        });
+//        attendanceMachineRepository.findByAttendanceMachineCode(request.getAttendanceMachineCode()).ifPresent(b -> {
+//            throw new IllegalArgumentException(entityName + " with Attendance Machine Code " + request.getAttendanceMachineCode() + " already exists.");
+//        });
 
         AttendanceMachine attendanceMachine = attendanceMachineMapper.toAttendanceMachine(request);
 
@@ -41,64 +41,64 @@ public class AttendanceMachineService {
     }
 
 
-    /**
-     * Xử lý Bulk Upsert
-     */
-    @Transactional
-    public List<AttendanceMachineResponse> bulkUpsertAttendanceMachines(List<AttendanceMachineRequest> requests) {
-
-        // Lấy tất cả attendanceMachineCodes từ request
-        List<String> attendanceMachineCodes = requests.stream()
-                .map(AttendanceMachineRequest::getAttendanceMachineCode)
-                .toList();
-
-        // Tìm tất cả các attendanceMachine đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, AttendanceMachine> existingAttendanceMachinesMap = attendanceMachineRepository.findByAttendanceMachineCodeIn(attendanceMachineCodes).stream()
-                .collect(Collectors.toMap(AttendanceMachine::getAttendanceMachineCode, attendanceMachine -> attendanceMachine));
-
-        List<AttendanceMachine> attendanceMachinesToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (AttendanceMachineRequest request : requests) {
-            AttendanceMachine attendanceMachine = existingAttendanceMachinesMap.get(request.getAttendanceMachineCode());
-
-            if (attendanceMachine != null) {
-                // --- Logic UPDATE ---
-                // AttendanceMachine đã tồn tại -> Cập nhật
-                attendanceMachineMapper.updateAttendanceMachine(attendanceMachine, request);
-                attendanceMachinesToSave.add(attendanceMachine);
-            } else {
-                // --- Logic INSERT ---
-                // AttendanceMachine chưa tồn tại -> Tạo mới
-                AttendanceMachine newAttendanceMachine = attendanceMachineMapper.toAttendanceMachine(request);
-                attendanceMachinesToSave.add(newAttendanceMachine);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<AttendanceMachine> savedAttendanceMachines = attendanceMachineRepository.saveAll(attendanceMachinesToSave);
-
-        // Map sang Response DTO và trả về
-        return savedAttendanceMachines.stream()
-                .map(attendanceMachineMapper::toAttendanceMachineResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteAttendanceMachines(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = attendanceMachineRepository.countByAttendanceMachineIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        attendanceMachineRepository.deleteAllById(ids);
-    }
+//    /**
+//     * Xử lý Bulk Upsert
+//     */
+//    @Transactional
+//    public List<AttendanceMachineResponse> bulkUpsertAttendanceMachines(List<AttendanceMachineRequest> requests) {
+//
+//        // Lấy tất cả attendanceMachineCodes từ request
+//        List<String> attendanceMachineCodes = requests.stream()
+//                .map(AttendanceMachineRequest::getAttendanceMachineCode)
+//                .toList();
+//
+//        // Tìm tất cả các attendanceMachine đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, AttendanceMachine> existingAttendanceMachinesMap = attendanceMachineRepository.findByAttendanceMachineCodeIn(attendanceMachineCodes).stream()
+//                .collect(Collectors.toMap(AttendanceMachine::getAttendanceMachineCode, attendanceMachine -> attendanceMachine));
+//
+//        List<AttendanceMachine> attendanceMachinesToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (AttendanceMachineRequest request : requests) {
+//            AttendanceMachine attendanceMachine = existingAttendanceMachinesMap.get(request.getAttendanceMachineCode());
+//
+//            if (attendanceMachine != null) {
+//                // --- Logic UPDATE ---
+//                // AttendanceMachine đã tồn tại -> Cập nhật
+//                attendanceMachineMapper.updateAttendanceMachine(attendanceMachine, request);
+//                attendanceMachinesToSave.add(attendanceMachine);
+//            } else {
+//                // --- Logic INSERT ---
+//                // AttendanceMachine chưa tồn tại -> Tạo mới
+//                AttendanceMachine newAttendanceMachine = attendanceMachineMapper.toAttendanceMachine(request);
+//                attendanceMachinesToSave.add(newAttendanceMachine);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<AttendanceMachine> savedAttendanceMachines = attendanceMachineRepository.saveAll(attendanceMachinesToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedAttendanceMachines.stream()
+//                .map(attendanceMachineMapper::toAttendanceMachineResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteAttendanceMachines(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = attendanceMachineRepository.countByAttendanceMachineIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        attendanceMachineRepository.deleteAllById(ids);
+//    }
 
     public List<AttendanceMachineResponse> getAttendanceMachines(Pageable pageable) {
         Page<AttendanceMachine> page = attendanceMachineRepository.findAll(pageable);

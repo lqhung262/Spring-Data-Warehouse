@@ -38,63 +38,61 @@ public class ProvinceCityService {
     /**
      * Xử lý Bulk Upsert
      */
-    @Transactional
-    public List<ProvinceCityResponse> bulkUpsertProvinceCities(List<ProvinceCityRequest> requests) {
-
-        // Lấy tất cả provinceCityCodes từ request
-        List<String> provinceCityCodes = requests.stream()
-                .map(ProvinceCityRequest::getProvinceCityCode)
-                .toList();
-
-        // Tìm tất cả các provinceCity đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, ProvinceCity> existingProvinceCitysMap = provinceCityRepository.findByProvinceCityCodeIn(provinceCityCodes).stream()
-                .collect(Collectors.toMap(ProvinceCity::getProvinceCityCode, provinceCity -> provinceCity));
-
-        List<ProvinceCity> provinceCitysToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (ProvinceCityRequest request : requests) {
-            ProvinceCity provinceCity = existingProvinceCitysMap.get(request.getProvinceCityCode());
-
-            if (provinceCity != null) {
-                // --- Logic UPDATE ---
-                // ProvinceCity đã tồn tại -> Cập nhật
-                provinceCityMapper.updateProvinceCity(provinceCity, request);
-                provinceCitysToSave.add(provinceCity);
-            } else {
-                // --- Logic INSERT ---
-                // ProvinceCity chưa tồn tại -> Tạo mới
-                ProvinceCity newProvinceCity = provinceCityMapper.toProvinceCity(request);
-                provinceCitysToSave.add(newProvinceCity);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<ProvinceCity> savedProvinceCitys = provinceCityRepository.saveAll(provinceCitysToSave);
-
-        // Map sang Response DTO và trả về
-        return savedProvinceCitys.stream()
-                .map(provinceCityMapper::toProvinceCityResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteProvinceCities(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = provinceCityRepository.countByProvinceCityIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        provinceCityRepository.deleteAllById(ids);
-    }
-
-
+//    @Transactional
+//    public List<ProvinceCityResponse> bulkUpsertProvinceCities(List<ProvinceCityRequest> requests) {
+//
+//        // Lấy tất cả provinceCityCodes từ request
+//        List<String> provinceCityCodes = requests.stream()
+//                .map(ProvinceCityRequest::getProvinceCityCode)
+//                .toList();
+//
+//        // Tìm tất cả các provinceCity đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, ProvinceCity> existingProvinceCitysMap = provinceCityRepository.findByProvinceCityCodeIn(provinceCityCodes).stream()
+//                .collect(Collectors.toMap(ProvinceCity::getProvinceCityCode, provinceCity -> provinceCity));
+//
+//        List<ProvinceCity> provinceCitysToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (ProvinceCityRequest request : requests) {
+//            ProvinceCity provinceCity = existingProvinceCitysMap.get(request.getProvinceCityCode());
+//
+//            if (provinceCity != null) {
+//                // --- Logic UPDATE ---
+//                // ProvinceCity đã tồn tại -> Cập nhật
+//                provinceCityMapper.updateProvinceCity(provinceCity, request);
+//                provinceCitysToSave.add(provinceCity);
+//            } else {
+//                // --- Logic INSERT ---
+//                // ProvinceCity chưa tồn tại -> Tạo mới
+//                ProvinceCity newProvinceCity = provinceCityMapper.toProvinceCity(request);
+//                provinceCitysToSave.add(newProvinceCity);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<ProvinceCity> savedProvinceCitys = provinceCityRepository.saveAll(provinceCitysToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedProvinceCitys.stream()
+//                .map(provinceCityMapper::toProvinceCityResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteProvinceCities(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = provinceCityRepository.countByProvinceCityIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        provinceCityRepository.deleteAllById(ids);
+//    }
     public List<ProvinceCityResponse> getProvinceCities(Pageable pageable) {
         Page<ProvinceCity> page = provinceCityRepository.findAll(pageable);
         return page.getContent()

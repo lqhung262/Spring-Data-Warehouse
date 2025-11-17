@@ -33,20 +33,20 @@ public class EmployeeEducationController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EmployeeEducationResponse>> bulkEmployeeEducationUpsert(@Valid @RequestBody List<EmployeeEducationRequest> requests) {
-        return ApiResponse.<List<EmployeeEducationResponse>>builder()
-                .result(employeeEducationService.bulkUpsertEmployeeEducations(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEmployeeEducations(@Valid @RequestParam("ids") List<Long> employeeEducationIds) {
-        employeeEducationService.bulkDeleteEmployeeEducations(employeeEducationIds);
-        return ApiResponse.<String>builder()
-                .result(employeeEducationIds.size() + " employee Educations have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EmployeeEducationResponse>> bulkEmployeeEducationUpsert(@Valid @RequestBody List<EmployeeEducationRequest> requests) {
+//        return ApiResponse.<List<EmployeeEducationResponse>>builder()
+//                .result(employeeEducationService.bulkUpsertEmployeeEducations(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEmployeeEducations(@Valid @RequestParam("ids") List<Long> employeeEducationIds) {
+//        employeeEducationService.bulkDeleteEmployeeEducations(employeeEducationIds);
+//        return ApiResponse.<String>builder()
+//                .result(employeeEducationIds.size() + " employee Educations have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeEducationResponse>> getEmployeeEducations(@RequestParam(required = false, defaultValue = "1") int pageNo,

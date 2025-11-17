@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface EmployeeWorkShiftRepository extends JpaRepository<EmployeeWorkShift, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả employeeWorkShifts tồn tại trong 1 câu query.
-     */
-    List<EmployeeWorkShift> findByAttendanceCodeIn(Collection<String> employeeWorkShiftCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 employeeWorkShift bằng attendanceCode
-     */
-    Optional<EmployeeWorkShift> findByAttendanceCode(String attendanceCode);
-
-    Long countByEmployeeWorkShiftIdIn(Collection<Long> employeeWorkShiftIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả employeeWorkShifts tồn tại trong 1 câu query.
+//     */
+//    List<EmployeeWorkShift> findByAttendanceCodeIn(Collection<String> employeeWorkShiftCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 employeeWorkShift bằng attendanceCode
+//     */
+//    Optional<EmployeeWorkShift> findByAttendanceCode(String attendanceCode);
+//
+//    Long countByEmployeeWorkShiftIdIn(Collection<Long> employeeWorkShiftIds);
 }

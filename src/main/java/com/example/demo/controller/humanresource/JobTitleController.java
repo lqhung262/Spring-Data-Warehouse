@@ -32,20 +32,20 @@ public class JobTitleController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<JobTitleResponse>> bulkJobTitleUpsert(@Valid @RequestBody List<JobTitleRequest> requests) {
-        return ApiResponse.<List<JobTitleResponse>>builder()
-                .result(jobTitleService.bulkUpsertJobTitles(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteJobTitles(@Valid @RequestParam("ids") List<Long> jobTitleIds) {
-        jobTitleService.bulkDeleteJobTitles(jobTitleIds);
-        return ApiResponse.<String>builder()
-                .result(jobTitleIds.size() + " job Titles have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<JobTitleResponse>> bulkJobTitleUpsert(@Valid @RequestBody List<JobTitleRequest> requests) {
+//        return ApiResponse.<List<JobTitleResponse>>builder()
+//                .result(jobTitleService.bulkUpsertJobTitles(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteJobTitles(@Valid @RequestParam("ids") List<Long> jobTitleIds) {
+//        jobTitleService.bulkDeleteJobTitles(jobTitleIds);
+//        return ApiResponse.<String>builder()
+//                .result(jobTitleIds.size() + " job Titles have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<JobTitleResponse>> getJobTitles(@RequestParam(required = false, defaultValue = "1") int pageNo,

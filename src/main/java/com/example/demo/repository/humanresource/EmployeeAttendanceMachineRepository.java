@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface EmployeeAttendanceMachineRepository extends JpaRepository<EmployeeAttendanceMachine, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả employeeAttendanceMachines tồn tại trong 1 câu query.
-     */
-    List<EmployeeAttendanceMachine> findByEmployeeAttendanceMachineCodeIn(Collection<Long> employeeAttendanceMachineCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 employeeAttendanceMachine bằng employeeAttendanceMachineId
-     */
-    Optional<EmployeeAttendanceMachine> findByEmployeeAttendanceMachineId(Long employeeAttendanceMachineId);
-
-    Long countByEmployeeAttendanceMachineIdIn(Collection<Long> employeeAttendanceMachineIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả employeeAttendanceMachines tồn tại trong 1 câu query.
+//     */
+//    List<EmployeeAttendanceMachine> findByEmployeeAttendanceMachineCodeIn(Collection<Long> employeeAttendanceMachineCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 employeeAttendanceMachine bằng employeeAttendanceMachineId
+//     */
+//    Optional<EmployeeAttendanceMachine> findByEmployeeAttendanceMachineId(Long employeeAttendanceMachineId);
+//
+//    Long countByEmployeeAttendanceMachineIdIn(Collection<Long> employeeAttendanceMachineIds);
 }

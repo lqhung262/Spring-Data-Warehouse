@@ -31,20 +31,20 @@ public class EmployeeDecisionController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EmployeeDecisionResponse>> bulkEmployeeDecisionUpsert(@Valid @RequestBody List<EmployeeDecisionRequest> requests) {
-        return ApiResponse.<List<EmployeeDecisionResponse>>builder()
-                .result(employeeDecisionService.bulkUpsertEmployeeDecisions(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEmployeeDecisions(@Valid @RequestParam("ids") List<Long> employeeDecisionIds) {
-        employeeDecisionService.bulkDeleteEmployeeDecisions(employeeDecisionIds);
-        return ApiResponse.<String>builder()
-                .result(employeeDecisionIds.size() + " employee Decisions have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EmployeeDecisionResponse>> bulkEmployeeDecisionUpsert(@Valid @RequestBody List<EmployeeDecisionRequest> requests) {
+//        return ApiResponse.<List<EmployeeDecisionResponse>>builder()
+//                .result(employeeDecisionService.bulkUpsertEmployeeDecisions(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEmployeeDecisions(@Valid @RequestParam("ids") List<Long> employeeDecisionIds) {
+//        employeeDecisionService.bulkDeleteEmployeeDecisions(employeeDecisionIds);
+//        return ApiResponse.<String>builder()
+//                .result(employeeDecisionIds.size() + " employee Decisions have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeDecisionResponse>> getEmployeeDecisions(@RequestParam(required = false, defaultValue = "1") int pageNo,

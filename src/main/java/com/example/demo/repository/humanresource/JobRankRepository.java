@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface JobRankRepository extends JpaRepository<JobRank, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả jobRanks tồn tại trong 1 câu query.
-     */
-    List<JobRank> findByJobRankCodeIn(Collection<String> jobRankCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 jobRank bằng jobRankCode
-     */
-    Optional<JobRank> findByJobRankCode(String jobRankCode);
-
-    Long countByJobRankIdIn(Collection<Long> jobRankIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả jobRanks tồn tại trong 1 câu query.
+//     */
+//    List<JobRank> findByJobRankCodeIn(Collection<String> jobRankCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 jobRank bằng jobRankCode
+//     */
+//    Optional<JobRank> findByJobRankCode(String jobRankCode);
+//
+//    Long countByJobRankIdIn(Collection<Long> jobRankIds);
 }

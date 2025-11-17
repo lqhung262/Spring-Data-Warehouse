@@ -38,63 +38,61 @@ public class EmployeeWorkShiftService {
     /**
      * Xử lý Bulk Upsert
      */
-    @Transactional
-    public List<EmployeeWorkShiftResponse> bulkUpsertEmployeeWorkShifts(List<EmployeeWorkShiftRequest> requests) {
-
-        // Lấy tất cả employeeWorkShiftCodes từ request
-        List<String> employeeWorkShiftCodes = requests.stream()
-                .map(EmployeeWorkShiftRequest::getEmployeeWorkShiftCode)
-                .toList();
-
-        // Tìm tất cả các employeeWorkShift đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, EmployeeWorkShift> existingEmployeeWorkShiftsMap = employeeWorkShiftRepository.findByEmployeeWorkShiftCodeIn(employeeWorkShiftCodes).stream()
-                .collect(Collectors.toMap(EmployeeWorkShift::getAttemdanceCode, employeeWorkShift -> employeeWorkShift));
-
-        List<EmployeeWorkShift> employeeWorkShiftsToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (EmployeeWorkShiftRequest request : requests) {
-            EmployeeWorkShift employeeWorkShift = existingEmployeeWorkShiftsMap.get(request.getEmployeeWorkShiftCode());
-
-            if (employeeWorkShift != null) {
-                // --- Logic UPDATE ---
-                // EmployeeWorkShift đã tồn tại -> Cập nhật
-                employeeWorkShiftMapper.updateEmployeeWorkShift(employeeWorkShift, request);
-                employeeWorkShiftsToSave.add(employeeWorkShift);
-            } else {
-                // --- Logic INSERT ---
-                // EmployeeWorkShift chưa tồn tại -> Tạo mới
-                EmployeeWorkShift newEmployeeWorkShift = employeeWorkShiftMapper.toEmployeeWorkShift(request);
-                employeeWorkShiftsToSave.add(newEmployeeWorkShift);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<EmployeeWorkShift> savedEmployeeWorkShifts = employeeWorkShiftRepository.saveAll(employeeWorkShiftsToSave);
-
-        // Map sang Response DTO và trả về
-        return savedEmployeeWorkShifts.stream()
-                .map(employeeWorkShiftMapper::toEmployeeWorkShiftResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteEmployeeWorkShifts(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = employeeWorkShiftRepository.countByEmployeeWorkShiftIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        employeeWorkShiftRepository.deleteAllById(ids);
-    }
-
-
+//    @Transactional
+//    public List<EmployeeWorkShiftResponse> bulkUpsertEmployeeWorkShifts(List<EmployeeWorkShiftRequest> requests) {
+//
+//        // Lấy tất cả employeeWorkShiftCodes từ request
+//        List<String> employeeWorkShiftCodes = requests.stream()
+//                .map(EmployeeWorkShiftRequest::getEmployeeWorkShiftCode)
+//                .toList();
+//
+//        // Tìm tất cả các employeeWorkShift đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, EmployeeWorkShift> existingEmployeeWorkShiftsMap = employeeWorkShiftRepository.findByEmployeeWorkShiftCodeIn(employeeWorkShiftCodes).stream()
+//                .collect(Collectors.toMap(EmployeeWorkShift::getAttemdanceCode, employeeWorkShift -> employeeWorkShift));
+//
+//        List<EmployeeWorkShift> employeeWorkShiftsToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (EmployeeWorkShiftRequest request : requests) {
+//            EmployeeWorkShift employeeWorkShift = existingEmployeeWorkShiftsMap.get(request.getEmployeeWorkShiftCode());
+//
+//            if (employeeWorkShift != null) {
+//                // --- Logic UPDATE ---
+//                // EmployeeWorkShift đã tồn tại -> Cập nhật
+//                employeeWorkShiftMapper.updateEmployeeWorkShift(employeeWorkShift, request);
+//                employeeWorkShiftsToSave.add(employeeWorkShift);
+//            } else {
+//                // --- Logic INSERT ---
+//                // EmployeeWorkShift chưa tồn tại -> Tạo mới
+//                EmployeeWorkShift newEmployeeWorkShift = employeeWorkShiftMapper.toEmployeeWorkShift(request);
+//                employeeWorkShiftsToSave.add(newEmployeeWorkShift);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<EmployeeWorkShift> savedEmployeeWorkShifts = employeeWorkShiftRepository.saveAll(employeeWorkShiftsToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedEmployeeWorkShifts.stream()
+//                .map(employeeWorkShiftMapper::toEmployeeWorkShiftResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteEmployeeWorkShifts(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = employeeWorkShiftRepository.countByEmployeeWorkShiftIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        employeeWorkShiftRepository.deleteAllById(ids);
+//    }
     public List<EmployeeWorkShiftResponse> getEmployeeWorkShifts(Pageable pageable) {
         return employeeWorkShiftRepository.findAll(pageable).getContent().stream().map(employeeWorkShiftMapper::toEmployeeWorkShiftResponse).toList();
     }

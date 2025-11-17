@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface MedicalFacilityRepository extends JpaRepository<MedicalFacility, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả medicalFacilitys tồn tại trong 1 câu query.
-     */
-    List<MedicalFacility> findByMedicalFacilityCodeIn(Collection<String> medicalFacilityCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 medicalFacility bằng medicalFacilityCode
-     */
-    Optional<MedicalFacility> findByMedicalFacilityCode(String medicalFacilityCode);
-
-    Long countByMedicalFacilityIdIn(Collection<Long> medicalFacilityIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả medicalFacilitys tồn tại trong 1 câu query.
+//     */
+//    List<MedicalFacility> findByMedicalFacilityCodeIn(Collection<String> medicalFacilityCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 medicalFacility bằng medicalFacilityCode
+//     */
+//    Optional<MedicalFacility> findByMedicalFacilityCode(String medicalFacilityCode);
+//
+//    Long countByMedicalFacilityIdIn(Collection<Long> medicalFacilityIds);
 }

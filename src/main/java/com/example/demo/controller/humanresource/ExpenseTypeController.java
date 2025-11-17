@@ -32,20 +32,20 @@ public class ExpenseTypeController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<ExpenseTypeResponse>> bulkExpenseTypeUpsert(@Valid @RequestBody List<ExpenseTypeRequest> requests) {
-        return ApiResponse.<List<ExpenseTypeResponse>>builder()
-                .result(expenseTypeService.bulkUpsertExpenseTypes(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteExpenseTypes(@Valid @RequestParam("ids") List<Long> expenseTypeIds) {
-        expenseTypeService.bulkDeleteExpenseTypes(expenseTypeIds);
-        return ApiResponse.<String>builder()
-                .result(expenseTypeIds.size() + " expense Types have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<ExpenseTypeResponse>> bulkExpenseTypeUpsert(@Valid @RequestBody List<ExpenseTypeRequest> requests) {
+//        return ApiResponse.<List<ExpenseTypeResponse>>builder()
+//                .result(expenseTypeService.bulkUpsertExpenseTypes(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteExpenseTypes(@Valid @RequestParam("ids") List<Long> expenseTypeIds) {
+//        expenseTypeService.bulkDeleteExpenseTypes(expenseTypeIds);
+//        return ApiResponse.<String>builder()
+//                .result(expenseTypeIds.size() + " expense Types have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<ExpenseTypeResponse>> getExpenseTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,

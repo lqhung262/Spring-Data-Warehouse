@@ -32,20 +32,20 @@ public class EmployeeWorkShiftController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EmployeeWorkShiftResponse>> bulkEmployeeWorkShiftUpsert(@Valid @RequestBody List<EmployeeWorkShiftRequest> requests) {
-        return ApiResponse.<List<EmployeeWorkShiftResponse>>builder()
-                .result(employeeWorkShiftService.bulkUpsertEmployeeWorkShifts(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEmployeeWorkShifts(@Valid @RequestParam("ids") List<Long> employeeWorkShiftIds) {
-        employeeWorkShiftService.bulkDeleteEmployeeWorkShifts(employeeWorkShiftIds);
-        return ApiResponse.<String>builder()
-                .result(employeeWorkShiftIds.size() + " employee Work Shifts have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EmployeeWorkShiftResponse>> bulkEmployeeWorkShiftUpsert(@Valid @RequestBody List<EmployeeWorkShiftRequest> requests) {
+//        return ApiResponse.<List<EmployeeWorkShiftResponse>>builder()
+//                .result(employeeWorkShiftService.bulkUpsertEmployeeWorkShifts(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEmployeeWorkShifts(@Valid @RequestParam("ids") List<Long> employeeWorkShiftIds) {
+//        employeeWorkShiftService.bulkDeleteEmployeeWorkShifts(employeeWorkShiftIds);
+//        return ApiResponse.<String>builder()
+//                .result(employeeWorkShiftIds.size() + " employee Work Shifts have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeWorkShiftResponse>> getEmployeeWorkShifts(@RequestParam(required = false, defaultValue = "1") int pageNo,

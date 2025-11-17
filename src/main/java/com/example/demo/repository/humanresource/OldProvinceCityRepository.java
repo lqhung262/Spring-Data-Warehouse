@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface OldProvinceCityRepository extends JpaRepository<OldProvinceCity, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả oldProvinceCity tồn tại trong 1 câu query.
-     */
-    List<OldProvinceCity> findByOldProvinceCityCodeIn(Collection<String> oldProvinceCityCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 oldProvinceCity bằng oldProvinceCityCode
-     */
-    Optional<OldProvinceCity> findByOldProvinceCityId(Long oldProvinceCityId);
-
-    Long countByOldProvinceCityIdIn(Collection<Long> oldProvinceCityIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả oldProvinceCity tồn tại trong 1 câu query.
+//     */
+////    List<OldProvinceCity> findByOldProvinceCityCodeIn(Collection<String> oldProvinceCityCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 oldProvinceCity bằng oldProvinceCityCode
+//     */
+//    Optional<OldProvinceCity> findByOldProvinceCityId(Long oldProvinceCityId);
+//
+//    Long countByOldProvinceCityIdIn(Collection<Long> oldProvinceCityIds);
 }

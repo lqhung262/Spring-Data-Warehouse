@@ -31,20 +31,20 @@ public class EmployeeController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EmployeeResponse>> bulkEmployeeUpsert(@Valid @RequestBody List<EmployeeRequest> requests) {
-        return ApiResponse.<List<EmployeeResponse>>builder()
-                .result(employeeService.bulkUpsertEmployees(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEmployees(@Valid @RequestParam("ids") List<Long> employeeIds) {
-        employeeService.bulkDeleteEmployees(employeeIds);
-        return ApiResponse.<String>builder()
-                .result(employeeIds.size() + " employees have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EmployeeResponse>> bulkEmployeeUpsert(@Valid @RequestBody List<EmployeeRequest> requests) {
+//        return ApiResponse.<List<EmployeeResponse>>builder()
+//                .result(employeeService.bulkUpsertEmployees(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEmployees(@Valid @RequestParam("ids") List<Long> employeeIds) {
+//        employeeService.bulkDeleteEmployees(employeeIds);
+//        return ApiResponse.<String>builder()
+//                .result(employeeIds.size() + " employees have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeResponse>> getEmployees(@RequestParam(required = false, defaultValue = "1") int pageNo,

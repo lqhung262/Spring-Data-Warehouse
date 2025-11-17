@@ -38,62 +38,61 @@ public class WardService {
     /**
      * Xử lý Bulk Upsert
      */
-    @Transactional
-    public List<WardResponse> bulkUpsertWards(List<WardRequest> requests) {
-
-        // Lấy tất cả wardCodes từ request
-        List<String> wardCodes = requests.stream()
-                .map(WardRequest::getWardCode)
-                .toList();
-
-        // Tìm tất cả các ward đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, Ward> existingWardsMap = wardRepository.findByWardCodeIn(wardCodes).stream()
-                .collect(Collectors.toMap(Ward::getWardCode, ward -> ward));
-
-        List<Ward> wardsToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (WardRequest request : requests) {
-            Ward ward = existingWardsMap.get(request.getWardCode());
-
-            if (ward != null) {
-                // --- Logic UPDATE ---
-                // Ward đã tồn tại -> Cập nhật
-                wardMapper.updateWard(ward, request);
-                wardsToSave.add(ward);
-            } else {
-                // --- Logic INSERT ---
-                // Ward chưa tồn tại -> Tạo mới
-                Ward newWard = wardMapper.toWard(request);
-                wardsToSave.add(newWard);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<Ward> savedWards = wardRepository.saveAll(wardsToSave);
-
-        // Map sang Response DTO và trả về
-        return savedWards.stream()
-                .map(wardMapper::toWardResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteWards(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = wardRepository.countByWardIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        wardRepository.deleteAllById(ids);
-    }
-
+//    @Transactional
+//    public List<WardResponse> bulkUpsertWards(List<WardRequest> requests) {
+//
+//        // Lấy tất cả wardCodes từ request
+//        List<String> wardCodes = requests.stream()
+//                .map(WardRequest::getWardCode)
+//                .toList();
+//
+//        // Tìm tất cả các ward đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, Ward> existingWardsMap = wardRepository.findByWardCodeIn(wardCodes).stream()
+//                .collect(Collectors.toMap(Ward::getWardCode, ward -> ward));
+//
+//        List<Ward> wardsToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (WardRequest request : requests) {
+//            Ward ward = existingWardsMap.get(request.getWardCode());
+//
+//            if (ward != null) {
+//                // --- Logic UPDATE ---
+//                // Ward đã tồn tại -> Cập nhật
+//                wardMapper.updateWard(ward, request);
+//                wardsToSave.add(ward);
+//            } else {
+//                // --- Logic INSERT ---
+//                // Ward chưa tồn tại -> Tạo mới
+//                Ward newWard = wardMapper.toWard(request);
+//                wardsToSave.add(newWard);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<Ward> savedWards = wardRepository.saveAll(wardsToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedWards.stream()
+//                .map(wardMapper::toWardResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteWards(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = wardRepository.countByWardIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        wardRepository.deleteAllById(ids);
+//    }
     public List<WardResponse> getWards(Pageable pageable) {
         Page<Ward> page = wardRepository.findAll(pageable);
         return page.getContent()

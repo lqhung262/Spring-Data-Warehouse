@@ -10,12 +10,12 @@ import java.util.Optional;
 
 @Repository
 public interface AttendanceMachineRepository extends JpaRepository<AttendanceMachine, Long> {
-    List<AttendanceMachine> findByAttendanceMachineCodeIn(Collection<String> attendanceMachineCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 attendanceMachine bằng attendanceMachineCode
-     */
-    Optional<AttendanceMachine> findByAttendanceMachineCode(String attendanceMachineCode);
-
-    Long countByAttendanceMachineIdIn(Collection<Long> attendanceMachineIds);
+//    List<AttendanceMachine> findByAttendanceMachineCodeIn(Collection<String> attendanceMachineCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 attendanceMachine bằng attendanceMachineCode
+//     */
+//    Optional<AttendanceMachine> findByAttendanceMachineCode(String attendanceMachineCode);
+//
+//    Long countByAttendanceMachineIdIn(Collection<Long> attendanceMachineIds);
 }

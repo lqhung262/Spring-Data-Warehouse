@@ -32,20 +32,20 @@ public class MajorController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<MajorResponse>> bulkMajorUpsert(@Valid @RequestBody List<MajorRequest> requests) {
-        return ApiResponse.<List<MajorResponse>>builder()
-                .result(majorService.bulkUpsertMajors(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteMajors(@Valid @RequestParam("ids") List<Long> majorIds) {
-        majorService.bulkDeleteMajors(majorIds);
-        return ApiResponse.<String>builder()
-                .result(majorIds.size() + " majors have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<MajorResponse>> bulkMajorUpsert(@Valid @RequestBody List<MajorRequest> requests) {
+//        return ApiResponse.<List<MajorResponse>>builder()
+//                .result(majorService.bulkUpsertMajors(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteMajors(@Valid @RequestParam("ids") List<Long> majorIds) {
+//        majorService.bulkDeleteMajors(majorIds);
+//        return ApiResponse.<String>builder()
+//                .result(majorIds.size() + " majors have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<MajorResponse>> getMajors(@RequestParam(required = false, defaultValue = "1") int pageNo,

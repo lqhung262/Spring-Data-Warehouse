@@ -32,20 +32,20 @@ public class JobPositionController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<JobPositionResponse>> bulkJobPositionUpsert(@Valid @RequestBody List<JobPositionRequest> requests) {
-        return ApiResponse.<List<JobPositionResponse>>builder()
-                .result(jobPositionService.bulkUpsertJobPositions(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteJobPositions(@Valid @RequestParam("ids") List<Long> jobPositionIds) {
-        jobPositionService.bulkDeleteJobPositions(jobPositionIds);
-        return ApiResponse.<String>builder()
-                .result(jobPositionIds.size() + " job Positions have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<JobPositionResponse>> bulkJobPositionUpsert(@Valid @RequestBody List<JobPositionRequest> requests) {
+//        return ApiResponse.<List<JobPositionResponse>>builder()
+//                .result(jobPositionService.bulkUpsertJobPositions(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteJobPositions(@Valid @RequestParam("ids") List<Long> jobPositionIds) {
+//        jobPositionService.bulkDeleteJobPositions(jobPositionIds);
+//        return ApiResponse.<String>builder()
+//                .result(jobPositionIds.size() + " job Positions have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<JobPositionResponse>> getJobPositions(@RequestParam(required = false, defaultValue = "1") int pageNo,

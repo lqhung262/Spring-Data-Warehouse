@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface MaritalStatusRepository extends JpaRepository<MaritalStatus, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả maritalStatus tồn tại trong 1 câu query.
-     */
-    List<MaritalStatus> findByMaritalStatusCodeIn(Collection<String> maritalStatusCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 maritalStatus bằng maritalStatusCode
-     */
-    Optional<MaritalStatus> findByMaritalStatusCode(String maritalStatusCode);
-
-    Long countByMaritalStatusIdIn(Collection<Long> maritalStatusIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả maritalStatus tồn tại trong 1 câu query.
+//     */
+//    List<MaritalStatus> findByMaritalStatusCodeIn(Collection<String> maritalStatusCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 maritalStatus bằng maritalStatusCode
+//     */
+//    Optional<MaritalStatus> findByMaritalStatusCode(String maritalStatusCode);
+//
+//    Long countByMaritalStatusIdIn(Collection<Long> maritalStatusIds);
 }

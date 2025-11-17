@@ -30,9 +30,9 @@ public class ExpenseTypeService {
     private String entityName;
 
     public ExpenseTypeResponse createExpenseType(ExpenseTypeRequest request) {
-        expenseTypeRepository.findByExpenseTypeCode(request.getExpenseTypeCode()).ifPresent(b -> {
-            throw new IllegalArgumentException(entityName + " with expense Type Code " + request.getExpenseTypeCode() + " already exists.");
-        });
+//        expenseTypeRepository.findByExpenseTypeCode(request.getExpenseTypeCode()).ifPresent(b -> {
+//            throw new IllegalArgumentException(entityName + " with expense Type Code " + request.getExpenseTypeCode() + " already exists.");
+//        });
 
         ExpenseType expenseType = expenseTypeMapper.toExpenseType(request);
 
@@ -42,63 +42,61 @@ public class ExpenseTypeService {
     /**
      * Xử lý Bulk Upsert
      */
-    @Transactional
-    public List<ExpenseTypeResponse> bulkUpsertExpenseTypes(List<ExpenseTypeRequest> requests) {
-
-        // Lấy tất cả expenseTypeCodes từ request
-        List<String> expenseTypeCodes = requests.stream()
-                .map(ExpenseTypeRequest::getExpenseTypeCode)
-                .toList();
-
-        // Tìm tất cả các expenseType đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, ExpenseType> existingExpenseTypesMap = expenseTypeRepository.findByExpenseTypeCodeIn(expenseTypeCodes).stream()
-                .collect(Collectors.toMap(ExpenseType::getExpenseTypeCode, expenseType -> expenseType));
-
-        List<ExpenseType> expenseTypesToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (ExpenseTypeRequest request : requests) {
-            ExpenseType expenseType = existingExpenseTypesMap.get(request.getExpenseTypeCode());
-
-            if (expenseType != null) {
-                // --- Logic UPDATE ---
-                // ExpenseType đã tồn tại -> Cập nhật
-                expenseTypeMapper.updateExpenseType(expenseType, request);
-                expenseTypesToSave.add(expenseType);
-            } else {
-                // --- Logic INSERT ---
-                // ExpenseType chưa tồn tại -> Tạo mới
-                ExpenseType newExpenseType = expenseTypeMapper.toExpenseType(request);
-                expenseTypesToSave.add(newExpenseType);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<ExpenseType> savedExpenseTypes = expenseTypeRepository.saveAll(expenseTypesToSave);
-
-        // Map sang Response DTO và trả về
-        return savedExpenseTypes.stream()
-                .map(expenseTypeMapper::toExpenseTypeResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteExpenseTypes(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = expenseTypeRepository.countByExpenseTypeIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        expenseTypeRepository.deleteAllById(ids);
-    }
-
-
+//    @Transactional
+//    public List<ExpenseTypeResponse> bulkUpsertExpenseTypes(List<ExpenseTypeRequest> requests) {
+//
+//        // Lấy tất cả expenseTypeCodes từ request
+//        List<String> expenseTypeCodes = requests.stream()
+//                .map(ExpenseTypeRequest::getExpenseTypeCode)
+//                .toList();
+//
+//        // Tìm tất cả các expenseType đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, ExpenseType> existingExpenseTypesMap = expenseTypeRepository.findByExpenseTypeCodeIn(expenseTypeCodes).stream()
+//                .collect(Collectors.toMap(ExpenseType::getExpenseTypeCode, expenseType -> expenseType));
+//
+//        List<ExpenseType> expenseTypesToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (ExpenseTypeRequest request : requests) {
+//            ExpenseType expenseType = existingExpenseTypesMap.get(request.getExpenseTypeCode());
+//
+//            if (expenseType != null) {
+//                // --- Logic UPDATE ---
+//                // ExpenseType đã tồn tại -> Cập nhật
+//                expenseTypeMapper.updateExpenseType(expenseType, request);
+//                expenseTypesToSave.add(expenseType);
+//            } else {
+//                // --- Logic INSERT ---
+//                // ExpenseType chưa tồn tại -> Tạo mới
+//                ExpenseType newExpenseType = expenseTypeMapper.toExpenseType(request);
+//                expenseTypesToSave.add(newExpenseType);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<ExpenseType> savedExpenseTypes = expenseTypeRepository.saveAll(expenseTypesToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedExpenseTypes.stream()
+//                .map(expenseTypeMapper::toExpenseTypeResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteExpenseTypes(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = expenseTypeRepository.countByExpenseTypeIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        expenseTypeRepository.deleteAllById(ids);
+//    }
     public List<ExpenseTypeResponse> getExpenseTypes(Pageable pageable) {
         Page<ExpenseType> page = expenseTypeRepository.findAll(pageable);
         return page.getContent()

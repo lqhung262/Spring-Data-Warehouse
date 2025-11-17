@@ -30,73 +30,73 @@ public class LanguageService {
     private String entityName;
 
     public LanguageResponse createLanguage(LanguageRequest request) {
-        languageRepository.findByLanguageCode(request.getLanguageCode()).ifPresent(b -> {
-            throw new IllegalArgumentException(entityName + " with language Code " + request.getLanguageCode() + " already exists.");
-        });
+//        languageRepository.findByLanguageCode(request.getLanguageCode()).ifPresent(b -> {
+//            throw new IllegalArgumentException(entityName + " with language Code " + request.getLanguageCode() + " already exists.");
+//        });
 
         Language language = languageMapper.toLanguage(request);
 
         return languageMapper.toLanguageResponse(languageRepository.save(language));
     }
 
-    /**
-     * Xử lý Bulk Upsert
-     */
-    @Transactional
-    public List<LanguageResponse> bulkUpsertLanguages(List<LanguageRequest> requests) {
-
-        // Lấy tất cả languageCodes từ request
-        List<String> languageCodes = requests.stream()
-                .map(LanguageRequest::getLanguageCode)
-                .toList();
-
-        // Tìm tất cả các language đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, Language> existingLanguagesMap = languageRepository.findByLanguageCodeIn(languageCodes).stream()
-                .collect(Collectors.toMap(Language::getLanguageCode, language -> language));
-
-        List<Language> languagesToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (LanguageRequest request : requests) {
-            Language language = existingLanguagesMap.get(request.getLanguageCode());
-
-            if (language != null) {
-                // --- Logic UPDATE ---
-                // Language đã tồn tại -> Cập nhật
-                languageMapper.updateLanguage(language, request);
-                languagesToSave.add(language);
-            } else {
-                // --- Logic INSERT ---
-                // Language chưa tồn tại -> Tạo mới
-                Language newLanguage = languageMapper.toLanguage(request);
-                languagesToSave.add(newLanguage);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<Language> savedLanguages = languageRepository.saveAll(languagesToSave);
-
-        // Map sang Response DTO và trả về
-        return savedLanguages.stream()
-                .map(languageMapper::toLanguageResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteLanguages(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = languageRepository.countByLanguageIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        languageRepository.deleteAllById(ids);
-    }
+//    /**
+//     * Xử lý Bulk Upsert
+//     */
+//    @Transactional
+//    public List<LanguageResponse> bulkUpsertLanguages(List<LanguageRequest> requests) {
+//
+//        // Lấy tất cả languageCodes từ request
+//        List<String> languageCodes = requests.stream()
+//                .map(LanguageRequest::getLanguageCode)
+//                .toList();
+//
+//        // Tìm tất cả các language đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, Language> existingLanguagesMap = languageRepository.findByLanguageCodeIn(languageCodes).stream()
+//                .collect(Collectors.toMap(Language::getLanguageCode, language -> language));
+//
+//        List<Language> languagesToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (LanguageRequest request : requests) {
+//            Language language = existingLanguagesMap.get(request.getLanguageCode());
+//
+//            if (language != null) {
+//                // --- Logic UPDATE ---
+//                // Language đã tồn tại -> Cập nhật
+//                languageMapper.updateLanguage(language, request);
+//                languagesToSave.add(language);
+//            } else {
+//                // --- Logic INSERT ---
+//                // Language chưa tồn tại -> Tạo mới
+//                Language newLanguage = languageMapper.toLanguage(request);
+//                languagesToSave.add(newLanguage);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<Language> savedLanguages = languageRepository.saveAll(languagesToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedLanguages.stream()
+//                .map(languageMapper::toLanguageResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteLanguages(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = languageRepository.countByLanguageIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        languageRepository.deleteAllById(ids);
+//    }
 
 
     public List<LanguageResponse> getLanguages(Pageable pageable) {

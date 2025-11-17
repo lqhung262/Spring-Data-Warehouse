@@ -32,20 +32,20 @@ public class OldProvinceCityController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<OldProvinceCityResponse>> bulkOldProvinceCityUpsert(@Valid @RequestBody List<OldProvinceCityRequest> requests) {
-        return ApiResponse.<List<OldProvinceCityResponse>>builder()
-                .result(oldProvinceCityService.bulkUpsertOldProvinceCities(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteOldProvinceCities(@Valid @RequestParam("ids") List<Long> oldProvinceCityIds) {
-        oldProvinceCityService.bulkDeleteOldProvinceCities(oldProvinceCityIds);
-        return ApiResponse.<String>builder()
-                .result(oldProvinceCityIds.size() + " oldProvinceCities have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<OldProvinceCityResponse>> bulkOldProvinceCityUpsert(@Valid @RequestBody List<OldProvinceCityRequest> requests) {
+//        return ApiResponse.<List<OldProvinceCityResponse>>builder()
+//                .result(oldProvinceCityService.bulkUpsertOldProvinceCities(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteOldProvinceCities(@Valid @RequestParam("ids") List<Long> oldProvinceCityIds) {
+//        oldProvinceCityService.bulkDeleteOldProvinceCities(oldProvinceCityIds);
+//        return ApiResponse.<String>builder()
+//                .result(oldProvinceCityIds.size() + " oldProvinceCities have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<OldProvinceCityResponse>> getOldProvinceCities(@RequestParam(required = false, defaultValue = "1") int pageNo,

@@ -32,20 +32,20 @@ public class OldDistrictController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<OldDistrictResponse>> bulkOldDistrictUpsert(@Valid @RequestBody List<OldDistrictRequest> requests) {
-        return ApiResponse.<List<OldDistrictResponse>>builder()
-                .result(oldDistrictService.bulkUpsertOldDistricts(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteOldDistricts(@Valid @RequestParam("ids") List<Long> oldDistrictIds) {
-        oldDistrictService.bulkDeleteOldDistricts(oldDistrictIds);
-        return ApiResponse.<String>builder()
-                .result(oldDistrictIds.size() + " old Districts have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<OldDistrictResponse>> bulkOldDistrictUpsert(@Valid @RequestBody List<OldDistrictRequest> requests) {
+//        return ApiResponse.<List<OldDistrictResponse>>builder()
+//                .result(oldDistrictService.bulkUpsertOldDistricts(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteOldDistricts(@Valid @RequestParam("ids") List<Long> oldDistrictIds) {
+//        oldDistrictService.bulkDeleteOldDistricts(oldDistrictIds);
+//        return ApiResponse.<String>builder()
+//                .result(oldDistrictIds.size() + " old Districts have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<OldDistrictResponse>> getOldDistricts(@RequestParam(required = false, defaultValue = "1") int pageNo,

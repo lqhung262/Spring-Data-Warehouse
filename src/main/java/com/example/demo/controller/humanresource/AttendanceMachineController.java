@@ -32,20 +32,20 @@ public class AttendanceMachineController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<AttendanceMachineResponse>> bulkAttendanceMachineUpsert(@Valid @RequestBody List<AttendanceMachineRequest> requests) {
-        return ApiResponse.<List<AttendanceMachineResponse>>builder()
-                .result(attendanceMachineService.bulkUpsertAttendanceMachines(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteAttendanceMachines(@Valid @RequestParam("ids") List<Long> attendanceMachineIds) {
-        attendanceMachineService.bulkDeleteAttendanceMachines(attendanceMachineIds);
-        return ApiResponse.<String>builder()
-                .result(attendanceMachineIds.size() + " Attendance Machines have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<AttendanceMachineResponse>> bulkAttendanceMachineUpsert(@Valid @RequestBody List<AttendanceMachineRequest> requests) {
+//        return ApiResponse.<List<AttendanceMachineResponse>>builder()
+//                .result(attendanceMachineService.bulkUpsertAttendanceMachines(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteAttendanceMachines(@Valid @RequestParam("ids") List<Long> attendanceMachineIds) {
+//        attendanceMachineService.bulkDeleteAttendanceMachines(attendanceMachineIds);
+//        return ApiResponse.<String>builder()
+//                .result(attendanceMachineIds.size() + " Attendance Machines have been deleted.")
+//                .build();
+//    }
 
 
     @GetMapping()

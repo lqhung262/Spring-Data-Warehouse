@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface EmployeeEducationRepository extends JpaRepository<EmployeeEducation, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả employeeEducations tồn tại trong 1 câu query.
-     */
-    List<EmployeeEducation> findByEmployeeEducationCodeIn(Collection<String> employeeEducationCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 employeeEducation bằng employeeEducationCode
-     */
-    Optional<EmployeeEducation> findByEmployeeEducationId(Long employeeEducationId);
-
-    Long countByEmployeeEducationIdIn(Collection<Long> employeeEducationIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả employeeEducations tồn tại trong 1 câu query.
+//     */
+////    List<EmployeeEducation> findByEmployeeEducationCodeIn(Collection<String> employeeEducationCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 employeeEducation bằng employeeEducationCode
+//     */
+//    Optional<EmployeeEducation> findByEmployeeEducationId(Long employeeEducationId);
+//
+//    Long countByEmployeeEducationIdIn(Collection<Long> employeeEducationIds);
 }

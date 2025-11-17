@@ -32,20 +32,20 @@ public class LanguageController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<LanguageResponse>> bulkLanguageUpsert(@Valid @RequestBody List<LanguageRequest> requests) {
-        return ApiResponse.<List<LanguageResponse>>builder()
-                .result(languageService.bulkUpsertLanguages(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteLanguages(@Valid @RequestParam("ids") List<Long> languageIds) {
-        languageService.bulkDeleteLanguages(languageIds);
-        return ApiResponse.<String>builder()
-                .result(languageIds.size() + " languages have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<LanguageResponse>> bulkLanguageUpsert(@Valid @RequestBody List<LanguageRequest> requests) {
+//        return ApiResponse.<List<LanguageResponse>>builder()
+//                .result(languageService.bulkUpsertLanguages(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteLanguages(@Valid @RequestParam("ids") List<Long> languageIds) {
+//        languageService.bulkDeleteLanguages(languageIds);
+//        return ApiResponse.<String>builder()
+//                .result(languageIds.size() + " languages have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<LanguageResponse>> getLanguages(@RequestParam(required = false, defaultValue = "1") int pageNo,

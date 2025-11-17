@@ -32,20 +32,20 @@ public class WorkLocationController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<WorkLocationResponse>> bulkWorkLocationUpsert(@Valid @RequestBody List<WorkLocationRequest> requests) {
-        return ApiResponse.<List<WorkLocationResponse>>builder()
-                .result(workLocationService.bulkUpsertWorkLocations(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteWorkLocations(@Valid @RequestParam("ids") List<Long> workLocationIds) {
-        workLocationService.bulkDeleteWorkLocations(workLocationIds);
-        return ApiResponse.<String>builder()
-                .result(workLocationIds.size() + " work Locations have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<WorkLocationResponse>> bulkWorkLocationUpsert(@Valid @RequestBody List<WorkLocationRequest> requests) {
+//        return ApiResponse.<List<WorkLocationResponse>>builder()
+//                .result(workLocationService.bulkUpsertWorkLocations(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteWorkLocations(@Valid @RequestParam("ids") List<Long> workLocationIds) {
+//        workLocationService.bulkDeleteWorkLocations(workLocationIds);
+//        return ApiResponse.<String>builder()
+//                .result(workLocationIds.size() + " work Locations have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<WorkLocationResponse>> getWorkLocations(@RequestParam(required = false, defaultValue = "1") int pageNo,

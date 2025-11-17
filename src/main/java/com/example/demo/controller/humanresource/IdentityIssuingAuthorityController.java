@@ -32,20 +32,20 @@ public class IdentityIssuingAuthorityController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<IdentityIssuingAuthorityResponse>> bulkIdentityIssuingAuthorityUpsert(@Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
-        return ApiResponse.<List<IdentityIssuingAuthorityResponse>>builder()
-                .result(identityIssuingAuthorityService.bulkUpsertIdentityIssuingAuthorities(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteIdentityIssuingAuthorities(@Valid @RequestParam("ids") List<Long> identityIssuingAuthorityIds) {
-        identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(identityIssuingAuthorityIds);
-        return ApiResponse.<String>builder()
-                .result(identityIssuingAuthorityIds.size() + " identity Issuing Authorities have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<IdentityIssuingAuthorityResponse>> bulkIdentityIssuingAuthorityUpsert(@Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
+//        return ApiResponse.<List<IdentityIssuingAuthorityResponse>>builder()
+//                .result(identityIssuingAuthorityService.bulkUpsertIdentityIssuingAuthorities(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteIdentityIssuingAuthorities(@Valid @RequestParam("ids") List<Long> identityIssuingAuthorityIds) {
+//        identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(identityIssuingAuthorityIds);
+//        return ApiResponse.<String>builder()
+//                .result(identityIssuingAuthorityIds.size() + " identity Issuing Authorities have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<IdentityIssuingAuthorityResponse>> getIdentityIssuingAuthorities(@RequestParam(required = false, defaultValue = "1") int pageNo,

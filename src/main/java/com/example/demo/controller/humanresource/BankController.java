@@ -33,20 +33,20 @@ public class BankController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<BankResponse>> bulkBankUpsert(@Valid @RequestBody List<BankRequest> requests) {
-        return ApiResponse.<List<BankResponse>>builder()
-                .result(bankService.bulkUpsertBanks(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteBanks(@Valid @RequestParam("ids") List<Long> bankIds) {
-        bankService.bulkDeleteBanks(bankIds);
-        return ApiResponse.<String>builder()
-                .result(bankIds.size() + " banks have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<BankResponse>> bulkBankUpsert(@Valid @RequestBody List<BankRequest> requests) {
+//        return ApiResponse.<List<BankResponse>>builder()
+//                .result(bankService.bulkUpsertBanks(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteBanks(@Valid @RequestParam("ids") List<Long> bankIds) {
+//        bankService.bulkDeleteBanks(bankIds);
+//        return ApiResponse.<String>builder()
+//                .result(bankIds.size() + " banks have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<BankResponse>> getBanks(@RequestParam(required = false, defaultValue = "1") int pageNo,

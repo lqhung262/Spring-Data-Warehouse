@@ -33,20 +33,20 @@ public class EmployeeAttendanceMachineController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EmployeeAttendanceMachineResponse>> bulkEmployeeAttendanceMachineUpsert(@Valid @RequestBody List<EmployeeAttendanceMachineRequest> requests) {
-        return ApiResponse.<List<EmployeeAttendanceMachineResponse>>builder()
-                .result(employeeAttendanceMachineService.bulkUpsertEmployeeAttendanceMachines(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEmployeeAttendanceMachines(@Valid @RequestParam("ids") List<Long> employeeAttedanceMachineIds) {
-        employeeAttendanceMachineService.bulkDeleteEmployeeAttendanceMachines(employeeAttedanceMachineIds);
-        return ApiResponse.<String>builder()
-                .result(employeeAttedanceMachineIds.size() + " employee Attendance Machines have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EmployeeAttendanceMachineResponse>> bulkEmployeeAttendanceMachineUpsert(@Valid @RequestBody List<EmployeeAttendanceMachineRequest> requests) {
+//        return ApiResponse.<List<EmployeeAttendanceMachineResponse>>builder()
+//                .result(employeeAttendanceMachineService.bulkUpsertEmployeeAttendanceMachines(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEmployeeAttendanceMachines(@Valid @RequestParam("ids") List<Long> employeeAttedanceMachineIds) {
+//        employeeAttendanceMachineService.bulkDeleteEmployeeAttendanceMachines(employeeAttedanceMachineIds);
+//        return ApiResponse.<String>builder()
+//                .result(employeeAttedanceMachineIds.size() + " employee Attendance Machines have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeAttendanceMachineResponse>> getEmployeeAttendanceMachines(@RequestParam(required = false, defaultValue = "1") int pageNo,

@@ -32,20 +32,20 @@ public class WardController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<WardResponse>> bulkWardUpsert(@Valid @RequestBody List<WardRequest> requests) {
-        return ApiResponse.<List<WardResponse>>builder()
-                .result(wardService.bulkUpsertWards(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteWards(@Valid @RequestParam("ids") List<Long> wardIds) {
-        wardService.bulkDeleteWards(wardIds);
-        return ApiResponse.<String>builder()
-                .result(wardIds.size() + " wards have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<WardResponse>> bulkWardUpsert(@Valid @RequestBody List<WardRequest> requests) {
+//        return ApiResponse.<List<WardResponse>>builder()
+//                .result(wardService.bulkUpsertWards(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteWards(@Valid @RequestParam("ids") List<Long> wardIds) {
+//        wardService.bulkDeleteWards(wardIds);
+//        return ApiResponse.<String>builder()
+//                .result(wardIds.size() + " wards have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<WardResponse>> getWards(@RequestParam(required = false, defaultValue = "1") int pageNo,

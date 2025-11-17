@@ -32,20 +32,20 @@ public class SpecializationController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<SpecializationResponse>> bulkSpecializationUpsert(@Valid @RequestBody List<SpecializationRequest> requests) {
-        return ApiResponse.<List<SpecializationResponse>>builder()
-                .result(specializationService.bulkUpsertSpecializations(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteSpecializations(@Valid @RequestParam("ids") List<Long> specializationIds) {
-        specializationService.bulkDeleteSpecializations(specializationIds);
-        return ApiResponse.<String>builder()
-                .result(specializationIds.size() + " specializations have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<SpecializationResponse>> bulkSpecializationUpsert(@Valid @RequestBody List<SpecializationRequest> requests) {
+//        return ApiResponse.<List<SpecializationResponse>>builder()
+//                .result(specializationService.bulkUpsertSpecializations(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteSpecializations(@Valid @RequestParam("ids") List<Long> specializationIds) {
+//        specializationService.bulkDeleteSpecializations(specializationIds);
+//        return ApiResponse.<String>builder()
+//                .result(specializationIds.size() + " specializations have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<SpecializationResponse>> getSpecializations(@RequestParam(required = false, defaultValue = "1") int pageNo,

@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface JobPositionRepository extends JpaRepository<JobPosition, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả jobPositions tồn tại trong 1 câu query.
-     */
-    List<JobPosition> findByJobPositionCodeIn(Collection<String> jobPositionCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 jobPosition bằng jobPositionCode
-     */
-    Optional<JobPosition> findByJobPositionCode(String jobPositionCode);
-
-    Long countByJobPositionIdIn(Collection<Long> jobPositionIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả jobPositions tồn tại trong 1 câu query.
+//     */
+//    List<JobPosition> findByJobPositionCodeIn(Collection<String> jobPositionCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 jobPosition bằng jobPositionCode
+//     */
+//    Optional<JobPosition> findByJobPositionCode(String jobPositionCode);
+//
+//    Long countByJobPositionIdIn(Collection<Long> jobPositionIds);
 }

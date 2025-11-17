@@ -32,20 +32,20 @@ public class BloodGroupController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<BloodGroupResponse>> bulkBloodGroupUpsert(@Valid @RequestBody List<BloodGroupRequest> requests) {
-        return ApiResponse.<List<BloodGroupResponse>>builder()
-                .result(bloodGroupService.bulkUpsertBloodGroups(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteBloodGroups(@Valid @RequestParam("ids") List<Long> bloodGroupIds) {
-        bloodGroupService.bulkDeleteBloodGroups(bloodGroupIds);
-        return ApiResponse.<String>builder()
-                .result(bloodGroupIds.size() + " bloodGroups have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<BloodGroupResponse>> bulkBloodGroupUpsert(@Valid @RequestBody List<BloodGroupRequest> requests) {
+//        return ApiResponse.<List<BloodGroupResponse>>builder()
+//                .result(bloodGroupService.bulkUpsertBloodGroups(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteBloodGroups(@Valid @RequestParam("ids") List<Long> bloodGroupIds) {
+//        bloodGroupService.bulkDeleteBloodGroups(bloodGroupIds);
+//        return ApiResponse.<String>builder()
+//                .result(bloodGroupIds.size() + " bloodGroups have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<BloodGroupResponse>> getBloodGroups(@RequestParam(required = false, defaultValue = "1") int pageNo,

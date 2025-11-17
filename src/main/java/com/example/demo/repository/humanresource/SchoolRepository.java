@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface SchoolRepository extends JpaRepository<School, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả schools tồn tại trong 1 câu query.
-     */
-    List<School> findBySchoolCodeIn(Collection<String> schoolCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 school bằng schoolCode
-     */
-    Optional<School> findBySchoolCode(String schoolCode);
-
-    Long countBySchoolIdIn(Collection<Long> schoolIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả schools tồn tại trong 1 câu query.
+//     */
+//    List<School> findBySchoolCodeIn(Collection<String> schoolCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 school bằng schoolCode
+//     */
+//    Optional<School> findBySchoolCode(String schoolCode);
+//
+//    Long countBySchoolIdIn(Collection<Long> schoolIds);
 }

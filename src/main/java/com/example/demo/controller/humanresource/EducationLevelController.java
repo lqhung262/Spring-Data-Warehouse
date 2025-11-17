@@ -32,20 +32,20 @@ public class EducationLevelController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EducationLevelResponse>> bulkEducationLevelUpsert(@Valid @RequestBody List<EducationLevelRequest> requests) {
-        return ApiResponse.<List<EducationLevelResponse>>builder()
-                .result(educationLevelService.bulkUpsertEducationLevels(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEducationLevels(@Valid @RequestParam("ids") List<Long> educationLevelIds) {
-        educationLevelService.bulkDeleteEducationLevels(educationLevelIds);
-        return ApiResponse.<String>builder()
-                .result(educationLevelIds.size() + " education Levels have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EducationLevelResponse>> bulkEducationLevelUpsert(@Valid @RequestBody List<EducationLevelRequest> requests) {
+//        return ApiResponse.<List<EducationLevelResponse>>builder()
+//                .result(educationLevelService.bulkUpsertEducationLevels(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEducationLevels(@Valid @RequestParam("ids") List<Long> educationLevelIds) {
+//        educationLevelService.bulkDeleteEducationLevels(educationLevelIds);
+//        return ApiResponse.<String>builder()
+//                .result(educationLevelIds.size() + " education Levels have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EducationLevelResponse>> getEducationLevels(@RequestParam(required = false, defaultValue = "1") int pageNo,

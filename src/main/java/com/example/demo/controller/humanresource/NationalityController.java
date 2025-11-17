@@ -32,20 +32,20 @@ public class NationalityController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<NationalityResponse>> bulkNationalityUpsert(@Valid @RequestBody List<NationalityRequest> requests) {
-        return ApiResponse.<List<NationalityResponse>>builder()
-                .result(nationalityService.bulkUpsertNationalities(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteNationalities(@Valid @RequestParam("ids") List<Long> nationalityIds) {
-        nationalityService.bulkDeleteNationalities(nationalityIds);
-        return ApiResponse.<String>builder()
-                .result(nationalityIds.size() + " nationalities have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<NationalityResponse>> bulkNationalityUpsert(@Valid @RequestBody List<NationalityRequest> requests) {
+//        return ApiResponse.<List<NationalityResponse>>builder()
+//                .result(nationalityService.bulkUpsertNationalities(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteNationalities(@Valid @RequestParam("ids") List<Long> nationalityIds) {
+//        nationalityService.bulkDeleteNationalities(nationalityIds);
+//        return ApiResponse.<String>builder()
+//                .result(nationalityIds.size() + " nationalities have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<NationalityResponse>> getNationalities(@RequestParam(required = false, defaultValue = "1") int pageNo,

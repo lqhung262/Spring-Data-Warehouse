@@ -32,20 +32,20 @@ public class MaritalStatusController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<MaritalStatusResponse>> bulkMaritalStatusUpsert(@Valid @RequestBody List<MaritalStatusRequest> requests) {
-        return ApiResponse.<List<MaritalStatusResponse>>builder()
-                .result(maritalStatusService.bulkUpsertMaritalStatuses(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteMaritalStatuses(@Valid @RequestParam("ids") List<Long> maritalStatusIds) {
-        maritalStatusService.bulkDeleteMaritalStatuses(maritalStatusIds);
-        return ApiResponse.<String>builder()
-                .result(maritalStatusIds.size() + " marital Statuses have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<MaritalStatusResponse>> bulkMaritalStatusUpsert(@Valid @RequestBody List<MaritalStatusRequest> requests) {
+//        return ApiResponse.<List<MaritalStatusResponse>>builder()
+//                .result(maritalStatusService.bulkUpsertMaritalStatuses(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteMaritalStatuses(@Valid @RequestParam("ids") List<Long> maritalStatusIds) {
+//        maritalStatusService.bulkDeleteMaritalStatuses(maritalStatusIds);
+//        return ApiResponse.<String>builder()
+//                .result(maritalStatusIds.size() + " marital Statuses have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<MaritalStatusResponse>> getMaritalStatuss(@RequestParam(required = false, defaultValue = "1") int pageNo,

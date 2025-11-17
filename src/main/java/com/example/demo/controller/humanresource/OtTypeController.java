@@ -32,20 +32,20 @@ public class OtTypeController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<OtTypeResponse>> bulkOtTypeUpsert(@Valid @RequestBody List<OtTypeRequest> requests) {
-        return ApiResponse.<List<OtTypeResponse>>builder()
-                .result(otTypeService.bulkUpsertOtTypes(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteOtTypes(@Valid @RequestParam("ids") List<Long> otTypeIds) {
-        otTypeService.bulkDeleteOtTypes(otTypeIds);
-        return ApiResponse.<String>builder()
-                .result(otTypeIds.size() + " ot Types have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<OtTypeResponse>> bulkOtTypeUpsert(@Valid @RequestBody List<OtTypeRequest> requests) {
+//        return ApiResponse.<List<OtTypeResponse>>builder()
+//                .result(otTypeService.bulkUpsertOtTypes(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteOtTypes(@Valid @RequestParam("ids") List<Long> otTypeIds) {
+//        otTypeService.bulkDeleteOtTypes(otTypeIds);
+//        return ApiResponse.<String>builder()
+//                .result(otTypeIds.size() + " ot Types have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<OtTypeResponse>> getOtTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,

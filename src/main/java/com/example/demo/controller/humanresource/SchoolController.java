@@ -32,20 +32,20 @@ public class SchoolController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<SchoolResponse>> bulkSchoolUpsert(@Valid @RequestBody List<SchoolRequest> requests) {
-        return ApiResponse.<List<SchoolResponse>>builder()
-                .result(schoolService.bulkUpsertSchools(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteSchools(@Valid @RequestParam("ids") List<Long> schoolIds) {
-        schoolService.bulkDeleteSchools(schoolIds);
-        return ApiResponse.<String>builder()
-                .result(schoolIds.size() + " schools have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<SchoolResponse>> bulkSchoolUpsert(@Valid @RequestBody List<SchoolRequest> requests) {
+//        return ApiResponse.<List<SchoolResponse>>builder()
+//                .result(schoolService.bulkUpsertSchools(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteSchools(@Valid @RequestParam("ids") List<Long> schoolIds) {
+//        schoolService.bulkDeleteSchools(schoolIds);
+//        return ApiResponse.<String>builder()
+//                .result(schoolIds.size() + " schools have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<SchoolResponse>> getSchools(@RequestParam(required = false, defaultValue = "1") int pageNo,

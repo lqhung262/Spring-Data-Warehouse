@@ -10,15 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface LanguageRepository extends JpaRepository<Language, Long> {
-    /**
-     * Tối ưu cho Upsert: Tìm tất cả languages tồn tại trong 1 câu query.
-     */
-    List<Language> findByLanguageCodeIn(Collection<String> languageCodes);
-
-    /**
-     * Dùng cho Upsert: Tìm 1 language bằng languageCode
-     */
-    Optional<Language> findByLanguageCode(String languageCode);
-
-    Long countByLanguageIdIn(Collection<Long> languageIds);
+//    /**
+//     * Tối ưu cho Upsert: Tìm tất cả languages tồn tại trong 1 câu query.
+//     */
+//    List<Language> findByLanguageCodeIn(Collection<String> languageCodes);
+//
+//    /**
+//     * Dùng cho Upsert: Tìm 1 language bằng languageCode
+//     */
+//    Optional<Language> findByLanguageCode(String languageCode);
+//
+//    Long countByLanguageIdIn(Collection<Long> languageIds);
 }

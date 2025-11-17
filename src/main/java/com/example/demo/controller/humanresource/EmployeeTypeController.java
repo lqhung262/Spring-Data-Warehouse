@@ -32,20 +32,20 @@ public class EmployeeTypeController {
         return response;
     }
 
-    @PostMapping("/_bulk-upsert")
-    ApiResponse<List<EmployeeTypeResponse>> bulkEmployeeTypeUpsert(@Valid @RequestBody List<EmployeeTypeRequest> requests) {
-        return ApiResponse.<List<EmployeeTypeResponse>>builder()
-                .result(employeeTypeService.bulkUpsertEmployeeTypes(requests))
-                .build();
-    }
-
-    @DeleteMapping("/_bulk-delete")
-    public ApiResponse<String> bulkDeleteEmployeeTypes(@Valid @RequestParam("ids") List<Long> employeeTypeIds) {
-        employeeTypeService.bulkDeleteEmployeeTypes(employeeTypeIds);
-        return ApiResponse.<String>builder()
-                .result(employeeTypeIds.size() + " employee Types have been deleted.")
-                .build();
-    }
+//    @PostMapping("/_bulk-upsert")
+//    ApiResponse<List<EmployeeTypeResponse>> bulkEmployeeTypeUpsert(@Valid @RequestBody List<EmployeeTypeRequest> requests) {
+//        return ApiResponse.<List<EmployeeTypeResponse>>builder()
+//                .result(employeeTypeService.bulkUpsertEmployeeTypes(requests))
+//                .build();
+//    }
+//
+//    @DeleteMapping("/_bulk-delete")
+//    public ApiResponse<String> bulkDeleteEmployeeTypes(@Valid @RequestParam("ids") List<Long> employeeTypeIds) {
+//        employeeTypeService.bulkDeleteEmployeeTypes(employeeTypeIds);
+//        return ApiResponse.<String>builder()
+//                .result(employeeTypeIds.size() + " employee Types have been deleted.")
+//                .build();
+//    }
 
     @GetMapping()
     ApiResponse<List<EmployeeTypeResponse>> getEmployeeTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,

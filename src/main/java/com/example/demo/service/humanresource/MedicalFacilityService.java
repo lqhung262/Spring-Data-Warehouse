@@ -30,9 +30,9 @@ public class MedicalFacilityService {
     private String entityName;
 
     public MedicalFacilityResponse createMedicalFacility(MedicalFacilityRequest request) {
-        medicalFacilityRepository.findByMedicalFacilityCode(request.getMedicalFacilityCode()).ifPresent(b -> {
-            throw new IllegalArgumentException(entityName + " with medical Facility Code " + request.getMedicalFacilityCode() + " already exists.");
-        });
+//        medicalFacilityRepository.findByMedicalFacilityCode(request.getMedicalFacilityCode()).ifPresent(b -> {
+//            throw new IllegalArgumentException(entityName + " with medical Facility Code " + request.getMedicalFacilityCode() + " already exists.");
+//        });
 
         MedicalFacility medicalFacility = medicalFacilityMapper.toMedicalFacility(request);
 
@@ -43,62 +43,61 @@ public class MedicalFacilityService {
     /**
      * Xử lý Bulk Upsert
      */
-    @Transactional
-    public List<MedicalFacilityResponse> bulkUpsertMedicalFacilities(List<MedicalFacilityRequest> requests) {
-
-        // Lấy tất cả medicalFacilityCodes từ request
-        List<String> medicalFacilityCodes = requests.stream()
-                .map(MedicalFacilityRequest::getMedicalFacilityCode)
-                .toList();
-
-        // Tìm tất cả các medicalFacility đã tồn tại TRONG 1 CÂU QUERY
-        Map<String, MedicalFacility> existingMedicalFacilitiesMap = medicalFacilityRepository.findByMedicalFacilityCodeIn(medicalFacilityCodes).stream()
-                .collect(Collectors.toMap(MedicalFacility::getMedicalFacilityCode, medicalFacility -> medicalFacility));
-
-        List<MedicalFacility> medicalFacilitiesToSave = new java.util.ArrayList<>();
-
-        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-        for (MedicalFacilityRequest request : requests) {
-            MedicalFacility medicalFacility = existingMedicalFacilitiesMap.get(request.getMedicalFacilityCode());
-
-            if (medicalFacility != null) {
-                // --- Logic UPDATE ---
-                // MedicalFacility đã tồn tại -> Cập nhật
-                medicalFacilityMapper.updateMedicalFacility(medicalFacility, request);
-                medicalFacilitiesToSave.add(medicalFacility);
-            } else {
-                // --- Logic INSERT ---
-                // MedicalFacility chưa tồn tại -> Tạo mới
-                MedicalFacility newMedicalFacility = medicalFacilityMapper.toMedicalFacility(request);
-                medicalFacilitiesToSave.add(newMedicalFacility);
-            }
-        }
-
-        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-        List<MedicalFacility> savedMedicalFacilities = medicalFacilityRepository.saveAll(medicalFacilitiesToSave);
-
-        // Map sang Response DTO và trả về
-        return savedMedicalFacilities.stream()
-                .map(medicalFacilityMapper::toMedicalFacilityResponse)
-                .toList();
-    }
-
-    /**
-     * Xử lý Bulk Delete
-     */
-    @Transactional
-    public void bulkDeleteMedicalFacilities(List<Long> ids) {
-        // Kiểm tra xem có bao nhiêu ID tồn tại
-        long existingCount = medicalFacilityRepository.countByMedicalFacilityIdIn(ids);
-        if (existingCount != ids.size()) {
-            // Không phải tất cả ID đều tồn tại
-            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-        }
-
-        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-        medicalFacilityRepository.deleteAllById(ids);
-    }
-
+//    @Transactional
+//    public List<MedicalFacilityResponse> bulkUpsertMedicalFacilities(List<MedicalFacilityRequest> requests) {
+//
+//        // Lấy tất cả medicalFacilityCodes từ request
+//        List<String> medicalFacilityCodes = requests.stream()
+//                .map(MedicalFacilityRequest::getMedicalFacilityCode)
+//                .toList();
+//
+//        // Tìm tất cả các medicalFacility đã tồn tại TRONG 1 CÂU QUERY
+//        Map<String, MedicalFacility> existingMedicalFacilitiesMap = medicalFacilityRepository.findByMedicalFacilityCodeIn(medicalFacilityCodes).stream()
+//                .collect(Collectors.toMap(MedicalFacility::getMedicalFacilityCode, medicalFacility -> medicalFacility));
+//
+//        List<MedicalFacility> medicalFacilitiesToSave = new java.util.ArrayList<>();
+//
+//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        for (MedicalFacilityRequest request : requests) {
+//            MedicalFacility medicalFacility = existingMedicalFacilitiesMap.get(request.getMedicalFacilityCode());
+//
+//            if (medicalFacility != null) {
+//                // --- Logic UPDATE ---
+//                // MedicalFacility đã tồn tại -> Cập nhật
+//                medicalFacilityMapper.updateMedicalFacility(medicalFacility, request);
+//                medicalFacilitiesToSave.add(medicalFacility);
+//            } else {
+//                // --- Logic INSERT ---
+//                // MedicalFacility chưa tồn tại -> Tạo mới
+//                MedicalFacility newMedicalFacility = medicalFacilityMapper.toMedicalFacility(request);
+//                medicalFacilitiesToSave.add(newMedicalFacility);
+//            }
+//        }
+//
+//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
+//        List<MedicalFacility> savedMedicalFacilities = medicalFacilityRepository.saveAll(medicalFacilitiesToSave);
+//
+//        // Map sang Response DTO và trả về
+//        return savedMedicalFacilities.stream()
+//                .map(medicalFacilityMapper::toMedicalFacilityResponse)
+//                .toList();
+//    }
+//
+//    /**
+//     * Xử lý Bulk Delete
+//     */
+//    @Transactional
+//    public void bulkDeleteMedicalFacilities(List<Long> ids) {
+//        // Kiểm tra xem có bao nhiêu ID tồn tại
+//        long existingCount = medicalFacilityRepository.countByMedicalFacilityIdIn(ids);
+//        if (existingCount != ids.size()) {
+//            // Không phải tất cả ID đều tồn tại
+//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//        }
+//
+//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
+//        medicalFacilityRepository.deleteAllById(ids);
+//    }
     public List<MedicalFacilityResponse> getMedicalFacilities(Pageable pageable) {
         Page<MedicalFacility> page = medicalFacilityRepository.findAll(pageable);
         return page.getContent()
