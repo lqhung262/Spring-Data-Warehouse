@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface SpecializationRepository extends JpaRepository<Specialization, Long> {
+    Optional<Specialization> findBySourceId(String sourceId);
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả specializations tồn tại trong 1 câu query.
 //     */

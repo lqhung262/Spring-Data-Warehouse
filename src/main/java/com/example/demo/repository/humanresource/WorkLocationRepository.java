@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface WorkLocationRepository extends JpaRepository<WorkLocation, Long> {
+    Optional<WorkLocation> findBySourceId(String sourceId);
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả workLocations tồn tại trong 1 câu query.
 //     */

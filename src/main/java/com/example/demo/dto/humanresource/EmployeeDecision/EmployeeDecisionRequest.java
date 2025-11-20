@@ -15,11 +15,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class EmployeeDecisionRequest {
-    @NotNull
-    private Long employeeId;
-
     @NotBlank
-    private String decisionNo; // revert to original field name
+    private String decisionNo;
 
     @NotNull
     private LocalDateTime decisionDate;

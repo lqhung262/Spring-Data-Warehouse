@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.AttendanceType.AttendanceTypeRequest;
 import com.example.demo.dto.humanresource.AttendanceType.AttendanceTypeResponse;
 import com.example.demo.entity.humanresource.AttendanceType;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.AttendanceTypeMapper;
 import com.example.demo.repository.humanresource.AttendanceTypeRepository;
@@ -30,9 +31,12 @@ public class AttendanceTypeService {
     private String entityName;
 
     public AttendanceTypeResponse createAttendanceType(AttendanceTypeRequest request) {
-//        attendanceTypeRepository.findByAttendanceTypeCode(request.getAttendanceTypeCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with Attendance Type Code " + request.getAttendanceTypeCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            attendanceTypeRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         AttendanceType attendanceType = attendanceTypeMapper.toAttendanceType(request);
 
@@ -113,6 +117,15 @@ public class AttendanceTypeService {
     public AttendanceTypeResponse updateAttendanceType(Long id, AttendanceTypeRequest request) {
         AttendanceType attendanceType = attendanceTypeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            attendanceTypeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getAttendanceTypeId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         attendanceTypeMapper.updateAttendanceType(attendanceType, request);
 

@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Major.MajorRequest;
 import com.example.demo.dto.humanresource.Major.MajorResponse;
 import com.example.demo.entity.humanresource.Major;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MajorMapper;
 import com.example.demo.repository.humanresource.MajorRepository;
@@ -30,9 +31,12 @@ public class MajorService {
     private String entityName;
 
     public MajorResponse createMajor(MajorRequest request) {
-//        majorRepository.findByMajorCode(request.getMajorCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with major Code " + request.getMajorCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            majorRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         Major major = majorMapper.toMajor(request);
 
@@ -111,6 +115,15 @@ public class MajorService {
     public MajorResponse updateMajor(Long id, MajorRequest request) {
         Major major = majorRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            majorRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getMajorId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         majorMapper.updateMajor(major, request);
 

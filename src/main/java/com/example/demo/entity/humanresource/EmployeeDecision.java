@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "employee_decision")
@@ -61,4 +62,22 @@ public class EmployeeDecision {
     @NotNull
     @Column(name = "effective_at", nullable = false)
     private LocalDateTime effectiveAt;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        EmployeeDecision that = (EmployeeDecision) o;
+        return employeeDecisionId != null && Objects.equals(employeeDecisionId, that.employeeDecisionId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(employeeDecisionId);
+    }
+
+    @Override
+    public String toString() {
+        return "EmployeeDecision(" + employeeDecisionId + ")";
+    }
 }

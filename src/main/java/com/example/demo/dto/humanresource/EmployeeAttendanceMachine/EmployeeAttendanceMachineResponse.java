@@ -10,6 +10,5 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmployeeAttendanceMachineResponse {
     Long employeeAttendanceMachineId;
-    Long employeeId;
     Long machineId;
 }

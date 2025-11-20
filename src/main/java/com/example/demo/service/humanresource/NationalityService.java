@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Nationality.NationalityRequest;
 import com.example.demo.dto.humanresource.Nationality.NationalityResponse;
 import com.example.demo.entity.humanresource.Nationality;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.NationalityMapper;
 import com.example.demo.repository.humanresource.NationalityRepository;
@@ -30,9 +31,12 @@ public class NationalityService {
     private String entityName;
 
     public NationalityResponse createNationality(NationalityRequest request) {
-//        nationalityRepository.findByNationalityCode(request.getNationalityCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with nationality Code " + request.getNationalityCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            nationalityRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         Nationality nationality = nationalityMapper.toNationality(request);
 
@@ -111,6 +115,15 @@ public class NationalityService {
     public NationalityResponse updateNationality(Long id, NationalityRequest request) {
         Nationality nationality = nationalityRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            nationalityRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getNationalityId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         nationalityMapper.updateNationality(nationality, request);
 

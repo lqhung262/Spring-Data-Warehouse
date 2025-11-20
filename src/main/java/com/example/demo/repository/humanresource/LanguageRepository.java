@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface LanguageRepository extends JpaRepository<Language, Long> {
+    Optional<Language> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả languages tồn tại trong 1 câu query.
 //     */

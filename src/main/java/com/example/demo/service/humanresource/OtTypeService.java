@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.OtType.OtTypeRequest;
 import com.example.demo.dto.humanresource.OtType.OtTypeResponse;
 import com.example.demo.entity.humanresource.OtType;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.OtTypeMapper;
 import com.example.demo.repository.humanresource.OtTypeRepository;
@@ -30,9 +31,11 @@ public class OtTypeService {
     private String entityName;
 
     public OtTypeResponse createOtType(OtTypeRequest request) {
-//        otTypeRepository.findByOtTypeCode(request.getOtTypeCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with OT Type Code " + request.getOtTypeCode() + " already exists.");
-//        });
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            otTypeRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         OtType otType = otTypeMapper.toOtType(request);
 
@@ -111,6 +114,15 @@ public class OtTypeService {
     public OtTypeResponse updateOtType(Long id, OtTypeRequest request) {
         OtType otType = otTypeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            otTypeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getOtTypeId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         otTypeMapper.updateOtType(otType, request);
 

@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.OldDistrict.OldDistrictRequest;
 import com.example.demo.dto.humanresource.OldDistrict.OldDistrictResponse;
 import com.example.demo.entity.humanresource.OldDistrict;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.OldDistrictMapper;
 import com.example.demo.repository.humanresource.OldDistrictRepository;
@@ -30,6 +31,13 @@ public class OldDistrictService {
     private String entityName;
 
     public OldDistrictResponse createOldDistrict(OldDistrictRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            oldDistrictRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         OldDistrict oldDistrict = oldDistrictMapper.toOldDistrict(request);
 
         return oldDistrictMapper.toOldDistrictResponse(oldDistrictRepository.save(oldDistrict));
@@ -107,6 +115,15 @@ public class OldDistrictService {
     public OldDistrictResponse updateOldDistrict(Long id, OldDistrictRequest request) {
         OldDistrict oldDistrict = oldDistrictRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            oldDistrictRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getOldDistrictId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         oldDistrictMapper.updateOldDistrict(oldDistrict, request);
 

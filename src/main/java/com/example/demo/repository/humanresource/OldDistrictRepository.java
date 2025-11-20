@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface OldDistrictRepository extends JpaRepository<OldDistrict, Long> {
+    Optional<OldDistrict> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả oldDistricts tồn tại trong 1 câu query.
 //     */

@@ -12,8 +12,5 @@ import lombok.NoArgsConstructor;
 @Builder
 public class EmployeeAttendanceMachineRequest {
     @NotNull
-    private Long employeeId;
-
-    @NotNull
     private Long machineId;
 }

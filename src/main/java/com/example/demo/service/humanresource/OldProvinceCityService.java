@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.OldProvinceCity.OldProvinceCityRequest;
 import com.example.demo.dto.humanresource.OldProvinceCity.OldProvinceCityResponse;
 import com.example.demo.entity.humanresource.OldProvinceCity;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.OldProvinceCityMapper;
 import com.example.demo.repository.humanresource.OldProvinceCityRepository;
@@ -31,6 +32,13 @@ public class OldProvinceCityService {
 
 
     public OldProvinceCityResponse createOldProvinceCity(OldProvinceCityRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            oldProvinceCityRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         OldProvinceCity oldProvinceCity = oldProvinceCityMapper.toOldProvinceCity(request);
 
         return oldProvinceCityMapper.toOldProvinceCityResponse(oldProvinceCityRepository.save(oldProvinceCity));
@@ -109,6 +117,15 @@ public class OldProvinceCityService {
     public OldProvinceCityResponse updateOldProvinceCity(Long id, OldProvinceCityRequest request) {
         OldProvinceCity oldProvinceCity = oldProvinceCityRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            oldProvinceCityRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getOldProvinceCityId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         oldProvinceCityMapper.updateOldProvinceCity(oldProvinceCity, request);
 

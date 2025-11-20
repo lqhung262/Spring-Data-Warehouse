@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.IdentityIssuingAuthority.IdentityIssuingAuthorityRequest;
 import com.example.demo.dto.humanresource.IdentityIssuingAuthority.IdentityIssuingAuthorityResponse;
 import com.example.demo.entity.humanresource.IdentityIssuingAuthority;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.IdentityIssuingAuthorityMapper;
 import com.example.demo.repository.humanresource.IdentityIssuingAuthorityRepository;
@@ -30,6 +31,13 @@ public class IdentityIssuingAuthorityService {
     private String entityName;
 
     public IdentityIssuingAuthorityResponse createIdentityIssuingAuthority(IdentityIssuingAuthorityRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            identityIssuingAuthorityRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         IdentityIssuingAuthority identityIssuingAuthority = identityIssuingAuthorityMapper.toIdentityIssuingAuthority(request);
 
         return identityIssuingAuthorityMapper.toIdentityIssuingAuthorityResponse(identityIssuingAuthorityRepository.save(identityIssuingAuthority));
@@ -107,6 +115,15 @@ public class IdentityIssuingAuthorityService {
     public IdentityIssuingAuthorityResponse updateIdentityIssuingAuthority(Long id, IdentityIssuingAuthorityRequest request) {
         IdentityIssuingAuthority identityIssuingAuthority = identityIssuingAuthorityRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            identityIssuingAuthorityRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getIdentityIssuingAuthorityId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         identityIssuingAuthorityMapper.updateIdentityIssuingAuthority(identityIssuingAuthority, request);
 

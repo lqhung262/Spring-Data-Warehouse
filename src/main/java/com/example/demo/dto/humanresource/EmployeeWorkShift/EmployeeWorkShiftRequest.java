@@ -12,9 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EmployeeWorkShiftRequest {
-    @NotNull
-    private Long employeeId;
-
     @NotBlank
     private String attendanceCode;
 

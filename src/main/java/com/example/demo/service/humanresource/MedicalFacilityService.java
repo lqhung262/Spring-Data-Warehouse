@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.MedicalFacility.MedicalFacilityRequest;
 import com.example.demo.dto.humanresource.MedicalFacility.MedicalFacilityResponse;
 import com.example.demo.entity.humanresource.MedicalFacility;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MedicalFacilityMapper;
 import com.example.demo.repository.humanresource.MedicalFacilityRepository;
@@ -30,9 +31,12 @@ public class MedicalFacilityService {
     private String entityName;
 
     public MedicalFacilityResponse createMedicalFacility(MedicalFacilityRequest request) {
-//        medicalFacilityRepository.findByMedicalFacilityCode(request.getMedicalFacilityCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with medical Facility Code " + request.getMedicalFacilityCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            medicalFacilityRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         MedicalFacility medicalFacility = medicalFacilityMapper.toMedicalFacility(request);
 
@@ -112,6 +116,15 @@ public class MedicalFacilityService {
     public MedicalFacilityResponse updateMedicalFacility(Long id, MedicalFacilityRequest request) {
         MedicalFacility medicalFacility = medicalFacilityRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            medicalFacilityRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getMedicalFacilityId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         medicalFacilityMapper.updateMedicalFacility(medicalFacility, request);
 

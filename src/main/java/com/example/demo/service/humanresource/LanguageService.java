@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Language.LanguageRequest;
 import com.example.demo.dto.humanresource.Language.LanguageResponse;
 import com.example.demo.entity.humanresource.Language;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.LanguageMapper;
 import com.example.demo.repository.humanresource.LanguageRepository;
@@ -30,9 +31,12 @@ public class LanguageService {
     private String entityName;
 
     public LanguageResponse createLanguage(LanguageRequest request) {
-//        languageRepository.findByLanguageCode(request.getLanguageCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with language Code " + request.getLanguageCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            languageRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         Language language = languageMapper.toLanguage(request);
 
@@ -113,6 +117,15 @@ public class LanguageService {
     public LanguageResponse updateLanguage(Long id, LanguageRequest request) {
         Language language = languageRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            languageRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getLanguageId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         languageMapper.updateLanguage(language, request);
 

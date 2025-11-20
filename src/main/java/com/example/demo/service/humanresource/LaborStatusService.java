@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.LaborStatus.LaborStatusRequest;
 import com.example.demo.dto.humanresource.LaborStatus.LaborStatusResponse;
 import com.example.demo.entity.humanresource.LaborStatus;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.LaborStatusMapper;
 import com.example.demo.repository.humanresource.LaborStatusRepository;
@@ -30,9 +31,12 @@ public class LaborStatusService {
     private String entityName;
 
     public LaborStatusResponse createLaborStatus(LaborStatusRequest request) {
-//        laborStatusRepository.findByLaborStatusCode(request.getLaborStatusCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with labor Status Code " + request.getLaborStatusCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            laborStatusRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         LaborStatus laborStatus = laborStatusMapper.toLaborStatus(request);
 
@@ -111,6 +115,15 @@ public class LaborStatusService {
     public LaborStatusResponse updateLaborStatus(Long id, LaborStatusRequest request) {
         LaborStatus laborStatus = laborStatusRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            laborStatusRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getLaborStatusId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         laborStatusMapper.updateLaborStatus(laborStatus, request);
 

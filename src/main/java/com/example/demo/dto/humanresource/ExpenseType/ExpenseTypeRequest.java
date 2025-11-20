@@ -15,5 +15,8 @@ public class ExpenseTypeRequest {
     private String expenseTypeCode;
 
     @NotBlank
+    private String sourceId;
+
+    @NotBlank
     private String name;
 }

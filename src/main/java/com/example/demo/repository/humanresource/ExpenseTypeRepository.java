@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface ExpenseTypeRepository extends JpaRepository<ExpenseType, Long> {
+    Optional<ExpenseType> findBySourceId(String sourceId);
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả expenseTypes tồn tại trong 1 câu query.
 //     */

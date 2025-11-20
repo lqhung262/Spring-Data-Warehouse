@@ -12,9 +12,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class EmployeeEducationRequest {
     @NotNull
-    private Long employeeId;
-
-    @NotNull
     private Long majorId;
 
     @NotNull

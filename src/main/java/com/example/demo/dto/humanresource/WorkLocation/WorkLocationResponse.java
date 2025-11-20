@@ -11,5 +11,6 @@ import lombok.experimental.FieldDefaults;
 public class WorkLocationResponse {
     Long workLocationId;
     String workLocationCode;
+    String sourceId;
     String name;
 }

@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.School.SchoolRequest;
 import com.example.demo.dto.humanresource.School.SchoolResponse;
 import com.example.demo.entity.humanresource.School;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.SchoolMapper;
 import com.example.demo.repository.humanresource.SchoolRepository;
@@ -30,9 +31,12 @@ public class SchoolService {
     private String entityName;
 
     public SchoolResponse createSchool(SchoolRequest request) {
-//        schoolRepository.findBySchoolCode(request.getSchoolCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with school Code " + request.getSchoolCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            schoolRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         School school = schoolMapper.toSchool(request);
 
@@ -112,6 +116,15 @@ public class SchoolService {
     public SchoolResponse updateSchool(Long id, SchoolRequest request) {
         School school = schoolRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            schoolRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getSchoolId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         schoolMapper.updateSchool(school, request);
 

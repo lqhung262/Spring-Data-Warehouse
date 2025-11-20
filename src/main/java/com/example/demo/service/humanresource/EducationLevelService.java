@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.EducationLevel.EducationLevelRequest;
 import com.example.demo.dto.humanresource.EducationLevel.EducationLevelResponse;
 import com.example.demo.entity.humanresource.EducationLevel;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.EducationLevelMapper;
 import com.example.demo.repository.humanresource.EducationLevelRepository;
@@ -30,9 +31,12 @@ public class EducationLevelService {
     private String entityName;
 
     public EducationLevelResponse createEducationLevel(EducationLevelRequest request) {
-//        educationLevelRepository.findByEducationLevelCode(request.getEducationLevelCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with education Level Code " + request.getEducationLevelCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            educationLevelRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         EducationLevel educationLevel = educationLevelMapper.toEducationLevel(request);
 
@@ -114,6 +118,15 @@ public class EducationLevelService {
     public EducationLevelResponse updateEducationLevel(Long id, EducationLevelRequest request) {
         EducationLevel educationLevel = educationLevelRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            educationLevelRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getEducationLevelId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         educationLevelMapper.updateEducationLevel(educationLevel, request);
 

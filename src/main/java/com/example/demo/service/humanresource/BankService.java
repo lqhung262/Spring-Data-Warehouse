@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Bank.BankRequest;
 import com.example.demo.dto.humanresource.Bank.BankResponse;
 import com.example.demo.entity.humanresource.Bank;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.BankMapper;
 import com.example.demo.repository.humanresource.BankRepository;
@@ -30,9 +31,12 @@ public class BankService {
     private String entityName;
 
     public BankResponse createBank(BankRequest request) {
-//        bankRepository.findByBankCode(request.getBankCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with bankCode " + request.getBankCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            bankRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         Bank bank = bankMapper.toBank(request);
 
@@ -113,6 +117,15 @@ public class BankService {
     public BankResponse updateBank(Long id, BankRequest request) {
         Bank bank = bankRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            bankRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getBankId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         bankMapper.updateBank(bank, request);
 

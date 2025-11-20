@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.AttendanceMachine.AttendanceMachineRequest;
 import com.example.demo.dto.humanresource.AttendanceMachine.AttendanceMachineResponse;
 import com.example.demo.entity.humanresource.AttendanceMachine;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.AttendanceMachineMapper;
 import com.example.demo.repository.humanresource.AttendanceMachineRepository;
@@ -31,9 +32,12 @@ public class AttendanceMachineService {
 
 
     public AttendanceMachineResponse createAttendanceMachine(AttendanceMachineRequest request) {
-//        attendanceMachineRepository.findByAttendanceMachineCode(request.getAttendanceMachineCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with Attendance Machine Code " + request.getAttendanceMachineCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            attendanceMachineRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         AttendanceMachine attendanceMachine = attendanceMachineMapper.toAttendanceMachine(request);
 
@@ -114,6 +118,15 @@ public class AttendanceMachineService {
     public AttendanceMachineResponse updateAttendanceMachine(Long id, AttendanceMachineRequest request) {
         AttendanceMachine attendanceMachine = attendanceMachineRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            attendanceMachineRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getAttendanceMachineId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         attendanceMachineMapper.updateAttendanceMachine(attendanceMachine, request);
 

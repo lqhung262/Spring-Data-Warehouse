@@ -10,7 +10,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmployeeEducationResponse {
     Long employeeEducationId;
-    Long employeeId;
     Long majorId;
     Long specializationId;
     Long educationLevelId;

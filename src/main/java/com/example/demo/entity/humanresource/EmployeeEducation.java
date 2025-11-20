@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.Objects;
+
 @Entity
 @Table(name = "employee_education")
 @Data
@@ -29,4 +31,17 @@ public class EmployeeEducation {
 
     @Column(name = "school_id")
     private Long schoolId;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        EmployeeEducation that = (EmployeeEducation) o;
+        return employeeEducationId != null && Objects.equals(employeeEducationId, that.employeeEducationId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(employeeEducationId);
+    }
 }

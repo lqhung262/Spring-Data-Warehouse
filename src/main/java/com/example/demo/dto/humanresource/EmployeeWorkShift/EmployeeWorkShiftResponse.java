@@ -10,7 +10,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmployeeWorkShiftResponse {
     Long employeeWorkShiftId;
-    Long employeeId;
     String attendanceCode;
     Long workShiftId;
     Long workShiftGroupId;

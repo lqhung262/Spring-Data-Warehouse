@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.JobTitle.JobTitleRequest;
 import com.example.demo.dto.humanresource.JobTitle.JobTitleResponse;
 import com.example.demo.entity.humanresource.JobTitle;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.JobTitleMapper;
 import com.example.demo.repository.humanresource.JobTitleRepository;
@@ -30,9 +31,12 @@ public class JobTitleService {
     private String entityName;
 
     public JobTitleResponse createJobTitle(JobTitleRequest request) {
-//        jobTitleRepository.findByJobTitleCode(request.getJobTitleCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with job Title Code " + request.getJobTitleCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            jobTitleRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         JobTitle jobTitle = jobTitleMapper.toJobTitle(request);
 
@@ -111,6 +115,15 @@ public class JobTitleService {
     public JobTitleResponse updateJobTitle(Long id, JobTitleRequest request) {
         JobTitle jobTitle = jobTitleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            jobTitleRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getJobTitleId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         jobTitleMapper.updateJobTitle(jobTitle, request);
 

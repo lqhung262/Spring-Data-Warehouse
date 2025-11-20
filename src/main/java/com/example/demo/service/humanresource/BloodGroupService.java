@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.BloodGroup.BloodGroupRequest;
 import com.example.demo.dto.humanresource.BloodGroup.BloodGroupResponse;
 import com.example.demo.entity.humanresource.BloodGroup;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.BloodGroupMapper;
 import com.example.demo.repository.humanresource.BloodGroupRepository;
@@ -30,9 +31,12 @@ public class BloodGroupService {
     private String entityName;
 
     public BloodGroupResponse createBloodGroup(BloodGroupRequest request) {
-//        bloodGroupRepository.findByBloodGroupCode(request.getBloodGroupCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with Blood Group Code " + request.getBloodGroupCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            bloodGroupRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         BloodGroup bloodGroup = bloodGroupMapper.toBloodGroup(request);
 
@@ -112,6 +116,15 @@ public class BloodGroupService {
     public BloodGroupResponse updateBloodGroup(Long id, BloodGroupRequest request) {
         BloodGroup bloodGroup = bloodGroupRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            bloodGroupRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getBloodGroupId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         bloodGroupMapper.updateBloodGroup(bloodGroup, request);
 

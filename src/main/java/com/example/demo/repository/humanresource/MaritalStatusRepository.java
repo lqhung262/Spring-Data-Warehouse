@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface MaritalStatusRepository extends JpaRepository<MaritalStatus, Long> {
+    Optional<MaritalStatus> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả maritalStatus tồn tại trong 1 câu query.
 //     */

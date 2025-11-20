@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.ExpenseType.ExpenseTypeRequest;
 import com.example.demo.dto.humanresource.ExpenseType.ExpenseTypeResponse;
 import com.example.demo.entity.humanresource.ExpenseType;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ExpenseTypeMapper;
 import com.example.demo.repository.humanresource.ExpenseTypeRepository;
@@ -30,9 +31,11 @@ public class ExpenseTypeService {
     private String entityName;
 
     public ExpenseTypeResponse createExpenseType(ExpenseTypeRequest request) {
-//        expenseTypeRepository.findByExpenseTypeCode(request.getExpenseTypeCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with expense Type Code " + request.getExpenseTypeCode() + " already exists.");
-//        });
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            expenseTypeRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         ExpenseType expenseType = expenseTypeMapper.toExpenseType(request);
 
@@ -111,6 +114,15 @@ public class ExpenseTypeService {
     public ExpenseTypeResponse updateExpenseType(Long id, ExpenseTypeRequest request) {
         ExpenseType expenseType = expenseTypeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            expenseTypeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getExpenseTypeId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
+
 
         expenseTypeMapper.updateExpenseType(expenseType, request);
 

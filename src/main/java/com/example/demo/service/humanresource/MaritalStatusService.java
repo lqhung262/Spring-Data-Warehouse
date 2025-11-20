@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.MaritalStatus.MaritalStatusRequest;
 import com.example.demo.dto.humanresource.MaritalStatus.MaritalStatusResponse;
 import com.example.demo.entity.humanresource.MaritalStatus;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MaritalStatusMapper;
 import com.example.demo.repository.humanresource.MaritalStatusRepository;
@@ -31,9 +32,12 @@ public class MaritalStatusService {
 
 
     public MaritalStatusResponse createMaritalStatus(MaritalStatusRequest request) {
-//        maritalStatusRepository.findByMaritalStatusCode(request.getMaritalStatusCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with marital Status Code " + request.getMaritalStatusCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            maritalStatusRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         MaritalStatus maritalStatus = maritalStatusMapper.toMaritalStatus(request);
 
@@ -113,6 +117,15 @@ public class MaritalStatusService {
     public MaritalStatusResponse updateMaritalStatus(Long id, MaritalStatusRequest request) {
         MaritalStatus maritalStatus = maritalStatusRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            maritalStatusRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getMaritalStatusId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         maritalStatusMapper.updateMaritalStatus(maritalStatus, request);
 

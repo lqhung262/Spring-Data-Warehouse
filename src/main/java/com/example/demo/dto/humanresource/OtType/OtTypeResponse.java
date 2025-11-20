@@ -11,5 +11,6 @@ import lombok.experimental.FieldDefaults;
 public class OtTypeResponse {
     Long otTypeId;
     String otTypeCode;
+    String sourceId;
     String name;
 }

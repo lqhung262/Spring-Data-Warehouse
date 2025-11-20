@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Specialization.SpecializationRequest;
 import com.example.demo.dto.humanresource.Specialization.SpecializationResponse;
 import com.example.demo.entity.humanresource.Specialization;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.SpecializationMapper;
 import com.example.demo.repository.humanresource.SpecializationRepository;
@@ -30,9 +31,12 @@ public class SpecializationService {
     private String entityName;
 
     public SpecializationResponse createSpecialization(SpecializationRequest request) {
-//        specializationRepository.findBySpecializationCode(request.getSpecializationCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with specialization Code " + request.getSpecializationCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            specializationRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         Specialization specialization = specializationMapper.toSpecialization(request);
 
@@ -111,6 +115,15 @@ public class SpecializationService {
     public SpecializationResponse updateSpecialization(Long id, SpecializationRequest request) {
         Specialization specialization = specializationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            specializationRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getSpecializationId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         specializationMapper.updateSpecialization(specialization, request);
 

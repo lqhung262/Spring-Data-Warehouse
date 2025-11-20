@@ -2,6 +2,7 @@ package com.example.demo.exception;
 
 import com.example.demo.dto.ApiResponse;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +16,28 @@ public class GlobalExceptionHandler {
                 .badRequest()
                 .body(new ApiResponse<>(
                         e.getCode(),
+                        e.getMessage(),
+                        null
+                ));
+    }
+
+    @ExceptionHandler(value = AlreadyExistsException.class)
+    ResponseEntity<ApiResponse<Object>> handlingAlreadyExistsException(AlreadyExistsException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ApiResponse<>(
+                        e.getCode(),
+                        e.getMessage(),
+                        null
+                ));
+    }
+
+    @ExceptionHandler(value = IllegalArgumentException.class)
+    ResponseEntity<ApiResponse<Object>> handlingIllegalArgumentException(IllegalArgumentException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ApiResponse<>(
+                        400,
                         e.getMessage(),
                         null
                 ));

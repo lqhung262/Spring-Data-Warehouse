@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface LaborStatusRepository extends JpaRepository<LaborStatus, Long> {
+    Optional<LaborStatus> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả laborStatus tồn tại trong 1 câu query.
 //     */

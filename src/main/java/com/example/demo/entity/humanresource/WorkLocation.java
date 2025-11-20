@@ -24,6 +24,10 @@ public class WorkLocation {
     private String workLocationCode;
 
     @NotNull
+    @Column(name = "source_id", length = 100, unique = true)
+    private String sourceId;
+
+    @NotNull
     @Column(name = "name", nullable = false, length = 255, unique = true)
     private String name;
 

@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmployeeDecisionResponse {
     Long employeeDecisionId;
-    Long employeeId;
     String decisionNo;
     LocalDateTime decisionDate;
     Long departmentId;

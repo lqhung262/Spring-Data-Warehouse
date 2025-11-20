@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface ProvinceCityRepository extends JpaRepository<ProvinceCity, Long> {
+    Optional<ProvinceCity> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả provinceCitys tồn tại trong 1 câu query.
 //     */

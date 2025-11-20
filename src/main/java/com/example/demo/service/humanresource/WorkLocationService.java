@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.WorkLocation.WorkLocationRequest;
 import com.example.demo.dto.humanresource.WorkLocation.WorkLocationResponse;
 import com.example.demo.entity.humanresource.WorkLocation;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkLocationMapper;
 import com.example.demo.repository.humanresource.WorkLocationRepository;
@@ -16,8 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,9 +30,11 @@ public class WorkLocationService {
 
 
     public WorkLocationResponse createWorkLocation(WorkLocationRequest request) {
-//        workLocationRepository.findByWorkLocationCode(request.getWorkLocationCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with work Location Code " + request.getWorkLocationCode() + " already exists.");
-//        });
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            workLocationRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         WorkLocation workLocation = workLocationMapper.toWorkLocation(request);
 
@@ -112,6 +113,14 @@ public class WorkLocationService {
     public WorkLocationResponse updateWorkLocation(Long id, WorkLocationRequest request) {
         WorkLocation workLocation = workLocationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            workLocationRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getWorkLocationId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         workLocationMapper.updateWorkLocation(workLocation, request);
 

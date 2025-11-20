@@ -3,6 +3,7 @@ package com.example.demo.service.general;
 import com.example.demo.dto.general.Country.CountryRequest;
 import com.example.demo.dto.general.Country.CountryResponse;
 import com.example.demo.entity.general.Country;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.general.CountryMapper;
 import com.example.demo.repository.general.CountryRepository;
@@ -28,6 +29,13 @@ public class CountryService {
 
 
     public CountryResponse createCountry(CountryRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            countryRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         Country country = countryMapper.toCountry(request);
 
         return countryMapper.toCountryResponse(countryRepository.save(country));
@@ -35,9 +43,8 @@ public class CountryService {
 
     public List<CountryResponse> getCountries(Pageable pageable) {
         Page<Country> page = countryRepository.findAll(pageable);
-        List<CountryResponse> dtos = page.getContent()
+        return page.getContent()
                 .stream().map(countryMapper::toCountryResponse).toList();
-        return dtos;
     }
 
     public CountryResponse getCountry(Long id) {
@@ -48,6 +55,15 @@ public class CountryService {
     public CountryResponse updateCountry(Long id, CountryRequest request) {
         Country country = countryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            countryRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getCountryId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         countryMapper.updateCountry(country, request);
 

@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface JobPositionRepository extends JpaRepository<JobPosition, Long> {
+    Optional<JobPosition> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả jobPositions tồn tại trong 1 câu query.
 //     */

@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface BankRepository extends JpaRepository<Bank, Long> {
+    Optional<Bank> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả banks tồn tại trong 1 câu query.
 //     */

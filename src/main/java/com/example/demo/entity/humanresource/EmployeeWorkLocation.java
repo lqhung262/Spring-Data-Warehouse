@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.Objects;
+
 @Entity
 @Table(name = "employee_work_location")
 @Data
@@ -21,4 +23,17 @@ public class EmployeeWorkLocation {
     @NotNull
     @Column(name = "work_location_id", nullable = false)
     private Long workLocationId;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        EmployeeWorkLocation that = (EmployeeWorkLocation) o;
+        return employeeWorkLocationId != null && Objects.equals(employeeWorkLocationId, that.employeeWorkLocationId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(employeeWorkLocationId);
+    }
 }

@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface OtTypeRepository extends JpaRepository<OtType, Long> {
+    Optional<OtType> findBySourceId(String sourceId);
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả otTypes tồn tại trong 1 câu query.
 //     */

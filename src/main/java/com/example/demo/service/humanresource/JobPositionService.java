@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.JobPosition.JobPositionRequest;
 import com.example.demo.dto.humanresource.JobPosition.JobPositionResponse;
 import com.example.demo.entity.humanresource.JobPosition;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.JobPositionMapper;
 import com.example.demo.repository.humanresource.JobPositionRepository;
@@ -30,9 +31,12 @@ public class JobPositionService {
     private String entityName;
 
     public JobPositionResponse createJobPosition(JobPositionRequest request) {
-//        jobPositionRepository.findByJobPositionCode(request.getJobPositionCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with job Position Code " + request.getJobPositionCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            jobPositionRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         JobPosition jobPosition = jobPositionMapper.toJobPosition(request);
 
@@ -111,6 +115,15 @@ public class JobPositionService {
     public JobPositionResponse updateJobPosition(Long id, JobPositionRequest request) {
         JobPosition jobPosition = jobPositionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            jobPositionRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getJobPositionId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         jobPositionMapper.updateJobPosition(jobPosition, request);
 

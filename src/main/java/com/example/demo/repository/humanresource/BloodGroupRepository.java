@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface BloodGroupRepository extends JpaRepository<BloodGroup, Long> {
+    Optional<BloodGroup> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả bloodGroups tồn tại trong 1 câu query.
 //     */

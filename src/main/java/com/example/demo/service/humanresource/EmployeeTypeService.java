@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.EmployeeType.EmployeeTypeRequest;
 import com.example.demo.dto.humanresource.EmployeeType.EmployeeTypeResponse;
 import com.example.demo.entity.humanresource.EmployeeType;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.EmployeeTypeMapper;
 import com.example.demo.repository.humanresource.EmployeeTypeRepository;
@@ -31,9 +32,12 @@ public class EmployeeTypeService {
 
 
     public EmployeeTypeResponse createEmployeeType(EmployeeTypeRequest request) {
-//        employeeTypeRepository.findByEmployeeTypeCode(request.getEmployeeTypeCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with employee Type Code " + request.getEmployeeTypeCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            employeeTypeRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         EmployeeType employeeType = employeeTypeMapper.toEmployeeType(request);
 
@@ -113,6 +117,15 @@ public class EmployeeTypeService {
     public EmployeeTypeResponse updateEmployeeType(Long id, EmployeeTypeRequest request) {
         EmployeeType employeeType = employeeTypeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            employeeTypeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getEmployeeTypeId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         employeeTypeMapper.updateEmployeeType(employeeType, request);
 

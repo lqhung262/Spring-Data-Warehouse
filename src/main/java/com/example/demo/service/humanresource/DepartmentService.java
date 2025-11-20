@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Department.DepartmentRequest;
 import com.example.demo.dto.humanresource.Department.DepartmentResponse;
 import com.example.demo.entity.humanresource.Department;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.DepartmentMapper;
 import com.example.demo.repository.humanresource.DepartmentRepository;
@@ -30,9 +31,13 @@ public class DepartmentService {
     private String entityName;
 
     public DepartmentResponse createDepartment(DepartmentRequest request) {
-//        departmentRepository.findByDepartmentCode(request.getDepartmentCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with department Code " + request.getDepartmentCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            departmentRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         Department department = departmentMapper.toDepartment(request);
 
         return departmentMapper.toDepartmentResponse(departmentRepository.save(department));
@@ -112,6 +117,15 @@ public class DepartmentService {
     public DepartmentResponse updateDepartment(Long id, DepartmentRequest request) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            departmentRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getDepartmentId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         departmentMapper.updateDepartment(department, request);
 

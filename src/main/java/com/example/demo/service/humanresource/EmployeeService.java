@@ -8,6 +8,7 @@ import com.example.demo.dto.humanresource.EmployeeEducation.EmployeeEducationReq
 import com.example.demo.dto.humanresource.EmployeeWorkLocation.EmployeeWorkLocationRequest;
 import com.example.demo.dto.humanresource.EmployeeWorkShift.EmployeeWorkShiftRequest;
 import com.example.demo.entity.humanresource.*;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.*;
 import com.example.demo.repository.humanresource.*;
@@ -47,10 +48,12 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeResponse createEmployee(EmployeeRequest request) {
-        // check unique sourceId for Employee
-        employeeRepository.findBySourceId(request.getSourceId()).ifPresent(e -> {
-            throw new IllegalArgumentException(entityName + " with sourceId " + request.getSourceId() + " already exists.");
-        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(e -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         Employee employee = employeeMapper.toEmployee(request);
         if (employee.getCreatedBy() == null) employee.setCreatedBy(1L);
@@ -59,23 +62,52 @@ public class EmployeeService {
         Employee saved = employeeRepository.save(employee);
 
         // delegate child creation to helpers (these will validate duplicates)
-        createDecisions(saved, request.getEmployeeDecisions());
-        createEducations(saved, request.getEmployeeEducations());
-        createAttendanceMachines(saved, request.getEmployeeAttendanceMachines());
-        createWorkLocations(saved, request.getEmployeeWorkLocations());
-        createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
+        Set<EmployeeDecision> createdDecisions = new HashSet<>(createDecisions(saved, request.getEmployeeDecisions()));
+        saved.setEmployeeDecisionList(createdDecisions);
+        Set<EmployeeEducation> createdEducations = new HashSet<>(createEducations(saved, request.getEmployeeEducations()));
+        saved.setEmployeeEducationList(createdEducations);
+        Set<EmployeeAttendanceMachine> createdMachines = new HashSet<>(createAttendanceMachines(saved, request.getEmployeeAttendanceMachines()));
+        saved.setEmployeeAttendanceMachineList(createdMachines);
+        Set<EmployeeWorkLocation> createdLocations = new HashSet<>(createWorkLocations(saved, request.getEmployeeWorkLocations()));
+        saved.setEmployeeWorkLocationList(createdLocations);
+        EmployeeWorkShift shift = createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
+        saved.setEmployeeWorkShift(shift);
 
-        Employee loaded = employeeRepository.findById(saved.getId()).orElseThrow(() -> new NotFoundException(entityName));
-        return employeeMapper.toEmployeeResponse(loaded);
+        loadChildCollections(saved);
+        return employeeMapper.toEmployeeResponse(saved);
     }
 
     public List<EmployeeResponse> getEmployees(Pageable pageable) {
-        return employeeRepository.findAll(pageable).getContent().stream().map(employeeMapper::toEmployeeResponse).toList();
+        return employeeRepository.findAll(pageable).getContent().stream()
+                .map(e -> {
+                    loadChildCollections(e);
+                    return employeeMapper.toEmployeeResponse(e);
+                })
+                .toList();
     }
 
     public EmployeeResponse getEmployee(Long id) {
-        return employeeMapper.toEmployeeResponse(employeeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName)));
+        Employee emp = employeeRepository.findById(id).orElseThrow(() -> new NotFoundException(entityName));
+        loadChildCollections(emp);
+        return employeeMapper.toEmployeeResponse(emp);
+    }
+
+    private void loadChildCollections(Employee employee) {
+        if (employee.getEmployeeDecisionList() != null) {
+            employee.getEmployeeDecisionList().size();
+        }
+        if (employee.getEmployeeEducationList() != null) {
+            employee.getEmployeeEducationList().size();
+        }
+        if (employee.getEmployeeAttendanceMachineList() != null) {
+            employee.getEmployeeAttendanceMachineList().size();
+        }
+        if (employee.getEmployeeWorkLocationList() != null) {
+            employee.getEmployeeWorkLocationList().size();
+        }
+        if (employee.getEmployeeWorkShift() != null) {
+            employee.getEmployeeWorkShift().getEmployeeWorkShiftId();
+        }
     }
 
     @Transactional
@@ -83,10 +115,12 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
 
-        // check sourceId uniqueness if changing
-        if (request.getSourceId() != null && !request.getSourceId().equals(employee.getSourceId())) {
-            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(e -> {
-                throw new IllegalArgumentException(entityName + " with sourceId " + request.getSourceId() + " already exists.");
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
             });
         }
 
@@ -100,15 +134,19 @@ public class EmployeeService {
         if (request.getEmployeeAttendanceMachines() != null)
             replaceAttendanceMachines(saved, request.getEmployeeAttendanceMachines());
         if (request.getEmployeeWorkLocations() != null) replaceWorkLocations(saved, request.getEmployeeWorkLocations());
-        if (request.getEmployeeWorkShift() != null) createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
+        if (request.getEmployeeWorkShift() != null) {
+            EmployeeWorkShift shift = createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
+            saved.setEmployeeWorkShift(shift);
+        }
 
-        Employee loaded = employeeRepository.findById(saved.getId()).orElseThrow(() -> new NotFoundException(entityName));
-        return employeeMapper.toEmployeeResponse(loaded);
+        loadChildCollections(saved);
+        return employeeMapper.toEmployeeResponse(saved);
     }
 
     public void deleteEmployee(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeRepository.existsById(employeeId)) {
+            throw new NotFoundException(entityName);
+        }
 
         // delete child records first
         List<EmployeeDecision> decisions = employeeDecisionRepository.findByEmployee_Id(employeeId);
@@ -131,10 +169,11 @@ public class EmployeeService {
     }
 
     // --- helpers ---
-    private void createDecisions(Employee employee, Set<EmployeeDecisionRequest> decisions) {
-        if (decisions == null || decisions.isEmpty()) return;
+    private Set<EmployeeDecision> createDecisions(Employee employee, Set<EmployeeDecisionRequest> decisions) {
+        if (decisions == null || decisions.isEmpty()) return Set.of();
         // check duplicates in input decisionNo
         Set<String> seen = new HashSet<>();
+        Set<EmployeeDecision> created = new HashSet<>();
         for (EmployeeDecisionRequest d : decisions) {
             if (!seen.add(d.getDecisionNo()))
                 throw new IllegalArgumentException("Duplicate decisionNo in request: " + d.getDecisionNo());
@@ -148,8 +187,9 @@ public class EmployeeService {
             });
             EmployeeDecision dec = employeeDecisionMapper.toEmployeeDecision(d);
             dec.setEmployee(employee);
-            employeeDecisionRepository.save(dec);
+            created.add(employeeDecisionRepository.save(dec));
         }
+        return created;
     }
 
     private void replaceDecisions(Employee employee, Set<EmployeeDecisionRequest> decisions) {
@@ -160,9 +200,10 @@ public class EmployeeService {
         createDecisions(employee, decisions);
     }
 
-    private void createEducations(Employee employee, Set<EmployeeEducationRequest> educations) {
-        if (educations == null || educations.isEmpty()) return;
+    private Set<EmployeeEducation> createEducations(Employee employee, Set<EmployeeEducationRequest> educations) {
+        if (educations == null || educations.isEmpty()) return Set.of();
         Set<String> seen = new HashSet<>();
+        Set<EmployeeEducation> created = new HashSet<>();
         for (EmployeeEducationRequest e : educations) {
             String key = e.getMajorId() + "|" + e.getSpecializationId() + "|" + e.getEducationLevelId() + "|" + e.getSchoolId();
             if (!seen.add(key)) throw new IllegalArgumentException("Duplicate education combo in request: " + key);
@@ -171,8 +212,9 @@ public class EmployeeService {
             });
             EmployeeEducation ee = employeeEducationMapper.toEmployeeEducation(e);
             ee.setEmployee(employee);
-            employeeEducationRepository.save(ee);
+            created.add(employeeEducationRepository.save(ee));
         }
+        return created;
     }
 
     private void replaceEducations(Employee employee, Set<EmployeeEducationRequest> educations) {
@@ -181,9 +223,10 @@ public class EmployeeService {
         createEducations(employee, educations);
     }
 
-    private void createAttendanceMachines(Employee employee, Set<EmployeeAttendanceMachineRequest> machines) {
-        if (machines == null || machines.isEmpty()) return;
+    private Set<EmployeeAttendanceMachine> createAttendanceMachines(Employee employee, Set<EmployeeAttendanceMachineRequest> machines) {
+        if (machines == null || machines.isEmpty()) return Set.of();
         Set<Long> seen = new HashSet<>();
+        Set<EmployeeAttendanceMachine> created = new HashSet<>();
         for (EmployeeAttendanceMachineRequest m : machines) {
             if (!seen.add(m.getMachineId()))
                 throw new IllegalArgumentException("Duplicate machineId in request: " + m.getMachineId());
@@ -192,8 +235,9 @@ public class EmployeeService {
             });
             EmployeeAttendanceMachine eam = employeeAttendanceMachineMapper.toEmployeeAttendanceMachine(m);
             eam.setEmployee(employee);
-            employeeAttendanceMachineRepository.save(eam);
+            created.add(employeeAttendanceMachineRepository.save(eam));
         }
+        return created;
     }
 
     private void replaceAttendanceMachines(Employee employee, Set<EmployeeAttendanceMachineRequest> machines) {
@@ -202,9 +246,10 @@ public class EmployeeService {
         createAttendanceMachines(employee, machines);
     }
 
-    private void createWorkLocations(Employee employee, Set<EmployeeWorkLocationRequest> locations) {
-        if (locations == null || locations.isEmpty()) return;
+    private Set<EmployeeWorkLocation> createWorkLocations(Employee employee, Set<EmployeeWorkLocationRequest> locations) {
+        if (locations == null || locations.isEmpty()) return Set.of();
         Set<Long> seen = new HashSet<>();
+        Set<EmployeeWorkLocation> created = new HashSet<>();
         for (EmployeeWorkLocationRequest l : locations) {
             if (!seen.add(l.getWorkLocationId()))
                 throw new IllegalArgumentException("Duplicate workLocationId in request: " + l.getWorkLocationId());
@@ -213,8 +258,9 @@ public class EmployeeService {
             });
             EmployeeWorkLocation ewl = employeeWorkLocationMapper.toEmployeeWorkLocation(l);
             ewl.setEmployee(employee);
-            employeeWorkLocationRepository.save(ewl);
+            created.add(employeeWorkLocationRepository.save(ewl));
         }
+        return created;
     }
 
     private void replaceWorkLocations(Employee employee, Set<EmployeeWorkLocationRequest> locations) {
@@ -223,20 +269,21 @@ public class EmployeeService {
         createWorkLocations(employee, locations);
     }
 
-    private void createOrUpdateWorkShift(Employee employee, EmployeeWorkShiftRequest wsReq) {
-        if (wsReq == null) return;
-        // check composite uniqueness per employee
-        employeeWorkShiftRepository.findByEmployee_IdAndAttendanceTypeIdAndWorkShiftIdAndOtTypeIdAndWorkShiftGroupId(employee.getId(), wsReq.getAttendanceTypeId(), wsReq.getWorkShiftId(), wsReq.getOtTypeId(), wsReq.getWorkShiftGroupId()).ifPresent(x -> {
-            // if found, update it
-            EmployeeWorkShift shift = x;
+    private EmployeeWorkShift createOrUpdateWorkShift(Employee employee, EmployeeWorkShiftRequest wsReq) {
+        if (wsReq == null) return null;
+
+        // If there is already a work shift for this employee (1-0..1), update it
+        List<EmployeeWorkShift> existingList = employeeWorkShiftRepository.findByEmployee_Id(employee.getId());
+        if (existingList != null && !existingList.isEmpty()) {
+            EmployeeWorkShift shift = existingList.getFirst();
             employeeWorkShiftMapper.updateEmployeeWorkShift(shift, wsReq);
             shift.setEmployee(employee);
-            employeeWorkShiftRepository.save(shift);
-            return;
-        });
+            return employeeWorkShiftRepository.save(shift);
+        }
 
+        // Otherwise create new
         EmployeeWorkShift shift = employeeWorkShiftMapper.toEmployeeWorkShift(wsReq);
         shift.setEmployee(employee);
-        employeeWorkShiftRepository.save(shift);
+        return employeeWorkShiftRepository.save(shift);
     }
 }

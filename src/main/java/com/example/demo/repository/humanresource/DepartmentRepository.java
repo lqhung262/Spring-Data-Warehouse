@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
+    Optional<Department> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả departments tồn tại trong 1 câu query.
 //     */

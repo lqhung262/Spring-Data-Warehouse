@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface IdentityIssuingAuthorityRepository extends JpaRepository<IdentityIssuingAuthority, Long> {
+    Optional<IdentityIssuingAuthority> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả IdentityIssuingAuthoritys tồn tại trong 1 câu query.
 //     */

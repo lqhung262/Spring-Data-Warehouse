@@ -10,6 +10,5 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmployeeWorkLocationResponse {
     Long employeeWorkLocationId;
-    Long employeeId;
     Long workLocationId;
 }

@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface MajorRepository extends JpaRepository<Major, Long> {
+    Optional<Major> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả majors tồn tại trong 1 câu query.
 //     */

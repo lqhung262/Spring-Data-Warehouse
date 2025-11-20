@@ -4,12 +4,11 @@ import com.example.demo.entity.humanresource.Ward;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface WardRepository extends JpaRepository<Ward, Long> {
+    Optional<Ward> findBySourceId(String sourceId);
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả wards tồn tại trong 1 câu query.
 //     */

@@ -11,6 +11,11 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
         uses = {EmployeeDecisionMapper.class, EmployeeEducationMapper.class, EmployeeWorkShiftMapper.class, EmployeeAttendanceMachineMapper.class, EmployeeWorkLocationMapper.class})
 public interface EmployeeMapper {
+    @Mapping(target = "employeeDecisionList", ignore = true)
+    @Mapping(target = "employeeEducationList", ignore = true)
+    @Mapping(target = "employeeAttendanceMachineList", ignore = true)
+    @Mapping(target = "employeeWorkLocationList", ignore = true)
+    @Mapping(target = "employeeWorkShift", ignore = true)
     Employee toEmployee(EmployeeRequest request);
 
     @Mapping(source = "employeeDecisionList", target = "employeeDecisions")
@@ -20,5 +25,10 @@ public interface EmployeeMapper {
     @Mapping(source = "employeeWorkLocationList", target = "employeeWorkLocations")
     EmployeeResponse toEmployeeResponse(Employee employee);
 
+    @Mapping(target = "employeeDecisionList", ignore = true)
+    @Mapping(target = "employeeEducationList", ignore = true)
+    @Mapping(target = "employeeAttendanceMachineList", ignore = true)
+    @Mapping(target = "employeeWorkLocationList", ignore = true)
+    @Mapping(target = "employeeWorkShift", ignore = true)
     void updateEmployee(@MappingTarget Employee employee, EmployeeRequest request);
 }

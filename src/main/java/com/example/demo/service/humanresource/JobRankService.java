@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.JobRank.JobRankRequest;
 import com.example.demo.dto.humanresource.JobRank.JobRankResponse;
 import com.example.demo.entity.humanresource.JobRank;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.JobRankMapper;
 import com.example.demo.repository.humanresource.JobRankRepository;
@@ -30,9 +31,12 @@ public class JobRankService {
     private String entityName;
 
     public JobRankResponse createJobRank(JobRankRequest request) {
-//        jobRankRepository.findByJobRankCode(request.getJobRankCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with job Rank Code " + request.getJobRankCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            jobRankRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         JobRank jobRank = jobRankMapper.toJobRank(request);
 
@@ -111,6 +115,15 @@ public class JobRankService {
     public JobRankResponse updateJobRank(Long id, JobRankRequest request) {
         JobRank jobRank = jobRankRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            jobRankRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getJobRankId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         jobRankMapper.updateJobRank(jobRank, request);
 

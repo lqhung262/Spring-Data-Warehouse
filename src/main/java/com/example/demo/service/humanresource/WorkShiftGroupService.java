@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.WorkShiftGroup.WorkShiftGroupRequest;
 import com.example.demo.dto.humanresource.WorkShiftGroup.WorkShiftGroupResponse;
 import com.example.demo.entity.humanresource.WorkShiftGroup;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkShiftGroupMapper;
 import com.example.demo.repository.humanresource.WorkShiftGroupRepository;
@@ -30,9 +31,12 @@ public class WorkShiftGroupService {
     private String entityName;
 
     public WorkShiftGroupResponse createWorkShiftGroup(WorkShiftGroupRequest request) {
-//        workShiftGroupRepository.findByWorkShiftGroupCode(request.getWorkShiftGroupCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with work Shift Group Code " + request.getWorkShiftGroupCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            workShiftGroupRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         WorkShiftGroup workShiftGroup = workShiftGroupMapper.toWorkShiftGroup(request);
 
@@ -111,6 +115,15 @@ public class WorkShiftGroupService {
     public WorkShiftGroupResponse updateWorkShiftGroup(Long id, WorkShiftGroupRequest request) {
         WorkShiftGroup workShiftGroup = workShiftGroupRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            workShiftGroupRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getWorkShiftGroupId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         workShiftGroupMapper.updateWorkShiftGroup(workShiftGroup, request);
 

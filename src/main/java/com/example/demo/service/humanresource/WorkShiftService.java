@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.WorkShift.WorkShiftRequest;
 import com.example.demo.dto.humanresource.WorkShift.WorkShiftResponse;
 import com.example.demo.entity.humanresource.WorkShift;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkShiftMapper;
 import com.example.demo.repository.humanresource.WorkShiftRepository;
@@ -30,9 +31,12 @@ public class WorkShiftService {
     private String entityName;
 
     public WorkShiftResponse createWorkShift(WorkShiftRequest request) {
-//        workShiftRepository.findByWorkShiftCode(request.getWorkShiftCode()).ifPresent(b -> {
-//            throw new IllegalArgumentException(entityName + " with work Shift Code " + request.getWorkShiftCode() + " already exists.");
-//        });
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            workShiftRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
 
         WorkShift workShift = workShiftMapper.toWorkShift(request);
 
@@ -111,6 +115,15 @@ public class WorkShiftService {
     public WorkShiftResponse updateWorkShift(Long id, WorkShiftRequest request) {
         WorkShift workShift = workShiftRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            workShiftRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getWorkShiftId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         workShiftMapper.updateWorkShift(workShift, request);
 

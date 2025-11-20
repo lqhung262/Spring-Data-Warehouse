@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.Ward.WardRequest;
 import com.example.demo.dto.humanresource.Ward.WardResponse;
 import com.example.demo.entity.humanresource.Ward;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WardMapper;
 import com.example.demo.repository.humanresource.WardRepository;
@@ -30,6 +31,13 @@ public class WardService {
     private String entityName;
 
     public WardResponse createWard(WardRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            wardRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         Ward ward = wardMapper.toWard(request);
 
         return wardMapper.toWardResponse(wardRepository.save(ward));
@@ -107,6 +115,15 @@ public class WardService {
     public WardResponse updateWard(Long id, WardRequest request) {
         Ward ward = wardRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            wardRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getWardId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         wardMapper.updateWard(ward, request);
 

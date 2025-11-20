@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface AttendanceTypeRepository extends JpaRepository<AttendanceType, Long> {
+    Optional<AttendanceType> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả attendanceTypes tồn tại trong 1 câu query.
 //     */

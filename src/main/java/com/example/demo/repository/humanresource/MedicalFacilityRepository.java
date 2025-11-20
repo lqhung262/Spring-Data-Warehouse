@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface MedicalFacilityRepository extends JpaRepository<MedicalFacility, Long> {
+    Optional<MedicalFacility> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả medicalFacilitys tồn tại trong 1 câu query.
 //     */

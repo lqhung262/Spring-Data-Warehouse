@@ -3,6 +3,7 @@ package com.example.demo.service.humanresource;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityRequest;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityResponse;
 import com.example.demo.entity.humanresource.ProvinceCity;
+import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ProvinceCityMapper;
 import com.example.demo.repository.humanresource.ProvinceCityRepository;
@@ -30,6 +31,13 @@ public class ProvinceCityService {
     private String entityName;
 
     public ProvinceCityResponse createProvinceCity(ProvinceCityRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            provinceCityRepository.findBySourceId(request.getSourceId()).ifPresent(b -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
         ProvinceCity provinceCity = provinceCityMapper.toProvinceCity(request);
 
         return provinceCityMapper.toProvinceCityResponse(provinceCityRepository.save(provinceCity));
@@ -107,6 +115,15 @@ public class ProvinceCityService {
     public ProvinceCityResponse updateProvinceCity(Long id, ProvinceCityRequest request) {
         ProvinceCity provinceCity = provinceCityRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            provinceCityRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getProvinceCityId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
 
         provinceCityMapper.updateProvinceCity(provinceCity, request);
 

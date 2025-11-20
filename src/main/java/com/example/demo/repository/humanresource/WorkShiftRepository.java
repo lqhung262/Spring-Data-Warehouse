@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface WorkShiftRepository extends JpaRepository<WorkShift, Long> {
+    Optional<WorkShift> findBySourceId(String sourceId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả workShifts tồn tại trong 1 câu query.
 //     */

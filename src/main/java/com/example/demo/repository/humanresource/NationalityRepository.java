@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface NationalityRepository extends JpaRepository<Nationality, Long> {
+    Optional<Nationality> findBySourceId(String sourceId);
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả nationality tồn tại trong 1 câu query.
 //     */

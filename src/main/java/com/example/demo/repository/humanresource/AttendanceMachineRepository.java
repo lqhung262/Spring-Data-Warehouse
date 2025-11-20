@@ -10,6 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface AttendanceMachineRepository extends JpaRepository<AttendanceMachine, Long> {
+    Optional<AttendanceMachine> findBySourceId(String sourceId);
+
 //    List<AttendanceMachine> findByAttendanceMachineCodeIn(Collection<String> attendanceMachineCodes);
 //
 //    /**

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.Objects;
+
 @Entity
 @Table(name = "employee_work_shift")
 @Data
@@ -35,4 +37,17 @@ public class EmployeeWorkShift {
 
     @Column(name = "ot_type_id")
     private Long otTypeId;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        EmployeeWorkShift that = (EmployeeWorkShift) o;
+        return employeeWorkShiftId != null && Objects.equals(employeeWorkShiftId, that.employeeWorkShiftId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(employeeWorkShiftId);
+    }
 }

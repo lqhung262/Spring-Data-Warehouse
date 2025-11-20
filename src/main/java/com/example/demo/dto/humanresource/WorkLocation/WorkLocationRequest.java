@@ -15,6 +15,9 @@ public class WorkLocationRequest {
     private String workLocationCode;
 
     @NotBlank
+    private String sourceId;
+
+    @NotBlank
     private String name;
 
 
