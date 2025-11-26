@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface MedicalFacilityRepository extends JpaRepository<MedicalFacility, Long> {
     Optional<MedicalFacility> findBySourceId(String sourceId);
 
+    // Count methods for cascade delete checks
+    long countByProvinceCity_ProvinceCityId(Long provinceCityId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả medicalFacilitys tồn tại trong 1 câu query.
 //     */

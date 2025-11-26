@@ -14,15 +14,38 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     List<Employee> findByIdIn(Collection<Long> ids);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả employeess tồn tại trong 1 câu query.
-//     */
-//    List<Employee> findByEmployeeCodeIn(Collection<String> employeesCodes);
+    // Count methods for cascade delete checks
+    long countByBank_BankId(Long bankId);
 
-    /**
-     * Dùng cho Upsert: Tìm 1 employees bằng employeesCode
-     */
-//    Optional<Employee> findByEmployeeCode(String employeesCode);
+    long countByGender_GenderId(Long genderId);
 
-////    Long countByEmployeeIdIn(Collection<Long> employeesIds);
+    long countByMaritalStatus_MaritalStatusId(Long maritalStatusId);
+
+    long countByNationality_NationalityId(Long nationalityId);
+
+    long countByLaborStatus_LaborStatusId(Long laborStatusId);
+
+    long countByGraduationSchool_SchoolId(Long schoolId);
+
+    long countByLanguage1_LanguageId(Long languageId);
+
+    long countByLanguage2_LanguageId(Long languageId);
+
+    long countByLanguage3_LanguageId(Long languageId);
+
+    long countByBloodGroup_BloodGroupId(Long bloodGroupId);
+
+    long countByCurrentAddressWard_WardId(Long wardId);
+
+    long countByPermanentAddressWard_WardId(Long wardId);
+
+    long countByHometown_ProvinceCityId(Long provinceCityId);
+
+    long countByPlaceOfBirth_ProvinceCityId(Long provinceCityId);
+
+    long countByMedicalRegistration_MedicalFacilityId(Long medicalFacilityId);
+
+    long countByIdIssuePlaceCmnd_IdentityIssuingAuthorityId(Long identityIssuingAuthorityId);
+
+    long countByIdIssuePlaceCccd_IdentityIssuingAuthorityId(Long identityIssuingAuthorityId);
 }

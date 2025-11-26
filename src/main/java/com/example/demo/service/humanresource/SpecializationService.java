@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeEducationRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class SpecializationService {
     final SpecializationRepository specializationRepository;
     final SpecializationMapper specializationMapper;
+    final EmployeeEducationRepository employeeEducationRepository;
 
     @Value("${entities.humanresource.speicialization}")
     private String entityName;
@@ -131,8 +134,18 @@ public class SpecializationService {
     }
 
     public void deleteSpecialization(Long id) {
-        Specialization specialization = specializationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!specializationRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeEducationRepository.countBySpecialization_SpecializationId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "Specialization", id, "EmployeeEducation", refCount
+            );
+        }
+
         specializationRepository.deleteById(id);
     }
 }

@@ -115,8 +115,10 @@ public class EmployeeEducationService {
     }
 
     public void deleteEmployeeEducation(Long id) {
-        EmployeeEducation employeeEducation = employeeEducationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeEducationRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         employeeEducationRepository.deleteById(id);
     }
 }

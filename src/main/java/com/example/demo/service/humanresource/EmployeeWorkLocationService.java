@@ -114,8 +114,10 @@ public class EmployeeWorkLocationService {
     }
 
     public void deleteEmployeeWorkLocation(Long id) {
-        EmployeeWorkLocation employeeWorkLocation = employeeWorkLocationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeWorkLocationRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         employeeWorkLocationRepository.deleteById(id);
     }
 

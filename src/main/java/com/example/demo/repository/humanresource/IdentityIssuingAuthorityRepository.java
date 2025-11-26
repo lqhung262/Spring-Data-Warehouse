@@ -15,7 +15,8 @@ public interface IdentityIssuingAuthorityRepository extends JpaRepository<Identi
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả IdentityIssuingAuthoritys tồn tại trong 1 câu query.
 //     */
-////    List<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCodeIn(Collection<String> identityIssuingAuthorityCodes);
+
+    /// /    List<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCodeIn(Collection<String> identityIssuingAuthorityCodes);
 //
 //    /**
 //     * Dùng cho Upsert: Tìm 1 IdentityIssuingAuthority bằng identityIssuingAuthorityCode
@@ -23,4 +24,7 @@ public interface IdentityIssuingAuthorityRepository extends JpaRepository<Identi
 //    Optional<IdentityIssuingAuthority> findByIdentityIssuingAuthorityId(Long identityIssuingAuthorityCode);
 //
 //    Long countByIdentityIssuingAuthorityIdIn(Collection<Long> identityIssuingAuthorityIds);
+
+    // Count methods for cascade delete checks
+    long countByDocumentType_DocumentTypeId(Long documentTypeId);
 }

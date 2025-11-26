@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class JobRankService {
     final JobRankRepository jobRankRepository;
     final JobRankMapper jobRankMapper;
+    final EmployeeDecisionRepository employeeDecisionRepository;
 
     @Value("${entities.humanresource.jobrank}")
     private String entityName;
@@ -131,8 +134,18 @@ public class JobRankService {
     }
 
     public void deleteJobRank(Long id) {
-        JobRank jobRank = jobRankRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!jobRankRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeDecisionRepository.countByJobRank_JobRankId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "JobRank", id, "EmployeeDecision", refCount
+            );
+        }
+
         jobRankRepository.deleteById(id);
     }
 }

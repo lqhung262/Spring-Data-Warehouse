@@ -2,6 +2,7 @@ package com.example.demo.entity.humanresource;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -21,40 +22,9 @@ public class EmployeeDecision {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @NotNull
-    @Column(name = "decision_no", nullable = false, unique = true, length = 100)
-    private String decisionNo;
 
     @Column(name = "decision_date")
     private LocalDateTime decisionDate;
-
-    @NotNull
-    @Column(name = "department_id", nullable = false)
-    private Long departmentId;
-
-    @Column(name = "employee_type_id")
-    private Long employeeTypeId;
-
-    @NotNull
-    @Column(name = "job_position_id", nullable = false)
-    private Long jobPositionId;
-
-    @NotNull
-    @Column(name = "job_title_id", nullable = false)
-    private Long jobTitleId;
-
-    @NotNull
-    @Column(name = "job_rank_id", nullable = false)
-    private Long jobRankId;
-
-    @Column(name = "cost_category_level_1")
-    private Long costCategoryLevel1;
-
-    @Column(name = "cost_category_level_2")
-    private Long costCategoryLevel2;
-
-    @Column(name = "decision_type_id")
-    private Long decisionTypeId;
 
     @Column(name = "is_active")
     private Boolean isActive = Boolean.TRUE;
@@ -62,6 +32,47 @@ public class EmployeeDecision {
     @NotNull
     @Column(name = "effective_at", nullable = false)
     private LocalDateTime effectiveAt;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_type_id")
+    private EmployeeType employeeType;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "job_position_id", nullable = false)
+    private JobPosition jobPosition;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "job_title_id", nullable = false)
+    private JobTitle jobTitle;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "job_rank_id", nullable = false)
+    private JobRank jobRank;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "decision_type_id")
+    private DecisionType decisionType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_category_level_1")
+    private ExpenseType costCategoryLevel1;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_category_level_2")
+    private ExpenseType costCategoryLevel2;
+
+    @Size(max = 100)
+    @NotNull
+    @Column(name = "decision_no", nullable = false, length = 100)
+    private String decisionNo;
 
     @Override
     public boolean equals(Object o) {

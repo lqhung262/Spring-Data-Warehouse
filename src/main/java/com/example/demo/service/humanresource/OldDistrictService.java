@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.OldWardRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class OldDistrictService {
     final OldDistrictRepository oldDistrictRepository;
     final OldDistrictMapper oldDistrictMapper;
+    final OldWardRepository oldWardRepository;
 
     @Value("${entities.humanresource.olddistrict}")
     private String entityName;
@@ -39,6 +41,9 @@ public class OldDistrictService {
         }
 
         OldDistrict oldDistrict = oldDistrictMapper.toOldDistrict(request);
+
+        // Set FK references from IDs in request
+        oldDistrictMapper.setReferences(oldDistrict, request);
 
         return oldDistrictMapper.toOldDistrictResponse(oldDistrictRepository.save(oldDistrict));
     }
@@ -126,13 +131,25 @@ public class OldDistrictService {
         }
 
         oldDistrictMapper.updateOldDistrict(oldDistrict, request);
+        // Set FK references from IDs in request
+        oldDistrictMapper.setReferences(oldDistrict, request);
 
         return oldDistrictMapper.toOldDistrictResponse(oldDistrictRepository.save(oldDistrict));
     }
 
     public void deleteOldDistrict(Long id) {
-        OldDistrict oldDistrict = oldDistrictRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!oldDistrictRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check if any OldWard references this OldDistrict (RESTRICT strategy)
+        long childCount = oldWardRepository.countByOldDistrict_OldDistrictId(id);
+        if (childCount > 0) {
+            throw new com.example.demo.exception.CannotDeleteException(
+                    "OldDistrict", id, "OldWard", childCount
+            );
+        }
+
         oldDistrictRepository.deleteById(id);
     }
 }

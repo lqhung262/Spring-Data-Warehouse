@@ -116,8 +116,10 @@ public class EmployeeAttendanceMachineService {
     }
 
     public void deleteEmployeeAttendanceMachine(Long id) {
-        EmployeeAttendanceMachine employeeAttendanceMachine = employeeAttendanceMachineRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeAttendanceMachineRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         employeeAttendanceMachineRepository.deleteById(id);
     }
 

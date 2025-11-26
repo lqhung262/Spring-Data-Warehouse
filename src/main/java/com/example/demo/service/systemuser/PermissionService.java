@@ -53,8 +53,10 @@ public class PermissionService {
     }
 
     public void deletePermission(Long id) {
-        Permission permission = permissionRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!permissionRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         permissionRepository.deleteById(id);
     }
 }

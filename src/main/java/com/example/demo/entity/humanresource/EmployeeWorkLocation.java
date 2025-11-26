@@ -21,8 +21,10 @@ public class EmployeeWorkLocation {
     private Employee employee;
 
     @NotNull
-    @Column(name = "work_location_id", nullable = false)
-    private Long workLocationId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "work_location_id", nullable = false)
+    private WorkLocation workLocation;
+
 
     @Override
     public boolean equals(Object o) {

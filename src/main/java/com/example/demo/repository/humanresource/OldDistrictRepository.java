@@ -12,14 +12,19 @@ import java.util.Optional;
 public interface OldDistrictRepository extends JpaRepository<OldDistrict, Long> {
     Optional<OldDistrict> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả oldDistricts tồn tại trong 1 câu query.
-//     */
-////    List<OldDistrict> findByOldDistrictCodeIn(Collection<String> oldDistrictCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 oldDistrict bằng oldDistrictCode
-//     */
+    // For cascade delete checks
+    long countByWard_WardId(Long wardId);
+
+    long countByOldProvinceCity_OldProvinceCityId(Long oldProvinceCityId);
+
+    /**
+     * Tối ưu cho Upsert: Tìm tất cả oldDistricts tồn tại trong 1 câu query.
+     */
+//    List<OldDistrict> findByOldDistrictCodeIn(Collection<String> oldDistrictCodes);
+
+    /**
+     * Dùng cho Upsert: Tìm 1 oldDistrict bằng oldDistrictCode
+     */
 //    Optional<OldDistrict> findByOldDistrictId(Long oldDistrictId);
 //
 //    Long countByOldDistrictIdIn(Collection<Long> oldDistrictIds);

@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MedicalFacilityMapper;
 import com.example.demo.repository.humanresource.MedicalFacilityRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class MedicalFacilityService {
     final MedicalFacilityRepository medicalFacilityRepository;
     final MedicalFacilityMapper medicalFacilityMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.medicalfacility}")
     private String entityName;
@@ -39,6 +42,8 @@ public class MedicalFacilityService {
         }
 
         MedicalFacility medicalFacility = medicalFacilityMapper.toMedicalFacility(request);
+        // Set FK references from IDs in request
+        medicalFacilityMapper.setReferences(medicalFacility, request);
 
         return medicalFacilityMapper.toMedicalFacilityResponse(medicalFacilityRepository.save(medicalFacility));
     }
@@ -127,13 +132,25 @@ public class MedicalFacilityService {
         }
 
         medicalFacilityMapper.updateMedicalFacility(medicalFacility, request);
+        // Set FK references from IDs in request
+        medicalFacilityMapper.setReferences(medicalFacility, request);
 
         return medicalFacilityMapper.toMedicalFacilityResponse(medicalFacilityRepository.save(medicalFacility));
     }
 
     public void deleteMedicalFacility(Long id) {
-        MedicalFacility medicalFacility = medicalFacilityRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!medicalFacilityRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeRepository.countByMedicalRegistration_MedicalFacilityId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "MedicalFacility", id, "Employee", refCount
+            );
+        }
+
         medicalFacilityRepository.deleteById(id);
     }
 }

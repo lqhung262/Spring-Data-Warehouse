@@ -112,8 +112,10 @@ public class EmployeeWorkShiftService {
     }
 
     public void deleteEmployeeWorkShift(Long employeeId) {
-        EmployeeWorkShift employeeWorkShift = employeeWorkShiftRepository.findById(employeeId)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeWorkShiftRepository.existsById(employeeId)) {
+            throw new NotFoundException(entityName);
+        }
+
         employeeWorkShiftRepository.deleteById(employeeId);
     }
 }

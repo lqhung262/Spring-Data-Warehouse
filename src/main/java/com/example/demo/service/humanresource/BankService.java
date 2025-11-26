@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class BankService {
     final BankRepository bankRepository;
     final BankMapper bankMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.bank}")
     private String entityName;
@@ -133,8 +135,18 @@ public class BankService {
     }
 
     public void deleteBank(Long id) {
-        Bank bank = bankRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!bankRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeRepository.countByBank_BankId(id);
+        if (refCount > 0) {
+            throw new com.example.demo.exception.CannotDeleteException(
+                    "Bank", id, "Employee", refCount
+            );
+        }
+
         bankRepository.deleteById(id);
     }
 }

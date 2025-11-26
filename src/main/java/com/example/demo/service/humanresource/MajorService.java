@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeEducationRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class MajorService {
     final MajorRepository majorRepository;
     final MajorMapper majorMapper;
+    final EmployeeEducationRepository employeeEducationRepository;
 
     @Value("${entities.humanresource.major}")
     private String entityName;
@@ -131,8 +134,18 @@ public class MajorService {
     }
 
     public void deleteMajor(Long id) {
-        Major major = majorRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!majorRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeEducationRepository.countByMajor_MajorId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "Major", id, "EmployeeEducation", refCount
+            );
+        }
+
         majorRepository.deleteById(id);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    // Handle lỗi không tìm thấy
     @ExceptionHandler(value = NotFoundException.class)
     ResponseEntity<ApiResponse<Object>> handlingNotFoundException(NotFoundException e) {
         return ResponseEntity
@@ -21,6 +22,7 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // Handle lỗi đã tồn tại
     @ExceptionHandler(value = AlreadyExistsException.class)
     ResponseEntity<ApiResponse<Object>> handlingAlreadyExistsException(AlreadyExistsException e) {
         return ResponseEntity
@@ -64,5 +66,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(409)
                 .body(new ApiResponse<>(409, msg, null));
+    }
+
+    // Handle xóa không thành công do ràng buộc khóa ngoại
+    @ExceptionHandler(value = CannotDeleteException.class)
+    ResponseEntity<ApiResponse<Object>> handlingCannotDeleteException(CannotDeleteException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ApiResponse<>(
+                        HttpStatus.CONFLICT.value(),
+                        e.getMessage(),
+                        null
+                ));
     }
 }

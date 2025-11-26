@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkLocationMapper;
 import com.example.demo.repository.humanresource.WorkLocationRepository;
+import com.example.demo.repository.humanresource.EmployeeWorkLocationRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import java.util.List;
 public class WorkLocationService {
     final WorkLocationRepository workLocationRepository;
     final WorkLocationMapper workLocationMapper;
+    final EmployeeWorkLocationRepository employeeWorkLocationRepository;
 
     @Value("${entities.humanresource.worklocation}")
     private String entityName;
@@ -128,8 +131,18 @@ public class WorkLocationService {
     }
 
     public void deleteWorkLocation(Long id) {
-        WorkLocation workLocation = workLocationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!workLocationRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeWorkLocationRepository.countByWorkLocation_WorkLocationId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "WorkLocation", id, "EmployeeWorkLocation", refCount
+            );
+        }
+
         workLocationRepository.deleteById(id);
     }
 }

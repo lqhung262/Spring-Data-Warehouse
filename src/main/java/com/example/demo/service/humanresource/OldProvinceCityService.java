@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.OldDistrictRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class OldProvinceCityService {
     final OldProvinceCityRepository oldProvinceCityRepository;
     final OldProvinceCityMapper oldProvinceCityMapper;
+    final OldDistrictRepository oldDistrictRepository;
 
     @Value("${entities.humanresource.oldprovincecity}")
     private String entityName;
@@ -40,6 +42,9 @@ public class OldProvinceCityService {
         }
 
         OldProvinceCity oldProvinceCity = oldProvinceCityMapper.toOldProvinceCity(request);
+
+        // Set FK references from IDs in request
+        oldProvinceCityMapper.setReferences(oldProvinceCity, request);
 
         return oldProvinceCityMapper.toOldProvinceCityResponse(oldProvinceCityRepository.save(oldProvinceCity));
     }
@@ -128,13 +133,25 @@ public class OldProvinceCityService {
         }
 
         oldProvinceCityMapper.updateOldProvinceCity(oldProvinceCity, request);
+        // Set FK references from IDs in request
+        oldProvinceCityMapper.setReferences(oldProvinceCity, request);
 
         return oldProvinceCityMapper.toOldProvinceCityResponse(oldProvinceCityRepository.save(oldProvinceCity));
     }
 
     public void deleteOldProvinceCity(Long id) {
-        OldProvinceCity oldProvinceCity = oldProvinceCityRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!oldDistrictRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long childCount = oldDistrictRepository.countByOldProvinceCity_OldProvinceCityId(id);
+        if (childCount > 0) {
+            throw new com.example.demo.exception.CannotDeleteException(
+                    "OldProvinceCity", id, "OldDistrict", childCount
+            );
+        }
+
         oldProvinceCityRepository.deleteById(id);
     }
 }

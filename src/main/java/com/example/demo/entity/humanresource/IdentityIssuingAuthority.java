@@ -22,9 +22,6 @@ public class IdentityIssuingAuthority {
     @Column(name = "source_id", length = 100, unique = true)
     private String sourceId;
 
-    @Column(name = "document_type_id")
-    private Long documentTypeId;
-
     @Column(name = "name", length = 255)
     private String name;
 
@@ -46,4 +43,9 @@ public class IdentityIssuingAuthority {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "document_type_id")
+    private DocumentType documentType;
+
 }

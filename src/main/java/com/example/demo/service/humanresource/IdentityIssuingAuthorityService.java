@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.IdentityIssuingAuthorityMapper;
 import com.example.demo.repository.humanresource.IdentityIssuingAuthorityRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class IdentityIssuingAuthorityService {
     final IdentityIssuingAuthorityRepository identityIssuingAuthorityRepository;
     final IdentityIssuingAuthorityMapper identityIssuingAuthorityMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.identityissuingauthoirity}")
     private String entityName;
@@ -39,6 +42,8 @@ public class IdentityIssuingAuthorityService {
         }
 
         IdentityIssuingAuthority identityIssuingAuthority = identityIssuingAuthorityMapper.toIdentityIssuingAuthority(request);
+        // Set FK references from IDs in request
+        identityIssuingAuthorityMapper.setReferences(identityIssuingAuthority, request);
 
         return identityIssuingAuthorityMapper.toIdentityIssuingAuthorityResponse(identityIssuingAuthorityRepository.save(identityIssuingAuthority));
     }
@@ -126,13 +131,28 @@ public class IdentityIssuingAuthorityService {
         }
 
         identityIssuingAuthorityMapper.updateIdentityIssuingAuthority(identityIssuingAuthority, request);
+        // Set FK references from IDs in request
+        identityIssuingAuthorityMapper.setReferences(identityIssuingAuthority, request);
 
         return identityIssuingAuthorityMapper.toIdentityIssuingAuthorityResponse(identityIssuingAuthorityRepository.save(identityIssuingAuthority));
     }
 
     public void deleteIdentityIssuingAuthority(Long id) {
-        IdentityIssuingAuthority identityIssuingAuthority = identityIssuingAuthorityRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!identityIssuingAuthorityRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy) - IdentityIssuingAuthority has 2 FK references
+        long cmndCount = employeeRepository.countByIdIssuePlaceCmnd_IdentityIssuingAuthorityId(id);
+        long cccdCount = employeeRepository.countByIdIssuePlaceCccd_IdentityIssuingAuthorityId(id);
+        long totalCount = cmndCount + cccdCount;
+
+        if (totalCount > 0) {
+            throw new CannotDeleteException(
+                    "IdentityIssuingAuthority", id, "Employee", totalCount
+            );
+        }
+
         identityIssuingAuthorityRepository.deleteById(id);
     }
 }

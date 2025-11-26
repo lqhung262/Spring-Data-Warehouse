@@ -56,6 +56,9 @@ public class EmployeeService {
         }
 
         Employee employee = employeeMapper.toEmployee(request);
+        // Set all FK references from IDs in request
+        employeeMapper.setReferences(employee, request);
+
         if (employee.getCreatedBy() == null) employee.setCreatedBy(1L);
         if (employee.getUpdatedBy() == null) employee.setUpdatedBy(1L);
 
@@ -64,12 +67,16 @@ public class EmployeeService {
         // delegate child creation to helpers (these will validate duplicates)
         Set<EmployeeDecision> createdDecisions = new HashSet<>(createDecisions(saved, request.getEmployeeDecisions()));
         saved.setEmployeeDecisionList(createdDecisions);
+
         Set<EmployeeEducation> createdEducations = new HashSet<>(createEducations(saved, request.getEmployeeEducations()));
         saved.setEmployeeEducationList(createdEducations);
+
         Set<EmployeeAttendanceMachine> createdMachines = new HashSet<>(createAttendanceMachines(saved, request.getEmployeeAttendanceMachines()));
         saved.setEmployeeAttendanceMachineList(createdMachines);
+
         Set<EmployeeWorkLocation> createdLocations = new HashSet<>(createWorkLocations(saved, request.getEmployeeWorkLocations()));
         saved.setEmployeeWorkLocationList(createdLocations);
+
         EmployeeWorkShift shift = createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
         saved.setEmployeeWorkShift(shift);
 
@@ -126,6 +133,9 @@ public class EmployeeService {
 
         // update employee fields
         employeeMapper.updateEmployee(employee, request);
+        // Set all FK references from IDs in request
+        employeeMapper.setReferences(employee, request);
+
         Employee saved = employeeRepository.save(employee);
 
         // replace child collections if provided
@@ -182,11 +192,13 @@ public class EmployeeService {
                 throw new IllegalArgumentException("Employee Decision with decisionNo " + d.getDecisionNo() + " already exists.");
             });
             // check composite uniqueness per employee (department, employeeType, jobPosition, jobTitle, jobRank, costCategoryLevel1)
-            employeeDecisionRepository.findByEmployee_IdAndDepartmentIdAndEmployeeTypeIdAndJobPositionIdAndJobTitleIdAndJobRankIdAndCostCategoryLevel1(employee.getId(), d.getDepartmentId(), d.getEmployeeTypeId(), d.getJobPositionId(), d.getJobTitleId(), d.getJobRankId(), d.getCostCategoryLevel1()).ifPresent(x -> {
+            employeeDecisionRepository.findByEmployee_IdAndDepartment_DepartmentIdAndEmployeeType_EmployeeTypeIdAndJobPosition_JobPositionIdAndJobTitle_JobTitleIdAndJobRank_JobRankIdAndCostCategoryLevel1_ExpenseTypeId(employee.getId(), d.getDepartmentId(), d.getEmployeeTypeId(), d.getJobPositionId(), d.getJobTitleId(), d.getJobRankId(), d.getCostCategoryLevel1()).ifPresent(x -> {
                 throw new IllegalArgumentException("Employee Decision with same role/department combination already exists for employee " + employee.getId());
             });
             EmployeeDecision dec = employeeDecisionMapper.toEmployeeDecision(d);
             dec.setEmployee(employee);
+            // Set all FK references from IDs in request
+            employeeDecisionMapper.setReferences(dec, d);
             created.add(employeeDecisionRepository.save(dec));
         }
         return created;
@@ -207,11 +219,19 @@ public class EmployeeService {
         for (EmployeeEducationRequest e : educations) {
             String key = e.getMajorId() + "|" + e.getSpecializationId() + "|" + e.getEducationLevelId() + "|" + e.getSchoolId();
             if (!seen.add(key)) throw new IllegalArgumentException("Duplicate education combo in request: " + key);
-            employeeEducationRepository.findByEmployee_IdAndMajorIdAndSpecializationIdAndEducationLevelIdAndSchoolId(employee.getId(), e.getMajorId(), e.getSpecializationId(), e.getEducationLevelId(), e.getSchoolId()).ifPresent(x -> {
+            employeeEducationRepository.findByEmployee_IdAndMajor_MajorIdAndSpecialization_SpecializationIdAndEducationLevel_EducationLevelIdAndSchool_SchoolId(
+                    employee.getId(),
+                    e.getMajorId(),
+                    e.getSpecializationId(),
+                    e.getEducationLevelId(),
+                    e.getSchoolId()
+            ).ifPresent(x -> {
                 throw new IllegalArgumentException("Employee Education with same child ids already exists for employee " + employee.getId());
             });
             EmployeeEducation ee = employeeEducationMapper.toEmployeeEducation(e);
             ee.setEmployee(employee);
+            // Set all FK references from IDs in request
+            employeeEducationMapper.setReferences(ee, e);
             created.add(employeeEducationRepository.save(ee));
         }
         return created;
@@ -230,11 +250,13 @@ public class EmployeeService {
         for (EmployeeAttendanceMachineRequest m : machines) {
             if (!seen.add(m.getMachineId()))
                 throw new IllegalArgumentException("Duplicate machineId in request: " + m.getMachineId());
-            employeeAttendanceMachineRepository.findByEmployee_IdAndMachineId(employee.getId(), m.getMachineId()).ifPresent(x -> {
+            employeeAttendanceMachineRepository.findByEmployee_IdAndMachine_AttendanceMachineId(employee.getId(), m.getMachineId()).ifPresent(x -> {
                 throw new IllegalArgumentException("Employee Attendance Machine with machineId " + m.getMachineId() + " already exists for employee " + employee.getId());
             });
             EmployeeAttendanceMachine eam = employeeAttendanceMachineMapper.toEmployeeAttendanceMachine(m);
             eam.setEmployee(employee);
+            // Set all FK references from IDs in request
+            employeeAttendanceMachineMapper.setReferences(eam, m);
             created.add(employeeAttendanceMachineRepository.save(eam));
         }
         return created;
@@ -253,11 +275,13 @@ public class EmployeeService {
         for (EmployeeWorkLocationRequest l : locations) {
             if (!seen.add(l.getWorkLocationId()))
                 throw new IllegalArgumentException("Duplicate workLocationId in request: " + l.getWorkLocationId());
-            employeeWorkLocationRepository.findByEmployee_IdAndWorkLocationId(employee.getId(), l.getWorkLocationId()).ifPresent(x -> {
+            employeeWorkLocationRepository.findByEmployee_IdAndWorkLocation_WorkLocationId(employee.getId(), l.getWorkLocationId()).ifPresent(x -> {
                 throw new IllegalArgumentException("Employee Work Location with workLocationId " + l.getWorkLocationId() + " already exists for employee " + employee.getId());
             });
             EmployeeWorkLocation ewl = employeeWorkLocationMapper.toEmployeeWorkLocation(l);
             ewl.setEmployee(employee);
+            // Set all FK references from IDs in request
+            employeeWorkLocationMapper.setReferences(ewl, l);
             created.add(employeeWorkLocationRepository.save(ewl));
         }
         return created;
@@ -278,12 +302,16 @@ public class EmployeeService {
             EmployeeWorkShift shift = existingList.getFirst();
             employeeWorkShiftMapper.updateEmployeeWorkShift(shift, wsReq);
             shift.setEmployee(employee);
+            // Set all FK references from IDs in request
+            employeeWorkShiftMapper.setReferences(shift, wsReq);
             return employeeWorkShiftRepository.save(shift);
         }
 
         // Otherwise create new
         EmployeeWorkShift shift = employeeWorkShiftMapper.toEmployeeWorkShift(wsReq);
         shift.setEmployee(employee);
+        // Set all FK references from IDs in request
+        employeeWorkShiftMapper.setReferences(shift, wsReq);
         return employeeWorkShiftRepository.save(shift);
     }
 }

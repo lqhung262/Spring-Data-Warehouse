@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class OldWardService {
     final OldWardRepository oldWardRepository;
     final OldWardMapper oldWardMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.oldward}")
     private String entityName;
@@ -39,6 +41,8 @@ public class OldWardService {
         }
 
         OldWard oldWard = oldWardMapper.toOldWard(request);
+        // Set FK references from IDs in request
+        oldWardMapper.setReferences(oldWard, request);
 
         return oldWardMapper.toOldWardResponse(oldWardRepository.save(oldWard));
     }
@@ -127,13 +131,20 @@ public class OldWardService {
         }
 
         oldWardMapper.updateOldWard(oldWard, request);
+        // Set FK references from IDs in request
+        oldWardMapper.setReferences(oldWard, request);
 
         return oldWardMapper.toOldWardResponse(oldWardRepository.save(oldWard));
     }
 
     public void deleteOldWard(Long id) {
-        OldWard oldWard = oldWardRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!oldWardRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Note: OldWard can be safely deleted as no direct FK references
+        // Database will enforce constraints if needed
+
         oldWardRepository.deleteById(id);
     }
 }

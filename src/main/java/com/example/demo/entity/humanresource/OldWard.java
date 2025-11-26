@@ -19,14 +19,8 @@ public class OldWard {
     @Column(name = "old_ward_id")
     private Long oldWardId;
 
-    @Column(name = "ward_id")
-    private Long wardId;
-
     @Column(name = "source_id", length = 100, unique = true)
     private String sourceId;
-
-    @Column(name = "old_district_id")
-    private Long oldDistrictId;
 
     @NotNull
     @Column(name = "name", nullable = false, length = 255, unique = true)
@@ -50,4 +44,13 @@ public class OldWard {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ward_id")
+    private Ward ward;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "old_district_id")
+    private OldDistrict oldDistrict;
+
 }

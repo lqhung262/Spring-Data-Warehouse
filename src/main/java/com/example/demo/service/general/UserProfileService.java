@@ -34,9 +34,9 @@ public class UserProfileService {
 
     public List<UserProfileResponse> getUserProfiles(Pageable pageable) {
         Page<UserProfile> page = userProfileRepository.findAll(pageable);
-        List<UserProfileResponse> dtos = page.getContent()
+
+        return page.getContent()
                 .stream().map(userProfileMapper::toUserProfileResponse).toList();
-        return dtos;
     }
 
     public UserProfileResponse getUserProfile(Long id) {
@@ -54,8 +54,10 @@ public class UserProfileService {
     }
 
     public void deleteUserProfile(Long id) {
-        UserProfile userProfile = userProfileRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!userProfileRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         userProfileRepository.deleteById(id);
     }
 }

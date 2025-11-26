@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class DepartmentService {
     final DepartmentRepository departmentRepository;
     final DepartmentMapper departmentMapper;
+    final EmployeeDecisionRepository employeeDecisionRepository;
 
     @Value("${entities.humanresource.department}")
     private String entityName;
@@ -133,8 +136,18 @@ public class DepartmentService {
     }
 
     public void deleteDepartment(Long id) {
-        Department department = departmentRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!departmentRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeDecisionRepository.countByDepartment_DepartmentId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "Department", id, "EmployeeDecision", refCount
+            );
+        }
+
         departmentRepository.deleteById(id);
     }
 }

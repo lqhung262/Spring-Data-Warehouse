@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeEducationRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,8 @@ import java.util.stream.Collectors;
 public class SchoolService {
     final SchoolRepository schoolRepository;
     final SchoolMapper schoolMapper;
+    final EmployeeEducationRepository employeeEducationRepository;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.school}")
     private String entityName;
@@ -132,8 +137,21 @@ public class SchoolService {
     }
 
     public void deleteSchool(Long id) {
-        School school = schoolRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!schoolRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy) - School has 2 FK references
+        long educationCount = employeeEducationRepository.countBySchool_SchoolId(id);
+        long employeeCount = employeeRepository.countByGraduationSchool_SchoolId(id);
+        long totalCount = educationCount + employeeCount;
+
+        if (totalCount > 0) {
+            throw new CannotDeleteException(
+                    "School", id, "referencing records", totalCount
+            );
+        }
+
         schoolRepository.deleteById(id);
     }
 }

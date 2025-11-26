@@ -18,13 +18,11 @@ public class EmployeeDecisionRequest {
     @NotBlank
     private String decisionNo;
 
-    @NotNull
     private LocalDateTime decisionDate;
 
     @NotNull
     private Long departmentId;
 
-    @NotNull
     private Long employeeTypeId;
 
     @NotNull
@@ -36,16 +34,12 @@ public class EmployeeDecisionRequest {
     @NotNull
     private Long jobRankId;
 
-    @NotNull
     private Long costCategoryLevel1;
 
-    @NotNull
     private Long costCategoryLevel2;
 
-    @NotNull
     private Long decisionTypeId;
 
-    @NotNull
     private Boolean isActive = Boolean.TRUE;
 
     @NotNull

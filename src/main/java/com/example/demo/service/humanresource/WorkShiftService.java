@@ -6,6 +6,7 @@ import com.example.demo.entity.humanresource.WorkShift;
 import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkShiftMapper;
+import com.example.demo.exception.CannotDeleteException;
 import com.example.demo.repository.humanresource.WorkShiftRepository;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeWorkShiftRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class WorkShiftService {
     final WorkShiftRepository workShiftRepository;
     final WorkShiftMapper workShiftMapper;
+    final EmployeeWorkShiftRepository employeeWorkShiftRepository;
 
     @Value("${entities.humanresource.workshift}")
     private String entityName;
@@ -131,8 +134,18 @@ public class WorkShiftService {
     }
 
     public void deleteWorkShift(Long id) {
-        WorkShift workShift = workShiftRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!workShiftRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeWorkShiftRepository.countByWorkShift_WorkShiftId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "WorkShift", id, "EmployeeWorkShift", refCount
+            );
+        }
+
         workShiftRepository.deleteById(id);
     }
 }

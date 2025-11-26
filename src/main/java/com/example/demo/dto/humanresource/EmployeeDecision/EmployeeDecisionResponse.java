@@ -22,6 +22,6 @@ public class EmployeeDecisionResponse {
     Long costCategoryLevel1;
     Long costCategoryLevel2;
     Long decisionTypeId;
-    Boolean isActive = Boolean.TRUE;
+    Boolean isActive;
     LocalDateTime effectiveAt;
 }

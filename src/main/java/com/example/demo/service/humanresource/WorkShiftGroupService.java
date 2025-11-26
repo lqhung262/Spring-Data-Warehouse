@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeWorkShiftRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class WorkShiftGroupService {
     final WorkShiftGroupRepository workShiftGroupRepository;
     final WorkShiftGroupMapper workShiftGroupMapper;
+    final EmployeeWorkShiftRepository employeeWorkShiftRepository;
 
     @Value("${entities.humanresource.workshiftgroup}")
     private String entityName;
@@ -131,8 +134,18 @@ public class WorkShiftGroupService {
     }
 
     public void deleteWorkShiftGroup(Long id) {
-        WorkShiftGroup workShiftGroup = workShiftGroupRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!workShiftGroupRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeWorkShiftRepository.countByWorkShiftGroup_WorkShiftGroupId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "WorkShiftGroup", id, "EmployeeWorkShift", refCount
+            );
+        }
+
         workShiftGroupRepository.deleteById(id);
     }
 }

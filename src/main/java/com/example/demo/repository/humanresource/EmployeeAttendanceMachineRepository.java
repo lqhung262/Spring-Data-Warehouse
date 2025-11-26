@@ -9,7 +9,13 @@ import java.util.Optional;
 
 @Repository
 public interface EmployeeAttendanceMachineRepository extends JpaRepository<EmployeeAttendanceMachine, Long> {
-    Optional<EmployeeAttendanceMachine> findByEmployee_IdAndMachineId(Long employeeId, Long machineId);
+    Optional<EmployeeAttendanceMachine> findByEmployee_IdAndMachine_AttendanceMachineId(
+            Long employeeId,
+            Long machineId
+    );
 
     List<EmployeeAttendanceMachine> findByEmployee_Id(Long employeeId);
+
+    // Count methods for cascade delete checks
+    long countByMachine_AttendanceMachineId(Long attendanceMachineId);
 }

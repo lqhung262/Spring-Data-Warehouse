@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.AttendanceTypeMapper;
 import com.example.demo.repository.humanresource.AttendanceTypeRepository;
+import com.example.demo.repository.humanresource.EmployeeWorkShiftRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class AttendanceTypeService {
     final AttendanceTypeRepository attendanceTypeRepository;
     final AttendanceTypeMapper attendanceTypeMapper;
+    final EmployeeWorkShiftRepository employeeWorkShiftRepository;
 
     @Value("${entities.humanresource.attendancetype}")
     private String entityName;
@@ -133,9 +136,18 @@ public class AttendanceTypeService {
     }
 
     public void deleteAttendanceType(Long id) {
+        if (!attendanceTypeRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
 
-        AttendanceType attendanceType = attendanceTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        // Check references (RESTRICT strategy)
+        long refCount = employeeWorkShiftRepository.countByAttendanceType_AttendanceTypeId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "AttendanceType", id, "EmployeeWorkShift", refCount
+            );
+        }
+
         attendanceTypeRepository.deleteById(id);
     }
 }

@@ -2,13 +2,16 @@ package com.example.demo.entity.humanresource;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
+import lombok.*;
 
 import java.util.Objects;
 
 @Entity
 @Table(name = "employee_education")
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 public class EmployeeEducation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,19 +21,28 @@ public class EmployeeEducation {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
+    @ToString.Exclude
     private Employee employee;
 
-    @Column(name = "major_id")
-    private Long majorId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "major_id")
+    @ToString.Exclude
+    private Major major;
 
-    @Column(name = "specialization_id")
-    private Long specializationId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "specialization_id")
+    @ToString.Exclude
+    private Specialization specialization;
 
-    @Column(name = "education_level_id")
-    private Long educationLevelId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "education_level_id")
+    @ToString.Exclude
+    private EducationLevel educationLevel;
 
-    @Column(name = "school_id")
-    private Long schoolId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    @ToString.Exclude
+    private School school;
 
     @Override
     public boolean equals(Object o) {

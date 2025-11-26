@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.EducationLevelMapper;
 import com.example.demo.repository.humanresource.EducationLevelRepository;
+import com.example.demo.repository.humanresource.EmployeeEducationRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class EducationLevelService {
     final EducationLevelRepository educationLevelRepository;
     final EducationLevelMapper educationLevelMapper;
+    final EmployeeEducationRepository employeeEducationRepository;
 
     @Value("${entities.humanresource.educationlevel}")
     private String entityName;
@@ -134,8 +137,18 @@ public class EducationLevelService {
     }
 
     public void deleteEducationLevel(Long id) {
-        EducationLevel educationLevel = educationLevelRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!educationLevelRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeEducationRepository.countByEducationLevel_EducationLevelId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "EducationLevel", id, "EmployeeEducation", refCount
+            );
+        }
+
         educationLevelRepository.deleteById(id);
     }
 }

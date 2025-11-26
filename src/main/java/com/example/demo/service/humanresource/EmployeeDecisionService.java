@@ -116,8 +116,10 @@ public class EmployeeDecisionService {
     }
 
     public void deleteEmployeeDecision(Long employeeDecisionId) {
-        EmployeeDecision decision = employeeDecisionRepository.findById(employeeDecisionId)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeDecisionRepository.existsById(employeeDecisionId)) {
+            throw new NotFoundException(entityName);
+        }
+
         employeeDecisionRepository.deleteById(employeeDecisionId);
     }
 

@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ExpenseTypeMapper;
 import com.example.demo.repository.humanresource.ExpenseTypeRepository;
+import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class ExpenseTypeService {
     final ExpenseTypeRepository expenseTypeRepository;
     final ExpenseTypeMapper expenseTypeMapper;
+    final EmployeeDecisionRepository employeeDecisionRepository;
 
     @Value("${entities.humanresource.expensetype}")
     private String entityName;
@@ -59,7 +62,7 @@ public class ExpenseTypeService {
 //
 //        List<ExpenseType> expenseTypesToSave = new java.util.ArrayList<>();
 //
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
+//        // L��p qua danh sách request để quyết định UPDATE hay INSERT
 //        for (ExpenseTypeRequest request : requests) {
 //            ExpenseType expenseType = existingExpenseTypesMap.get(request.getExpenseTypeCode());
 //
@@ -130,8 +133,21 @@ public class ExpenseTypeService {
     }
 
     public void deleteExpenseType(Long id) {
-        ExpenseType expenseType = expenseTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!expenseTypeRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy) - ExpenseType has 2 FK references
+        long level1Count = employeeDecisionRepository.countByCostCategoryLevel1_ExpenseTypeId(id);
+        long level2Count = employeeDecisionRepository.countByCostCategoryLevel2_ExpenseTypeId(id);
+        long totalCount = level1Count + level2Count;
+
+        if (totalCount > 0) {
+            throw new CannotDeleteException(
+                    "ExpenseType", id, "EmployeeDecision", totalCount
+            );
+        }
+
         expenseTypeRepository.deleteById(id);
     }
 }

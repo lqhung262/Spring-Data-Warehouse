@@ -55,8 +55,10 @@ public class SourceSystemService {
     }
 
     public void deleteSourceSystem(Long id) {
-        SourceSystem sourceSystem = sourceSystemRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!sourceSystemRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         sourceSystemRepository.deleteById(id);
     }
 }

@@ -22,9 +22,6 @@ public class Ward {
     @Column(name = "source_id", length = 100, unique = true)
     private String sourceId;
 
-    @Column(name = "province_city_id")
-    private Long provinceCityId;
-
     @NotNull
     @Column(name = "name", nullable = false, length = 255, unique = true)
     private String name;
@@ -47,4 +44,10 @@ public class Ward {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "province_city_id", nullable = false)
+    private ProvinceCity provinceCity;
+
 }

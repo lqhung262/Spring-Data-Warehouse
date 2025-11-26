@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
+import com.example.demo.exception.CannotDeleteException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class EmployeeTypeService {
     final EmployeeTypeRepository employeeTypeRepository;
     final EmployeeTypeMapper employeeTypeMapper;
+    final EmployeeDecisionRepository employeeDecisionRepository;
 
     @Value("${entities.humanresource.employeetype}")
     private String entityName;
@@ -133,8 +136,18 @@ public class EmployeeTypeService {
     }
 
     public void deleteEmployeeType(Long id) {
-        EmployeeType employeeType = employeeTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!employeeTypeRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeDecisionRepository.countByEmployeeType_EmployeeTypeId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "EmployeeType", id, "EmployeeDecision", refCount
+            );
+        }
+
         employeeTypeRepository.deleteById(id);
     }
 }

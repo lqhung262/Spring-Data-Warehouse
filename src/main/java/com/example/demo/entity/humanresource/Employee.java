@@ -3,6 +3,7 @@ package com.example.demo.entity.humanresource;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
@@ -30,12 +31,6 @@ public class Employee {
     @Column(name = "source_id", nullable = false, unique = true, length = 100)
     private String sourceId;
 
-    @Column(name = "business_partner_id")
-    private Long businessPartnerId; // để ID cho nhẹ (nếu chưa build entity BP)
-
-    @NotNull
-    @Column(name = "corporation_code", nullable = false, unique = true, length = 100)
-    private String corporationCode;
 
     @NotNull
     @Column(name = "full_name", nullable = false, length = 255)
@@ -47,33 +42,6 @@ public class Employee {
     @NotNull
     @Column(name = "birth_date", nullable = false)
     private LocalDateTime birthDate;
-
-    @Column(name = "gender_id")
-    private Long genderId;
-
-    @Column(name = "marital_status_id")
-    private Long maritalStatusId;
-
-    @Column(name = "id_number_cmnd", length = 20)
-    private String idNumberCmnd;
-
-    @Column(name = "id_issue_date_cmnd")
-    private LocalDateTime idIssueDateCmnd;
-
-    @Column(name = "id_issue_place_cmnd")
-    private Long idIssuePlaceCmnd; // FK -> identity_issuing_authority
-
-    @Column(name = "id_number_cccd", length = 20)
-    private String idNumberCccd;
-
-    @Column(name = "id_issue_date_cccd")
-    private LocalDateTime idIssueDateCccd;
-
-    @Column(name = "id_issue_place_cccd")
-    private Long idIssuePlaceCccd;
-
-    @Column(name = "nationality_id")
-    private Long nationalityId;
 
     @NotNull
     @Column(name = "start_date", nullable = false)
@@ -88,38 +56,6 @@ public class Employee {
     @Column(name = "seniority_deduction_days")
     private Integer seniorityDeductionDays;
 
-    @Column(name = "labor_status_id")
-    private Long laborStatusId;
-
-    @Column(name = "tax_code", unique = true, length = 50)
-    private String taxCode;
-
-    @Column(name = "manager_id")
-    private Long managerId; // self-reference
-
-    @Column(name = "entitled_leave_days")
-    private Integer entitledLeaveDays;
-
-    @Column(name = "graduation_school_id")
-    private Long graduationSchoolId;
-
-    @Column(name = "graduation_year")
-    private Integer graduationYear;
-
-    @Column(name = "language_1")
-    private Long language1;
-
-    @Column(name = "language_2")
-    private Long language2;
-
-    @Column(name = "language_3")
-    private Long language3;
-
-    @Column(name = "blood_group_id")
-    private Long bloodGroupId;
-
-    @Column(name = "health_status", length = 255)
-    private String healthStatus;
 
     @Column(name = "passport_number", length = 50)
     private String passportNumber;
@@ -170,27 +106,10 @@ public class Employee {
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
 
-    @Column(name = "current_address_street", length = 255)
-    private String currentAddressStreet;
-
-    @Column(name = "current_address_ward")
-    private Long currentAddressWard;
 
     @NotNull
     @Column(name = "permanent_address_street", nullable = false, length = 255)
     private String permanentAddressStreet;
-
-    @NotNull
-    @Column(name = "permanent_address_ward", nullable = false)
-    private Long permanentAddressWard;
-
-    @NotNull
-    @Column(name = "hometown_id", nullable = false)
-    private Long hometownId;
-
-    @NotNull
-    @Column(name = "place_of_birth_id", nullable = false)
-    private Long placeOfBirthId;
 
     @Column(name = "personal_phone", length = 20)
     private String personalPhone;
@@ -213,9 +132,6 @@ public class Employee {
     @Column(name = "bank_account_number", length = 50)
     private String bankAccountNumber;
 
-    @Column(name = "bank_id")
-    private Long bankId;
-
     @Column(name = "bank_branch", length = 255)
     private String bankBranch;
 
@@ -237,9 +153,6 @@ public class Employee {
     @Column(name = "health_insurance_card", unique = true, length = 50)
     private String healthInsuranceCard;
 
-    @Column(name = "medical_registration")
-    private Long medicalRegistration;
-
     @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
     private Set<EmployeeDecision> employeeDecisionList;
 
@@ -254,6 +167,121 @@ public class Employee {
 
     @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
     private Set<EmployeeWorkLocation> employeeWorkLocationList;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bank_id")
+    private Bank bank;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "marital_status_id")
+    private MaritalStatus maritalStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gender_id")
+    private Gender gender;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "nationality_id")
+    private Nationality nationality;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "labor_status_id")
+    private LaborStatus laborStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private Employee manager;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "graduation_school_id")
+    private School graduationSchool;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "language_1")
+    private Language language1;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "language_2")
+    private Language language2;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "language_3")
+    private Language language3;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "blood_group_id")
+    private BloodGroup bloodGroup;
+
+    @Size(max = 255)
+    @Column(name = "current_address_street")
+    private String currentAddressStreet;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_address_ward")
+    private Ward currentAddressWard;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "permanent_address_ward", nullable = false)
+    private Ward permanentAddressWard;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "hometown_id", nullable = false)
+    private ProvinceCity hometown;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "place_of_birth_id", nullable = false)
+    private ProvinceCity placeOfBirth;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "medical_registration")
+    private MedicalFacility medicalRegistration;
+
+    @Column(name = "business_partner_id")
+    private Long businessPartnerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_issue_place_cmnd")
+    private IdentityIssuingAuthority idIssuePlaceCmnd;
+
+    @Size(max = 100)
+    @NotNull
+    @Column(name = "corporation_code", nullable = false, length = 100)
+    private String corporationCode;
+
+    @Size(max = 20)
+    @Column(name = "id_number_cmnd", length = 20)
+    private String idNumberCmnd;
+
+    @Column(name = "id_issue_date_cmnd")
+    private LocalDateTime idIssueDateCmnd;
+
+    @Size(max = 20)
+    @Column(name = "id_number_cccd", length = 20)
+    private String idNumberCccd;
+
+    @Column(name = "id_issue_date_cccd")
+    private LocalDateTime idIssueDateCccd;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_issue_place_cccd")
+    private IdentityIssuingAuthority idIssuePlaceCccd;
+
+    @Size(max = 50)
+    @Column(name = "tax_code", length = 50)
+    private String taxCode;
+
+    @Column(name = "entitled_leave_days")
+    private Integer entitledLeaveDays;
+
+    @Column(name = "graduation_year")
+    private Integer graduationYear;
+
+    @Size(max = 255)
+    @Column(name = "health_status")
+    private String healthStatus;
 
     @Override
     public boolean equals(Object o) {

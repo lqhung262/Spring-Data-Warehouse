@@ -29,9 +29,6 @@ public class MedicalFacility {
     @Column(name = "name", nullable = false, length = 255, unique = true)
     private String name;
 
-    @Column(name = "province_city_id")
-    private Long provinceCityId;
-
     @NotNull
     @Column(name = "source_system_id", nullable = false)
     private Long sourceSystemId = 1L;
@@ -50,4 +47,9 @@ public class MedicalFacility {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "province_city_id")
+    private ProvinceCity provinceCity;
+
 }

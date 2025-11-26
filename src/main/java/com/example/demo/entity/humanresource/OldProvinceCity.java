@@ -19,9 +19,6 @@ public class OldProvinceCity {
     @Column(name = "old_province_city_id")
     private Long oldProvinceCityId;
 
-    @Column(name = "province_city_id")
-    private Long provinceCityId;
-
     @Column(name = "source_id", length = 100, unique = true)
     private String sourceId;
 
@@ -47,4 +44,9 @@ public class OldProvinceCity {
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "province_city_id")
+    private ProvinceCity provinceCity;
+
 }

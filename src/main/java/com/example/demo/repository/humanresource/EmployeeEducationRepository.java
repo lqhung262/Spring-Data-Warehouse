@@ -9,19 +9,22 @@ import java.util.Optional;
 
 @Repository
 public interface EmployeeEducationRepository extends JpaRepository<EmployeeEducation, Long> {
-    Optional<EmployeeEducation> findByEmployee_IdAndMajorIdAndSpecializationIdAndEducationLevelIdAndSchoolId(Long employeeId, Long majorId, Long specializationId, Long educationLevelId, Long schoolId);
+    Optional<EmployeeEducation> findByEmployee_IdAndMajor_MajorIdAndSpecialization_SpecializationIdAndEducationLevel_EducationLevelIdAndSchool_SchoolId(
+            Long employeeId,
+            Long majorId,
+            Long specializationId,
+            Long educationLevelId,
+            Long schoolId
+    );
 
     List<EmployeeEducation> findByEmployee_Id(Long employeeId);
-//
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả employeeEducations tồn tại trong 1 câu query.
-//     */
-////    List<EmployeeEducation> findByEmployeeEducationCodeIn(Collection<String> employeeEducationCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 employeeEducation bằng employeeEducationCode
-//     */
-//    Optional<EmployeeEducation> findByEmployeeEducationId(Long employeeEducationId);
-//
-//    Long countByEmployeeEducationIdIn(Collection<Long> employeeEducationIds);
+
+    // Count methods for cascade delete checks
+    long countByMajor_MajorId(Long majorId);
+
+    long countBySpecialization_SpecializationId(Long specializationId);
+
+    long countByEducationLevel_EducationLevelId(Long educationLevelId);
+
+    long countBySchool_SchoolId(Long schoolId);
 }

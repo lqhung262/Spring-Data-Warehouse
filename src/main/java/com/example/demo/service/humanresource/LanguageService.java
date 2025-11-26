@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.LanguageMapper;
 import com.example.demo.repository.humanresource.LanguageRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class LanguageService {
     final LanguageRepository languageRepository;
     final LanguageMapper languageMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.language}")
     private String entityName;
@@ -133,8 +136,22 @@ public class LanguageService {
     }
 
     public void deleteLanguage(Long id) {
-        Language language = languageRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!languageRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy) - Language has 3 FK references
+        long lang1Count = employeeRepository.countByLanguage1_LanguageId(id);
+        long lang2Count = employeeRepository.countByLanguage2_LanguageId(id);
+        long lang3Count = employeeRepository.countByLanguage3_LanguageId(id);
+        long totalCount = lang1Count + lang2Count + lang3Count;
+
+        if (totalCount > 0) {
+            throw new CannotDeleteException(
+                    "Language", id, "Employee", totalCount
+            );
+        }
+
         languageRepository.deleteById(id);
     }
 }

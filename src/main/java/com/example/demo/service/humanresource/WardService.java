@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.OldWardRepository;
+import com.example.demo.repository.humanresource.OldDistrictRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,9 @@ import java.util.stream.Collectors;
 public class WardService {
     final WardRepository wardRepository;
     final WardMapper wardMapper;
+    final OldWardRepository oldWardRepository;
+    final OldDistrictRepository oldDistrictRepository;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.ward}")
     private String entityName;
@@ -39,6 +45,8 @@ public class WardService {
         }
 
         Ward ward = wardMapper.toWard(request);
+        // Set FK references from IDs in request
+        wardMapper.setReferences(ward, request);
 
         return wardMapper.toWardResponse(wardRepository.save(ward));
     }
@@ -126,13 +134,30 @@ public class WardService {
         }
 
         wardMapper.updateWard(ward, request);
+        // Set FK references from IDs in request
+        wardMapper.setReferences(ward, request);
 
         return wardMapper.toWardResponse(wardRepository.save(ward));
     }
 
     public void deleteWard(Long id) {
-        Ward ward = wardRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!wardRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check all references (RESTRICT strategy)
+        long oldWardCount = oldWardRepository.countByWard_WardId(id);
+        long oldDistrictCount = oldDistrictRepository.countByWard_WardId(id);
+        long empCurrentCount = employeeRepository.countByCurrentAddressWard_WardId(id);
+        long empPermanentCount = employeeRepository.countByPermanentAddressWard_WardId(id);
+        long totalCount = oldWardCount + oldDistrictCount + empCurrentCount + empPermanentCount;
+
+        if (totalCount > 0) {
+            throw new com.example.demo.exception.CannotDeleteException(
+                    "Ward", id, "referencing records", totalCount
+            );
+        }
+
         wardRepository.deleteById(id);
     }
 }

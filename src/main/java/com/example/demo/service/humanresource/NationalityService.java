@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.NationalityMapper;
 import com.example.demo.repository.humanresource.NationalityRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class NationalityService {
     final NationalityRepository nationalityRepository;
     final NationalityMapper nationalityMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.nationality}")
     private String entityName;
@@ -131,8 +134,18 @@ public class NationalityService {
     }
 
     public void deleteNationality(Long id) {
-        Nationality nationality = nationalityRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!nationalityRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeRepository.countByNationality_NationalityId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "Nationality", id, "Employee", refCount
+            );
+        }
+
         nationalityRepository.deleteById(id);
     }
 }

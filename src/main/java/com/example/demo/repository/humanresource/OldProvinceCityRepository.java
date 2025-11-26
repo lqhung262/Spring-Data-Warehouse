@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface OldProvinceCityRepository extends JpaRepository<OldProvinceCity, Long> {
     Optional<OldProvinceCity> findBySourceId(String sourceId);
 
+    // Count methods for cascade delete checks
+    long countByProvinceCity_ProvinceCityId(Long provinceCityId);
+
 //    /**
 //     * Tối ưu cho Upsert: Tìm tất cả oldProvinceCity tồn tại trong 1 câu query.
 //     */

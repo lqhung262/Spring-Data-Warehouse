@@ -15,6 +15,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.repository.humanresource.WardRepository;
+import com.example.demo.repository.humanresource.OldProvinceCityRepository;
+import com.example.demo.repository.humanresource.MedicalFacilityRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +30,10 @@ import java.util.stream.Collectors;
 public class ProvinceCityService {
     final ProvinceCityRepository provinceCityRepository;
     final ProvinceCityMapper provinceCityMapper;
+    final WardRepository wardRepository;
+    final OldProvinceCityRepository oldProvinceCityRepository;
+    final MedicalFacilityRepository medicalFacilityRepository;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.provincecity}")
     private String entityName;
@@ -131,8 +139,24 @@ public class ProvinceCityService {
     }
 
     public void deleteProvinceCity(Long id) {
-        ProvinceCity provinceCity = provinceCityRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!provinceCityRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check all references (RESTRICT strategy)
+        long wardCount = wardRepository.countByProvinceCity_ProvinceCityId(id);
+        long oldProvinceCityCount = oldProvinceCityRepository.countByProvinceCity_ProvinceCityId(id);
+        long medicalFacilityCount = medicalFacilityRepository.countByProvinceCity_ProvinceCityId(id);
+        long empHometownCount = employeeRepository.countByHometown_ProvinceCityId(id);
+        long empBirthplaceCount = employeeRepository.countByPlaceOfBirth_ProvinceCityId(id);
+        long totalCount = wardCount + oldProvinceCityCount + medicalFacilityCount + empHometownCount + empBirthplaceCount;
+
+        if (totalCount > 0) {
+            throw new com.example.demo.exception.CannotDeleteException(
+                    "ProvinceCity", id, "referencing records", totalCount
+            );
+        }
+
         provinceCityRepository.deleteById(id);
     }
 }

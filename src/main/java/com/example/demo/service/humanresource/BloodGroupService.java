@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.BloodGroupMapper;
 import com.example.demo.repository.humanresource.BloodGroupRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class BloodGroupService {
     final BloodGroupRepository bloodGroupRepository;
     final BloodGroupMapper bloodGroupMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.bloodgroup}")
     private String entityName;
@@ -132,8 +135,18 @@ public class BloodGroupService {
     }
 
     public void deleteBloodGroup(Long id) {
-        BloodGroup bloodGroup = bloodGroupRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!bloodGroupRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeRepository.countByBloodGroup_BloodGroupId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "BloodGroup", id, "Employee", refCount
+            );
+        }
+
         bloodGroupRepository.deleteById(id);
     }
 }

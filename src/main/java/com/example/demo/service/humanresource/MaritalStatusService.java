@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MaritalStatusMapper;
 import com.example.demo.repository.humanresource.MaritalStatusRepository;
+import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class MaritalStatusService {
     final MaritalStatusRepository maritalStatusRepository;
     final MaritalStatusMapper maritalStatusMapper;
+    final EmployeeRepository employeeRepository;
 
     @Value("${entities.humanresource.maritalstatus}")
     private String entityName;
@@ -133,8 +136,18 @@ public class MaritalStatusService {
     }
 
     public void deleteMaritalStatus(Long id) {
-        MaritalStatus maritalStatus = maritalStatusRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!maritalStatusRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeRepository.countByMaritalStatus_MaritalStatusId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "MaritalStatus", id, "Employee", refCount
+            );
+        }
+
         maritalStatusRepository.deleteById(id);
     }
 }

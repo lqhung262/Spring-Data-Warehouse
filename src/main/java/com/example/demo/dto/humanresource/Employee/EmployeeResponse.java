@@ -26,28 +26,40 @@ public class EmployeeResponse {
     String alternateName;
     LocalDateTime birthDate;
     Long genderId;
+    String genderName;
     Long maritalStatusId;
+    String maritalStatusName;
     String idNumberCmnd;
     LocalDateTime idIssueDateCmnd;
-    Long idIssuePlaceCmnd; // FK -> identity_issuing_authority
+    Long idIssuePlaceCmnd;
+    String idIssuePlaceCmndName;
     String idNumberCccd;
     LocalDateTime idIssueDateCccd;
     Long idIssuePlaceCccd;
+    String idIssuePlaceCccdName;
     Long nationalityId;
+    String nationalityName;
     LocalDateTime startDate;
     LocalDateTime officialStartDate;
     LocalDateTime seniorityStartDate;
     Integer seniorityDeductionDays;
     Long laborStatusId;
+    String laborStatusName;
     String taxCode;
     Long managerId;
+    String managerName;
     Integer entitledLeaveDays;
     Long graduationSchoolId;
+    String graduationSchoolName;
     Integer graduationYear;
     Long language1;
+    String language1Name;
     Long language2;
+    String language2Name;
     Long language3;
+    String language3Name;
     Long bloodGroupId;
+    String bloodGroupName;
     String healthStatus;
     String passportNumber;
     LocalDateTime passportExpiryDate;
@@ -61,10 +73,14 @@ public class EmployeeResponse {
     Long sourceSystemId;
     String currentAddressStreet;
     Long currentAddressWard;
+    String currentAddressWardName;
     String permanentAddressStreet;
     Long permanentAddressWard;
+    String permanentAddressWardName;
     Long hometownId;
+    String hometownName;
     Long placeOfBirthId;
+    String placeOfBirthName;
     String personalPhone;
     String homePhone;
     String companyEmail;
@@ -73,6 +89,7 @@ public class EmployeeResponse {
     String emergencyContactPhone;
     String bankAccountNumber;
     Long bankId;
+    String bankName;
     String bankBranch;
     Boolean taxDeclarationAuthorized;
     Boolean excludePersonalDeduction;
@@ -81,6 +98,7 @@ public class EmployeeResponse {
     String socialInsuranceCode;
     String healthInsuranceCard;
     Long medicalRegistration;
+    String medicalRegistrationName;
 
     // child responses
     Set<EmployeeDecisionResponse> employeeDecisions;

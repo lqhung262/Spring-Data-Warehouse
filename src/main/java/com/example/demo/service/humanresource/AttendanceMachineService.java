@@ -7,6 +7,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.AttendanceMachineMapper;
 import com.example.demo.repository.humanresource.AttendanceMachineRepository;
+import com.example.demo.repository.humanresource.EmployeeAttendanceMachineRepository;
+import com.example.demo.exception.CannotDeleteException;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class AttendanceMachineService {
     final AttendanceMachineRepository attendanceMachineRepository;
     final AttendanceMachineMapper attendanceMachineMapper;
+    final EmployeeAttendanceMachineRepository employeeAttendanceMachineRepository;
 
     @Value("${entities.humanresource.attendancemachine}")
     private String entityName;
@@ -134,8 +137,18 @@ public class AttendanceMachineService {
     }
 
     public void deleteAttendanceMachine(Long id) {
-        AttendanceMachine attendanceMachine = attendanceMachineRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!attendanceMachineRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeAttendanceMachineRepository.countByMachine_AttendanceMachineId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "AttendanceMachine", id, "EmployeeAttendanceMachine", refCount
+            );
+        }
+
         attendanceMachineRepository.deleteById(id);
     }
 }

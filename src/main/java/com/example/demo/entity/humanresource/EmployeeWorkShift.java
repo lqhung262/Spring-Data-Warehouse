@@ -22,21 +22,26 @@ public class EmployeeWorkShift {
 
     @Column(name = "attendance_code", length = 100)
     private String attendanceCode;
-
-    @Column(name = "work_shift_id")
-    private Long workShiftId;
-
-    @Column(name = "work_shift_group_id")
-    private Long workShiftGroupId;
-
-    @Column(name = "attendance_type_id")
-    private Long attendanceTypeId;
-
+    
     @Column(name = "saturday_full")
     private Boolean saturdayFull = Boolean.FALSE;
 
-    @Column(name = "ot_type_id")
-    private Long otTypeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_shift_id")
+    private WorkShift workShift;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_shift_group_id")
+    private WorkShiftGroup workShiftGroup;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attendance_type_id")
+    private AttendanceType attendanceType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ot_type_id")
+    private OtType otType;
+
 
     @Override
     public boolean equals(Object o) {

@@ -11,5 +11,20 @@ import java.util.Optional;
 public interface EmployeeWorkShiftRepository extends JpaRepository<EmployeeWorkShift, Long> {
     List<EmployeeWorkShift> findByEmployee_Id(Long employeeId);
 
-    Optional<EmployeeWorkShift> findByEmployee_IdAndAttendanceTypeIdAndWorkShiftIdAndOtTypeIdAndWorkShiftGroupId(Long employeeId, Long attendanceTypeId, Long workShiftId, Long otTypeId, Long workShiftGroupId);
+    Optional<EmployeeWorkShift> findByEmployee_IdAndAttendanceType_AttendanceTypeIdAndWorkShift_WorkShiftIdAndOtType_OtTypeIdAndWorkShiftGroup_WorkShiftGroupId(
+            Long employeeId,
+            Long attendanceTypeId,
+            Long workShiftId,
+            Long otTypeId,
+            Long workShiftGroupId
+    );
+
+    // Count methods for cascade delete checks
+    long countByWorkShift_WorkShiftId(Long workShiftId);
+
+    long countByWorkShiftGroup_WorkShiftGroupId(Long workShiftGroupId);
+
+    long countByAttendanceType_AttendanceTypeId(Long attendanceTypeId);
+
+    long countByOtType_OtTypeId(Long otTypeId);
 }

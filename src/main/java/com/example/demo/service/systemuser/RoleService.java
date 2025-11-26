@@ -101,8 +101,10 @@ public class RoleService {
     }
 
     public void deleteRole(Long id) {
-        Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!roleRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         roleRepository.deleteById(id);
     }
 }

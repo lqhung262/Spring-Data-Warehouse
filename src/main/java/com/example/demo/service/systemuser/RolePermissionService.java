@@ -53,8 +53,10 @@ public class RolePermissionService {
     }
 
     public void deleteRolePermission(Long id) {
-        RolePermission rolePermission = rolePermissionRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!rolePermissionRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         rolePermissionRepository.deleteById(id);
     }
 }

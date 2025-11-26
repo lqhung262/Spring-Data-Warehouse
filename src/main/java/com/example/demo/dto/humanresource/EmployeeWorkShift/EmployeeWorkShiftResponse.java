@@ -14,6 +14,6 @@ public class EmployeeWorkShiftResponse {
     Long workShiftId;
     Long workShiftGroupId;
     Long attendanceTypeId;
-    Boolean saturdayFull = Boolean.FALSE;
+    Boolean saturdayFull;
     Long otTypeId;
 }

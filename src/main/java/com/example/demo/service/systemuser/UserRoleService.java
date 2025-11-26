@@ -53,8 +53,10 @@ public class UserRoleService {
     }
 
     public void deleteUserRole(Long id) {
-        UserRole userRole = userRoleRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!userRoleRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
         userRoleRepository.deleteById(id);
     }
 }

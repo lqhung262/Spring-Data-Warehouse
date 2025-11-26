@@ -6,6 +6,8 @@ import com.example.demo.entity.humanresource.OtType;
 import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.OtTypeMapper;
+import com.example.demo.repository.humanresource.EmployeeWorkShiftRepository;
+import com.example.demo.exception.CannotDeleteException;
 import com.example.demo.repository.humanresource.OtTypeRepository;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class OtTypeService {
     final OtTypeRepository otTypeRepository;
     final OtTypeMapper otTypeMapper;
+    final EmployeeWorkShiftRepository employeeWorkShiftRepository;
 
     @Value("${entities.humanresource.ottype}")
     private String entityName;
@@ -130,8 +133,18 @@ public class OtTypeService {
     }
 
     public void deleteOtType(Long id) {
-        OtType otType = otTypeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
+        if (!otTypeRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check references (RESTRICT strategy)
+        long refCount = employeeWorkShiftRepository.countByOtType_OtTypeId(id);
+        if (refCount > 0) {
+            throw new CannotDeleteException(
+                    "OtType", id, "EmployeeWorkShift", refCount
+            );
+        }
+
         otTypeRepository.deleteById(id);
     }
 }
