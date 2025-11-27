@@ -10,7 +10,6 @@ public class NotFoundException extends RuntimeException {
     private static final String ERROR_MESSAGE = "%s not found";
     private final int code = 400;
 
-
     public NotFoundException(String entityName) {
         super(String.format(ERROR_MESSAGE, entityName));
     }

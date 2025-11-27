@@ -2,6 +2,8 @@ package com.example.demo.repository.humanresource;
 
 import com.example.demo.entity.humanresource.OldProvinceCity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -15,15 +17,8 @@ public interface OldProvinceCityRepository extends JpaRepository<OldProvinceCity
     // Count methods for cascade delete checks
     long countByProvinceCity_ProvinceCityId(Long provinceCityId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả oldProvinceCity tồn tại trong 1 câu query.
-//     */
-////    List<OldProvinceCity> findByOldProvinceCityCodeIn(Collection<String> oldProvinceCityCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 oldProvinceCity bằng oldProvinceCityCode
-//     */
-//    Optional<OldProvinceCity> findByOldProvinceCityId(Long oldProvinceCityId);
-//
-//    Long countByOldProvinceCityIdIn(Collection<Long> oldProvinceCityIds);
+    @Query("SELECT opc.provinceCity.provinceCityId, COUNT(opc) FROM OldProvinceCity opc " +
+            "WHERE opc.provinceCity.provinceCityId IN :provinceCityIds " +
+            "GROUP BY opc.provinceCity.provinceCityId")
+    List<Object[]> countByProvinceCityIdIn(@Param("provinceCityIds") List<Long> provinceCityIds);
 }

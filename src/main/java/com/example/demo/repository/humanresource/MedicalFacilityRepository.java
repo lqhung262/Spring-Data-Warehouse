@@ -2,6 +2,8 @@ package com.example.demo.repository.humanresource;
 
 import com.example.demo.entity.humanresource.MedicalFacility;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -15,15 +17,8 @@ public interface MedicalFacilityRepository extends JpaRepository<MedicalFacility
     // Count methods for cascade delete checks
     long countByProvinceCity_ProvinceCityId(Long provinceCityId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả medicalFacilitys tồn tại trong 1 câu query.
-//     */
-//    List<MedicalFacility> findByMedicalFacilityCodeIn(Collection<String> medicalFacilityCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 medicalFacility bằng medicalFacilityCode
-//     */
-//    Optional<MedicalFacility> findByMedicalFacilityCode(String medicalFacilityCode);
-//
-//    Long countByMedicalFacilityIdIn(Collection<Long> medicalFacilityIds);
+    @Query("SELECT mf.provinceCity.provinceCityId, COUNT(mf) FROM MedicalFacility mf " +
+            "WHERE mf.provinceCity.provinceCityId IN :provinceCityIds " +
+            "GROUP BY mf.provinceCity.provinceCityId")
+    List<Object[]> countByProvinceCityIdIn(@Param("provinceCityIds") List<Long> provinceCityIds);
 }

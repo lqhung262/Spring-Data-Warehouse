@@ -4,6 +4,7 @@ import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityRequest;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityResponse;
 import com.example.demo.entity.humanresource.ProvinceCity;
 import com.example.demo.exception.AlreadyExistsException;
+import com.example.demo.exception.CannotDeleteException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ProvinceCityMapper;
 import com.example.demo.repository.humanresource.ProvinceCityRepository;
@@ -20,8 +21,7 @@ import com.example.demo.repository.humanresource.OldProvinceCityRepository;
 import com.example.demo.repository.humanresource.MedicalFacilityRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,61 +54,216 @@ public class ProvinceCityService {
     /**
      * Xử lý Bulk Upsert
      */
-//    @Transactional
-//    public List<ProvinceCityResponse> bulkUpsertProvinceCities(List<ProvinceCityRequest> requests) {
-//
-//        // Lấy tất cả provinceCityCodes từ request
-//        List<String> provinceCityCodes = requests.stream()
-//                .map(ProvinceCityRequest::getProvinceCityCode)
-//                .toList();
-//
-//        // Tìm tất cả các provinceCity đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, ProvinceCity> existingProvinceCitysMap = provinceCityRepository.findByProvinceCityCodeIn(provinceCityCodes).stream()
-//                .collect(Collectors.toMap(ProvinceCity::getProvinceCityCode, provinceCity -> provinceCity));
-//
-//        List<ProvinceCity> provinceCitysToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (ProvinceCityRequest request : requests) {
-//            ProvinceCity provinceCity = existingProvinceCitysMap.get(request.getProvinceCityCode());
-//
-//            if (provinceCity != null) {
-//                // --- Logic UPDATE ---
-//                // ProvinceCity đã tồn tại -> Cập nhật
-//                provinceCityMapper.updateProvinceCity(provinceCity, request);
-//                provinceCitysToSave.add(provinceCity);
-//            } else {
-//                // --- Logic INSERT ---
-//                // ProvinceCity chưa tồn tại -> Tạo mới
-//                ProvinceCity newProvinceCity = provinceCityMapper.toProvinceCity(request);
-//                provinceCitysToSave.add(newProvinceCity);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<ProvinceCity> savedProvinceCitys = provinceCityRepository.saveAll(provinceCitysToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedProvinceCitys.stream()
-//                .map(provinceCityMapper::toProvinceCityResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteProvinceCities(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = provinceCityRepository.countByProvinceCityIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        provinceCityRepository.deleteAllById(ids);
-//    }
+    @Transactional
+    public List<ProvinceCityResponse> bulkUpsertProvinceCities(List<ProvinceCityRequest> requests) {
+        // Validate: Check duplicate source_ids trong chính request list
+        // 1. Validate và extract sourceIds
+//        Set<String> sourceIds = validateAndExtractSourceIds(requests);
+
+        // 2.  Query 1 lần duy nhất để tìm các entities đã tồn tại
+//        Map<String, ProvinceCity> existingMap = provinceCityRepository
+//                .findBySourceIdIn(sourceIds)
+//                .stream()
+//                .collect(Collectors.toMap(ProvinceCity::getSourceId, e -> e));
+
+        List<String> sourceIds = requests.stream()
+                .map(ProvinceCityRequest::getSourceId)
+                .filter(Objects::nonNull)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
+        Map<String, ProvinceCity> existingMap = provinceCityRepository
+                .findBySourceIdIn(sourceIds)
+                .stream()
+                .collect(Collectors.toMap(ProvinceCity::getSourceId, e -> e));
+
+
+        // 3. Phân loại create vs update
+        List<ProvinceCity> entitiesToSave = new ArrayList<>();
+
+        for (ProvinceCityRequest request : requests) {
+            ProvinceCity entity;
+            if (request.getSourceId() != null && existingMap.containsKey(request.getSourceId())) {
+                // UPDATE - entity đã tồn tại
+                entity = existingMap.get(request.getSourceId());
+                provinceCityMapper.updateProvinceCity(entity, request);
+            } else {
+                // CREATE - entity mới
+                entity = provinceCityMapper.toProvinceCity(request);
+            }
+            entitiesToSave.add(entity);
+        }
+
+        // 4. Lưu tất cả trong 1 batch operation
+        List<ProvinceCity> savedEntities = provinceCityRepository.saveAll(entitiesToSave);
+
+        // 5. Map về Response DTO
+        return savedEntities.stream()
+                .map(provinceCityMapper::toProvinceCityResponse)
+                .toList();
+    }
+
+    /**
+     * Xử lý Bulk Delete
+     */
+    @Transactional
+    public void bulkDeleteProvinceCities(List<Long> ids) {
+        // 1. Validate: Remove duplicates và check tồn tại
+        Set<Long> uniqueIds = validateAndExtractUniqueIds(ids);
+        List<Long> idList = new ArrayList<>(uniqueIds);
+
+        List<ProvinceCity> existingEntities = provinceCityRepository.findByProvinceCityIdIn(idList);
+        // check tồn tại
+        if (existingEntities.size() != idList.size()) {
+            Set<Long> foundIds = existingEntities.stream()
+                    .map(ProvinceCity::getProvinceCityId)
+                    .collect(Collectors.toSet());
+            List<Long> missingIds = idList.stream()
+                    .filter(id -> !foundIds.contains(id))
+                    .toList();
+            throw new NotFoundException(entityName + "s not found with IDs: " + missingIds);
+        }
+
+        // 2.  Batch check FK constraints
+        checkForeignKeyConstraintsBatch(idList);
+
+        // 3.  Thực hiện delete all
+        provinceCityRepository.deleteAllById(idList);
+    }
+
+    /**
+     * Validate và loại bỏ duplicate IDs
+     */
+    private Set<Long> validateAndExtractUniqueIds(List<Long> ids) {
+        Set<Long> uniqueIds = new LinkedHashSet<>();
+        Set<Long> duplicates = new HashSet<>();
+
+        for (Long id : ids) {
+            if (!uniqueIds.add(id)) {
+                duplicates.add(id);
+            }
+        }
+
+        if (!duplicates.isEmpty()) {
+            throw new IllegalArgumentException("Duplicate IDs in delete request: " + duplicates);
+        }
+
+        return uniqueIds;
+    }
+
+    /**
+     * Batch check FK constraints - chỉ 5 queries dành cho tất cả IDs tương ứng với 5 bảng referencing
+     */
+    private void checkForeignKeyConstraintsBatch(List<Long> provinceCityIds) {
+        // 1 query cho Ward
+        Map<Long, Long> wardCounts = convertToMap(
+                wardRepository.countByProvinceCityIdIn(provinceCityIds)
+        );
+
+        // 1 query cho OldProvinceCity
+        Map<Long, Long> oldProvinceCityCounts = convertToMap(
+                oldProvinceCityRepository.countByProvinceCityIdIn(provinceCityIds)
+        );
+
+        // 1 query cho MedicalFacility
+        Map<Long, Long> medicalFacilityCounts = convertToMap(
+                medicalFacilityRepository.countByProvinceCityIdIn(provinceCityIds)
+        );
+
+        // 1 query cho Employee hometown
+        Map<Long, Long> empHometownCounts = convertToMap(
+                employeeRepository.countHometownByProvinceCityIdIn(provinceCityIds)
+        );
+
+        // 1 query cho Employee birthplace
+        Map<Long, Long> empBirthplaceCounts = convertToMap(
+                employeeRepository.countPlaceOfBirthByProvinceCityIdIn(provinceCityIds)
+        );
+
+        // Check từng ID
+        List<Long> idsWithReferences = new ArrayList<>();
+        Map<Long, Long> referenceCounts = new HashMap<>();
+
+        for (Long id : provinceCityIds) {
+            long totalCount =
+                    wardCounts.getOrDefault(id, 0L) +
+                            oldProvinceCityCounts.getOrDefault(id, 0L) +
+                            medicalFacilityCounts.getOrDefault(id, 0L) +
+                            empHometownCounts.getOrDefault(id, 0L) +
+                            empBirthplaceCounts.getOrDefault(id, 0L);
+
+            if (totalCount > 0) {
+                idsWithReferences.add(id);
+                referenceCounts.put(id, totalCount);
+            }
+        }
+
+        if (!idsWithReferences.isEmpty()) {
+            throw new CannotDeleteException(
+                    String.format("Cannot delete %d ProvinceCity/Cities because they are still referenced.  " +
+                                    "IDs with references: %s.  Reference counts: %s",
+                            idsWithReferences.size(), idsWithReferences, referenceCounts)
+            );
+        }
+    }
+
+    /**
+     * Helper: Convert query result (List<Object[]>) to Map<ID, Count>
+     */
+    private Map<Long, Long> convertToMap(List<Object[]> queryResults) {
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : queryResults) {
+            Long id = (Long) row[0];
+            Long count = (Long) row[1];
+            map.put(id, count);
+        }
+        return map;
+    }
+
+
+    /**
+     * Validate duplicate source_ids và trả về Set sourceIds hợp lệ
+     */
+    private Set<String> validateAndExtractSourceIds(List<ProvinceCityRequest> requests) {
+        Set<String> sourceIds = new HashSet<>();
+
+        for (ProvinceCityRequest request : requests) {
+            String sid = request.getSourceId();
+
+            // Chỉ xử lý source_id hợp lệ (not null và not empty)
+            if (sid != null && !sid.isEmpty() && !sourceIds.add(sid)) {
+                throw new IllegalArgumentException("Duplicate source_id in request: " + sid);
+            }
+
+        }
+
+        return sourceIds;
+    }
+
+    /**
+     * Helper: Check FK constraints
+     */
+    private void checkForeignKeyConstraints(Long id) {
+        if (!provinceCityRepository.existsById(id)) {
+            throw new NotFoundException(entityName);
+        }
+
+        // Check all references (RESTRICT strategy)
+        long wardCount = wardRepository.countByProvinceCity_ProvinceCityId(id);
+        long oldProvinceCityCount = oldProvinceCityRepository.countByProvinceCity_ProvinceCityId(id);
+        long medicalFacilityCount = medicalFacilityRepository.countByProvinceCity_ProvinceCityId(id);
+        long empHometownCount = employeeRepository.countByHometown_ProvinceCityId(id);
+        long empBirthplaceCount = employeeRepository.countByPlaceOfBirth_ProvinceCityId(id);
+        long totalCount = wardCount + oldProvinceCityCount + medicalFacilityCount + empHometownCount + empBirthplaceCount;
+
+        if (totalCount > 0) {
+            throw new CannotDeleteException(
+                    "ProvinceCity", id, "referencing records", totalCount
+            );
+        }
+    }
+
+
     public List<ProvinceCityResponse> getProvinceCities(Pageable pageable) {
         Page<ProvinceCity> page = provinceCityRepository.findAll(pageable);
         return page.getContent()
@@ -139,23 +294,7 @@ public class ProvinceCityService {
     }
 
     public void deleteProvinceCity(Long id) {
-        if (!provinceCityRepository.existsById(id)) {
-            throw new NotFoundException(entityName);
-        }
-
-        // Check all references (RESTRICT strategy)
-        long wardCount = wardRepository.countByProvinceCity_ProvinceCityId(id);
-        long oldProvinceCityCount = oldProvinceCityRepository.countByProvinceCity_ProvinceCityId(id);
-        long medicalFacilityCount = medicalFacilityRepository.countByProvinceCity_ProvinceCityId(id);
-        long empHometownCount = employeeRepository.countByHometown_ProvinceCityId(id);
-        long empBirthplaceCount = employeeRepository.countByPlaceOfBirth_ProvinceCityId(id);
-        long totalCount = wardCount + oldProvinceCityCount + medicalFacilityCount + empHometownCount + empBirthplaceCount;
-
-        if (totalCount > 0) {
-            throw new com.example.demo.exception.CannotDeleteException(
-                    "ProvinceCity", id, "referencing records", totalCount
-            );
-        }
+        checkForeignKeyConstraints(id);
 
         provinceCityRepository.deleteById(id);
     }

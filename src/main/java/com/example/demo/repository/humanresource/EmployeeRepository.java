@@ -2,6 +2,8 @@ package com.example.demo.repository.humanresource;
 
 import com.example.demo.entity.humanresource.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -48,4 +50,21 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     long countByIdIssuePlaceCmnd_IdentityIssuingAuthorityId(Long identityIssuingAuthorityId);
 
     long countByIdIssuePlaceCccd_IdentityIssuingAuthorityId(Long identityIssuingAuthorityId);
+
+    /**
+     * Batch count: Đếm employee hometown references
+     */
+    @Query("SELECT e.hometown.provinceCityId, COUNT(e) FROM Employee e " +
+            "WHERE e.hometown.provinceCityId IN :provinceCityIds " +
+            "GROUP BY e.hometown.provinceCityId")
+    List<Object[]> countHometownByProvinceCityIdIn(@Param("provinceCityIds") List<Long> provinceCityIds);
+
+    /**
+     * Batch count: Đếm employee birthplace references
+     */
+    @Query("SELECT e.placeOfBirth.provinceCityId, COUNT(e) FROM Employee e " +
+            "WHERE e.placeOfBirth.provinceCityId IN :provinceCityIds " +
+            "GROUP BY e.placeOfBirth. provinceCityId")
+    List<Object[]> countPlaceOfBirthByProvinceCityIdIn(@Param("provinceCityIds") List<Long> provinceCityIds);
 }
+
