@@ -20,6 +20,7 @@ import com.example.demo.repository.humanresource.WardRepository;
 import com.example.demo.repository.humanresource.OldProvinceCityRepository;
 import com.example.demo.repository.humanresource.MedicalFacilityRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
+import com.example.demo.util.BulkOperationUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,26 +57,18 @@ public class ProvinceCityService {
      */
     @Transactional
     public List<ProvinceCityResponse> bulkUpsertProvinceCities(List<ProvinceCityRequest> requests) {
-        // Validate: Check duplicate source_ids trong chính request list
-        // 1. Validate và extract sourceIds
-//        Set<String> sourceIds = validateAndExtractSourceIds(requests);
-
-        // 2.  Query 1 lần duy nhất để tìm các entities đã tồn tại
-//        Map<String, ProvinceCity> existingMap = provinceCityRepository
-//                .findBySourceIdIn(sourceIds)
-//                .stream()
-//                .collect(Collectors.toMap(ProvinceCity::getSourceId, e -> e));
-
+        // 1. Lấy list source_id
         List<String> sourceIds = requests.stream()
                 .map(ProvinceCityRequest::getSourceId)
                 .filter(Objects::nonNull)
                 .filter(s -> !s.isEmpty())
                 .toList();
 
-        Map<String, ProvinceCity> existingMap = provinceCityRepository
-                .findBySourceIdIn(sourceIds)
-                .stream()
-                .collect(Collectors.toMap(ProvinceCity::getSourceId, e -> e));
+        // 2. Lấy các entity hiện có từ DB theo source_id
+        List<ProvinceCity> existingEntities = provinceCityRepository.findBySourceIdIn(sourceIds);
+
+        Map<String, ProvinceCity> existingMap =
+                BulkOperationUtils.toMap(existingEntities, ProvinceCity::getSourceId);
 
 
         // 3. Phân loại create vs update
@@ -109,7 +102,8 @@ public class ProvinceCityService {
     @Transactional
     public void bulkDeleteProvinceCities(List<Long> ids) {
         // 1. Validate: Remove duplicates và check tồn tại
-        Set<Long> uniqueIds = validateAndExtractUniqueIds(ids);
+        Set<Long> uniqueIds = BulkOperationUtils.validateAndExtractUniqueValues(ids, "ID");
+
         List<Long> idList = new ArrayList<>(uniqueIds);
 
         List<ProvinceCity> existingEntities = provinceCityRepository.findByProvinceCityIdIn(idList);
@@ -132,51 +126,31 @@ public class ProvinceCityService {
     }
 
     /**
-     * Validate và loại bỏ duplicate IDs
-     */
-    private Set<Long> validateAndExtractUniqueIds(List<Long> ids) {
-        Set<Long> uniqueIds = new LinkedHashSet<>();
-        Set<Long> duplicates = new HashSet<>();
-
-        for (Long id : ids) {
-            if (!uniqueIds.add(id)) {
-                duplicates.add(id);
-            }
-        }
-
-        if (!duplicates.isEmpty()) {
-            throw new IllegalArgumentException("Duplicate IDs in delete request: " + duplicates);
-        }
-
-        return uniqueIds;
-    }
-
-    /**
      * Batch check FK constraints - chỉ 5 queries dành cho tất cả IDs tương ứng với 5 bảng referencing
      */
     private void checkForeignKeyConstraintsBatch(List<Long> provinceCityIds) {
         // 1 query cho Ward
-        Map<Long, Long> wardCounts = convertToMap(
+        Map<Long, Long> wardCounts = BulkOperationUtils.toIdCountMap(
                 wardRepository.countByProvinceCityIdIn(provinceCityIds)
         );
 
         // 1 query cho OldProvinceCity
-        Map<Long, Long> oldProvinceCityCounts = convertToMap(
+        Map<Long, Long> oldProvinceCityCounts = BulkOperationUtils.toIdCountMap(
                 oldProvinceCityRepository.countByProvinceCityIdIn(provinceCityIds)
         );
 
         // 1 query cho MedicalFacility
-        Map<Long, Long> medicalFacilityCounts = convertToMap(
+        Map<Long, Long> medicalFacilityCounts = BulkOperationUtils.toIdCountMap(
                 medicalFacilityRepository.countByProvinceCityIdIn(provinceCityIds)
         );
 
         // 1 query cho Employee hometown
-        Map<Long, Long> empHometownCounts = convertToMap(
+        Map<Long, Long> empHometownCounts = BulkOperationUtils.toIdCountMap(
                 employeeRepository.countHometownByProvinceCityIdIn(provinceCityIds)
         );
 
         // 1 query cho Employee birthplace
-        Map<Long, Long> empBirthplaceCounts = convertToMap(
+        Map<Long, Long> empBirthplaceCounts = BulkOperationUtils.toIdCountMap(
                 employeeRepository.countPlaceOfBirthByProvinceCityIdIn(provinceCityIds)
         );
 
@@ -205,19 +179,6 @@ public class ProvinceCityService {
                             idsWithReferences.size(), idsWithReferences, referenceCounts)
             );
         }
-    }
-
-    /**
-     * Helper: Convert query result (List<Object[]>) to Map<ID, Count>
-     */
-    private Map<Long, Long> convertToMap(List<Object[]> queryResults) {
-        Map<Long, Long> map = new HashMap<>();
-        for (Object[] row : queryResults) {
-            Long id = (Long) row[0];
-            Long count = (Long) row[1];
-            map.put(id, count);
-        }
-        return map;
     }
 
 
