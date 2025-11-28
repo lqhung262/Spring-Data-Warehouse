@@ -79,4 +79,18 @@ public class GlobalExceptionHandler {
                         null
                 ));
     }
+
+    /**
+     * Handle bulk operation failures
+     */
+    @ExceptionHandler(value = BulkOperationException.class)
+    ResponseEntity<ApiResponse<Object>> handlingBulkOperationException(BulkOperationException e) {
+        // Return detailed error with failed items information
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse<>(
+                        e.getCode(),
+                        e.getMessage(),
+                        null));
+    }
 }

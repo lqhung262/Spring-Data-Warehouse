@@ -10,15 +10,18 @@ import java.util.Optional;
 
 @Repository
 public interface ProvinceCityRepository extends JpaRepository<ProvinceCity, Long> {
+    // Single queries
     Optional<ProvinceCity> findBySourceId(String sourceId);
 
-    /**
-     * Tối ưu cho Bulk Upsert: Tìm tất cả provinceCities theo sourceId
-     */
+    Optional<ProvinceCity> findByName(String name);
+
+    // Batch queries for bulk upsert
     List<ProvinceCity> findBySourceIdIn(Collection<String> sourceIds);
 
-    /**
-     * Tối ưu cho Bulk Delete: Tìm tất cả provinceCities theo ID
-     */
+    List<ProvinceCity> findByNameIn(Collection<String> names);
+
+    // Batch queries for bulk delete
     List<ProvinceCity> findByProvinceCityIdIn(Collection<Long> provinceCityIds);
+
+    long countByProvinceCityIdIn(Collection<Long> provinceCityIds);
 }
