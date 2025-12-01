@@ -1,10 +1,11 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
+import com.example.demo.dto.BulkOperationError;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityRequest;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityResponse;
 import com.example.demo.entity.humanresource.ProvinceCity;
 import com.example.demo.exception.AlreadyExistsException;
-import com.example.demo.exception.BulkOperationException;
 import com.example.demo.exception.CannotDeleteException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ProvinceCityMapper;
@@ -12,7 +13,6 @@ import com.example.demo.repository.humanresource.*;
 import com.example.demo.util.BulkOperationUtils;
 import com.example.demo.util.BulkOperationUtils.BatchClassification;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -96,26 +96,29 @@ public class ProvinceCityService {
     // ----------------------------------- Handle Bulk -----------------------------------------
 
     /**
-     * Bulk Upsert với Final Batch Logic:
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
      * - Safe Batch: saveAll() - requests không có unique conflicts
      * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-    @Transactional
-    public List<ProvinceCityResponse> bulkUpsertProvinceCities(List<ProvinceCityRequest> requests) {
-        log.info("Starting bulk upsert for {} province cities", requests.size());
+    public BulkOperationResult<ProvinceCityResponse> bulkUpsertProvinceCities(
+            List<ProvinceCityRequest> requests) {
 
-        // 1. Setup unique field extractors (ProvinceCity có 2 unique fields)
+        log.info("Starting bulk upsert for {} province cities", requests.size());
+        long startTime = System.currentTimeMillis();
+
+        // 1. Setup unique field extractors
         Map<String, Function<ProvinceCityRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
         uniqueFieldExtractors.put("source_id", ProvinceCityRequest::getSourceId);
         uniqueFieldExtractors.put("name", ProvinceCityRequest::getName);
 
-        // 2. Extract tất cả unique values từ requests
+        // 2. Extract unique values
         Set<String> allSourceIds = BulkOperationUtils.extractUniqueValues(
                 requests, ProvinceCityRequest::getSourceId);
         Set<String> allNames = BulkOperationUtils.extractUniqueValues(
                 requests, ProvinceCityRequest::getName);
 
-        // 3. Query existing values từ DB (2 queries cho 2 unique fields)
+        // 3. Query existing values từ DB
         Map<String, Set<String>> existingValuesMaps = new HashMap<>();
         existingValuesMaps.put("source_id",
                 provinceCityRepository.findBySourceIdIn(allSourceIds)
@@ -128,131 +131,215 @@ public class ProvinceCityService {
                         .map(ProvinceCity::getName)
                         .collect(Collectors.toSet()));
 
-        // 4. Phân loại requests thành safe batch và final batch
+        // 4.  Phân loại batch
         BatchClassification<ProvinceCityRequest> classification =
                 BulkOperationUtils.classifyBatchByUniqueFields(
                         requests, uniqueFieldExtractors, existingValuesMaps);
 
-        List<ProvinceCityResponse> allResults = new ArrayList<>();
+        // Initialize result tracking
+        List<ProvinceCityResponse> successResults = new ArrayList<>();
+        List<BulkOperationError> errors = new ArrayList<>();
 
-        // 5. Xử lý Safe Batch (saveAll - không có conflicts)
+        // 5. Process Safe Batch
         if (classification.hasSafeBatch()) {
             log.info("Processing safe batch: {} requests", classification.getSafeBatch().size());
-            List<ProvinceCityResponse> safeBatchResults = processSafeBatch(
-                    classification.getSafeBatch(), existingValuesMaps);
-            allResults.addAll(safeBatchResults);
+            processSafeBatchWithTracking(
+                    classification.getSafeBatch(),
+                    existingValuesMaps,
+                    successResults,
+                    errors
+                    // starting index
+            );
         }
 
-        // 6. Xử lý Final Batch (save + flush từng request - có potential conflicts)
+        // 6. Process Final Batch
         if (classification.hasFinalBatch()) {
             log.warn("Processing final batch: {} requests (potential conflicts)",
                     classification.getFinalBatch().size());
-            List<ProvinceCityResponse> finalBatchResults = processFinalBatch(
-                    classification.getFinalBatch());
-            allResults.addAll(finalBatchResults);
+            int finalBatchStartIndex = classification.getSafeBatch().size();
+            processFinalBatchWithTracking(
+                    classification.getFinalBatch(),
+                    successResults,
+                    errors,
+                    finalBatchStartIndex
+            );
         }
 
-        log.info("Bulk upsert completed: {} total results", allResults.size());
-        return allResults;
+        // 7. Build result
+        long duration = System.currentTimeMillis() - startTime;
+        BulkOperationResult<ProvinceCityResponse> result = buildBulkOperationResult(
+                requests.size(),
+                successResults,
+                errors,
+                duration
+        );
+
+        log.info("Bulk upsert completed: {}/{} succeeded, {}/{} failed in {}ms",
+                result.getSuccessCount(), result.getTotalRequests(),
+                result.getFailedCount(), result.getTotalRequests(),
+                duration);
+
+        return result;
     }
 
     /**
-     * Xử lý Safe Batch - saveAll() cùng lúc
+     * Process Safe Batch với error tracking
      */
-    private List<ProvinceCityResponse> processSafeBatch(
+    private void processSafeBatchWithTracking(
             List<ProvinceCityRequest> safeBatch,
-            Map<String, Set<String>> existingValuesMaps) {
+            Map<String, Set<String>> existingValuesMaps,
+            List<ProvinceCityResponse> successResults,
+            List<BulkOperationError> errors) {
 
-        // Build existing map từ DB (chỉ cần query by source_id vì là primary lookup key)
         Set<String> existingSourceIds = existingValuesMaps.get("source_id");
         List<ProvinceCity> existingEntities = provinceCityRepository.findBySourceIdIn(existingSourceIds);
         Map<String, ProvinceCity> existingMap = BulkOperationUtils.toMap(
                 existingEntities, ProvinceCity::getSourceId);
 
         List<ProvinceCity> entitiesToSave = new ArrayList<>();
+        Map<Integer, ProvinceCityRequest> indexToRequestMap = new HashMap<>();
 
-        for (ProvinceCityRequest request : safeBatch) {
-            ProvinceCity entity;
-            String sid = request.getSourceId();
+        // Build entities to save
+        for (int globalIndex = 0; globalIndex < safeBatch.size(); globalIndex++) {
+            ProvinceCityRequest request = safeBatch.get(globalIndex);
 
-            // Phân loại CREATE vs UPDATE dựa trên source_id
-            if (sid != null && !sid.trim().isEmpty() && existingMap.containsKey(sid)) {
-                // UPDATE - entity đã tồn tại
-                entity = existingMap.get(sid);
-                provinceCityMapper.updateProvinceCity(entity, request);
-                log.debug("Safe batch: Updating existing entity with source_id={}", sid);
-            } else {
-                // CREATE - entity mới
-                entity = provinceCityMapper.toProvinceCity(request);
-                log.debug("Safe batch: Creating new entity with source_id={}", sid);
+            try {
+                ProvinceCity entity;
+                String sid = request.getSourceId();
+
+                if (sid != null && !sid.trim().isEmpty() && existingMap.containsKey(sid)) {
+                    entity = existingMap.get(sid);
+                    provinceCityMapper.updateProvinceCity(entity, request);
+                    log.debug("Safe batch [{}]: Updating source_id={}", globalIndex, sid);
+                } else {
+                    entity = provinceCityMapper.toProvinceCity(request);
+                    log.debug("Safe batch [{}]: Creating source_id={}", globalIndex, sid);
+                }
+
+                entitiesToSave.add(entity);
+                indexToRequestMap.put(globalIndex, request);
+
+            } catch (Exception e) {
+                log.error("Safe batch [{}]: Preparation failed - {}", globalIndex, e.getMessage());
+                errors.add(buildError(globalIndex, request, "Preparation failed", e));
             }
-            entitiesToSave.add(entity);
         }
 
-        // Save all cùng lúc (batch operation)
-        List<ProvinceCity> savedEntities = provinceCityRepository.saveAll(entitiesToSave);
-        return savedEntities.stream()
-                .map(provinceCityMapper::toProvinceCityResponse)
-                .toList();
+        // Save all and track results
+        try {
+            List<ProvinceCity> savedEntities = provinceCityRepository.saveAll(entitiesToSave);
+
+            for (ProvinceCity saved : savedEntities) {
+                successResults.add(provinceCityMapper.toProvinceCityResponse(saved));
+            }
+
+        } catch (Exception e) {
+            log.error("Safe batch: saveAll failed - {}", e.getMessage());
+
+            // If batch save fails, mark all as errors
+            for (int globalIndex = 0; globalIndex < entitiesToSave.size(); globalIndex++) {
+                ProvinceCityRequest request = indexToRequestMap.get(globalIndex);
+                errors.add(buildError(globalIndex, request, "Batch save failed", e));
+            }
+        }
     }
 
     /**
-     * Xử lý Final Batch - save + flush từng request
-     * Try-catch mỗi request, nếu fail → collect errors → rollback toàn bộ transaction
+     * Process Final Batch với individual save + tracking
      */
-    private List<ProvinceCityResponse> processFinalBatch(List<ProvinceCityRequest> finalBatch) {
-        List<ProvinceCityResponse> results = new ArrayList<>();
-        List<String> failedRequests = new ArrayList<>();
+    private void processFinalBatchWithTracking(
+            List<ProvinceCityRequest> finalBatch,
+            List<ProvinceCityResponse> successResults,
+            List<BulkOperationError> errors,
+            int startIndex) {
 
         for (int i = 0; i < finalBatch.size(); i++) {
             ProvinceCityRequest request = finalBatch.get(i);
+            int globalIndex = startIndex + i;
+
             try {
-                // Tìm existing entity (check cả source_id và name)
                 ProvinceCity entity = findExistingEntityForUpsert(request);
 
                 if (entity != null) {
-                    // UPDATE - entity đã tồn tại
-                    log.debug("Final batch [{}]: Updating entity id={}, source_id={}",
-                            i, entity.getProvinceCityId(), entity.getSourceId());
+                    log.debug("Final batch [{}]: Updating entity id={}",
+                            globalIndex, entity.getProvinceCityId());
                     provinceCityMapper.updateProvinceCity(entity, request);
                 } else {
-                    // CREATE - entity mới
-                    log.debug("Final batch [{}]: Creating new entity with source_id={}, name={}",
-                            i, request.getSourceId(), request.getName());
+                    log.debug("Final batch [{}]: Creating new entity", globalIndex);
                     entity = provinceCityMapper.toProvinceCity(request);
                 }
 
-                // Save + flush ngay lập tức để commit vào DB
+                // Save + flush individual record
                 ProvinceCity saved = provinceCityRepository.saveAndFlush(entity);
-
-                // Clear persistence context để tránh memory issues với large batches
                 entityManager.clear();
 
-                results.add(provinceCityMapper.toProvinceCityResponse(saved));
+                successResults.add(provinceCityMapper.toProvinceCityResponse(saved));
 
             } catch (Exception e) {
-                log.error("Final batch [{}]: Failed - source_id={}, name={}.  Error: {}",
-                        i, request.getSourceId(), request.getName(), e.getMessage(), e);
-                failedRequests.add(String.format("[%d] source_id=%s, name=%s: %s",
-                        i, request.getSourceId(), request.getName(), e.getMessage()));
+                log.error("Final batch [{}]: Failed - source_id={}, name={}, error: {}",
+                        globalIndex, request.getSourceId(), request.getName(), e.getMessage());
+                errors.add(buildError(globalIndex, request, "Save failed", e));
             }
         }
-
-        // Nếu có lỗi → throw exception để rollback toàn bộ transaction
-        if (!failedRequests.isEmpty()) {
-            log.error("Final batch processing failed for {}/{} requests",
-                    failedRequests.size(), finalBatch.size());
-            throw new BulkOperationException("Final Batch Upsert", finalBatch.size(), failedRequests);
-        }
-
-        return results;
     }
 
     /**
-     * Helper: Tìm entity đã tồn tại (check cả source_id và name vì cả 2 đều unique)
+     * Helper: Build error object
+     */
+    private BulkOperationError buildError(
+            int index,
+            ProvinceCityRequest request,
+            String context,
+            Exception e) {
+
+        String identifier = String.format("source_id=%s, name=%s",
+                request.getSourceId(), request.getName());
+
+        String errorMessage = context + ": " +
+                (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+
+        return BulkOperationError.builder()
+                .index(index)
+                .identifier(identifier)
+                .requestDetails(null)  // Không expose sensitive data
+                .errorMessage(errorMessage)
+                .errorType(e.getClass().getSimpleName())
+                .build();
+    }
+
+    /**
+     * Helper: Build final result
+     */
+    private BulkOperationResult<ProvinceCityResponse> buildBulkOperationResult(
+            int totalRequests,
+            List<ProvinceCityResponse> successResults,
+            List<BulkOperationError> errors,
+            long durationMs) {
+
+        int successCount = successResults.size();
+        int failedCount = errors.size();
+
+        String summary = String.format(
+                "Bulk upsert completed: %d/%d succeeded, %d/%d failed (%.2fs)",
+                successCount, totalRequests,
+                failedCount, totalRequests,
+                durationMs / 1000.0
+        );
+
+        return BulkOperationResult.<ProvinceCityResponse>builder()
+                .totalRequests(totalRequests)
+                .successCount(successCount)
+                .failedCount(failedCount)
+                .successResults(successResults)
+                .errors(errors)
+                .summary(summary)
+                .build();
+    }
+
+    /**
+     * Helper: Find existing entity for upsert
      */
     private ProvinceCity findExistingEntityForUpsert(ProvinceCityRequest request) {
-        // Priority 1: Check by source_id (primary key cho upsert logic)
         if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
             Optional<ProvinceCity> bySourceId = provinceCityRepository.findBySourceId(request.getSourceId());
             if (bySourceId.isPresent()) {
@@ -260,7 +347,6 @@ public class ProvinceCityService {
             }
         }
 
-        // Priority 2: Check by name (vì name cũng là unique)
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
             Optional<ProvinceCity> byName = provinceCityRepository.findByName(request.getName());
             if (byName.isPresent()) {
@@ -271,20 +357,14 @@ public class ProvinceCityService {
         return null;
     }
 
-    // ========== BULK DELETE ==========
+    // ========================= BULK DELETE  ========================
 
-    /**
-     * Bulk Delete với validation đầy đủ
-     */
-    @Transactional
     public void bulkDeleteProvinceCities(List<Long> ids) {
         log.info("Starting bulk delete for {} province cities", ids.size());
 
-        // 1. Validate và remove duplicates
         Set<Long> uniqueIds = BulkOperationUtils.validateAndExtractUniqueValues(ids, "ID");
         List<Long> idList = new ArrayList<>(uniqueIds);
 
-        // 2. Check tất cả IDs tồn tại
         List<ProvinceCity> existingEntities = provinceCityRepository.findByProvinceCityIdIn(idList);
 
         if (existingEntities.size() != idList.size()) {
@@ -297,28 +377,14 @@ public class ProvinceCityService {
             throw new NotFoundException(entityName + "s not found with IDs: " + missingIds);
         }
 
-        // 3.  Batch check FK constraints
-        checkForeignKeyConstraintsBatch(idList);
+        for (Long id : idList) {
+            checkForeignKeyConstraints(id);
+        }
 
-        // 4. Delete all
         provinceCityRepository.deleteAllById(idList);
         log.info("Bulk delete completed: {} province cities deleted", idList.size());
     }
 
-    /**
-     * Batch check FK constraints - 5 queries thay vì N*5 queries
-     */
-    private void checkForeignKeyConstraintsBatch(List<Long> provinceCityIds) {
-        // Cần implement các batch count methods trong repositories
-        // Tạm thời giữ logic đơn giản - sẽ optimize sau
-        for (Long id : provinceCityIds) {
-            checkForeignKeyConstraints(id);
-        }
-    }
-
-    /**
-     * Single FK check - dùng cho single delete và temporary cho bulk delete
-     */
     private void checkForeignKeyConstraints(Long id) {
         if (!provinceCityRepository.existsById(id)) {
             throw new NotFoundException(entityName);

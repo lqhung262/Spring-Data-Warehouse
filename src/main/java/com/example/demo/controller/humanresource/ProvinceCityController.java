@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityRequest;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityResponse;
 import com.example.demo.service.humanresource.ProvinceCityService;
@@ -37,15 +38,34 @@ public class ProvinceCityController {
      */
     @PostMapping("/_bulk-upsert")
     @ResponseStatus(HttpStatus.OK)
-    ApiResponse<List<ProvinceCityResponse>> bulkUpsertProvinceCities(
+    ApiResponse<BulkOperationResult<ProvinceCityResponse>> bulkUpsertProvinceCities(
             @Valid @RequestBody List<ProvinceCityRequest> requests) {
-        return ApiResponse.<List<ProvinceCityResponse>>builder()
-                .result(provinceCityService.bulkUpsertProvinceCities(requests))
+
+        BulkOperationResult<ProvinceCityResponse> result =
+                provinceCityService.bulkUpsertProvinceCities(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<ProvinceCityResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
                 .build();
     }
 
     /**
-     * BULK DELETE ENDPOINT
+     * BULK DELETE
      */
     @DeleteMapping("/_bulk-delete")
     @ResponseStatus(HttpStatus.OK)

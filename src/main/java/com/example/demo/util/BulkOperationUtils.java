@@ -65,9 +65,8 @@ public final class BulkOperationUtils {
         return map;
     }
 
-    /**
-     * ========== NEW METHODS FOR BULK UPSERT WITH FINAL BATCH ==========
-     */
+
+    // ================== NEW METHODS FOR BULK UPSERT WITH FINAL BATCH =======================
 
     /**
      * Phân loại requests thành Safe Batch và Final Batch dựa trên unique fields.
