@@ -32,21 +32,29 @@ public class SpecializationController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<SpecializationResponse>> bulkSpecializationUpsert(@Valid @RequestBody List<SpecializationRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<SpecializationResponse>> bulkUpsertSpecializations(
+//            @Valid @RequestBody List<SpecializationRequest> requests) {
 //        return ApiResponse.<List<SpecializationResponse>>builder()
 //                .result(specializationService.bulkUpsertSpecializations(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteSpecializations(@Valid @RequestParam("ids") List<Long> specializationIds) {
-//        specializationService.bulkDeleteSpecializations(specializationIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteSpecializations(@RequestParam("ids") List<Long> ids) {
+//        specializationService.bulkDeleteSpecializations(ids);
 //        return ApiResponse.<String>builder()
-//                .result(specializationIds.size() + " specializations have been deleted.")
+//                .result(ids.size() + " specializations have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<SpecializationResponse>> getSpecializations(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                  @RequestParam(required = false, defaultValue = "5") int pageSize,

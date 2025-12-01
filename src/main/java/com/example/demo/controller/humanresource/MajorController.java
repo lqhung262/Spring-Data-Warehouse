@@ -32,21 +32,29 @@ public class MajorController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<MajorResponse>> bulkMajorUpsert(@Valid @RequestBody List<MajorRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<MajorResponse>> bulkUpsertMajors(
+//            @Valid @RequestBody List<MajorRequest> requests) {
 //        return ApiResponse.<List<MajorResponse>>builder()
 //                .result(majorService.bulkUpsertMajors(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteMajors(@Valid @RequestParam("ids") List<Long> majorIds) {
-//        majorService.bulkDeleteMajors(majorIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteMajors(@RequestParam("ids") List<Long> ids) {
+//        majorService.bulkDeleteMajors(ids);
 //        return ApiResponse.<String>builder()
-//                .result(majorIds.size() + " majors have been deleted.")
+//                .result(ids.size() + " majors have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<MajorResponse>> getMajors(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                @RequestParam(required = false, defaultValue = "5") int pageSize,

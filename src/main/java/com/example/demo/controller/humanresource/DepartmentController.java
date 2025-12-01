@@ -32,21 +32,29 @@ public class DepartmentController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<DepartmentResponse>> bulkDepartmentUpsert(@Valid @RequestBody List<DepartmentRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<DepartmentResponse>> bulkUpsertDepartments(
+//            @Valid @RequestBody List<DepartmentRequest> requests) {
 //        return ApiResponse.<List<DepartmentResponse>>builder()
 //                .result(departmentService.bulkUpsertDepartments(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteDepartments(@Valid @RequestParam("ids") List<Long> departmentIds) {
-//        departmentService.bulkDeleteDepartments(departmentIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteDepartments(@RequestParam("ids") List<Long> ids) {
+//        departmentService.bulkDeleteDepartments(ids);
 //        return ApiResponse.<String>builder()
-//                .result(departmentIds.size() + " departments have been deleted.")
+//                .result(ids.size() + " departments have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<DepartmentResponse>> getDepartments(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                          @RequestParam(required = false, defaultValue = "5") int pageSize,

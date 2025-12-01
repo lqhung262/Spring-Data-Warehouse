@@ -32,21 +32,29 @@ public class WorkShiftGroupController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<WorkShiftGroupResponse>> bulkWorkShiftGroupUpsert(@Valid @RequestBody List<WorkShiftGroupRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<WorkShiftGroupResponse>> bulkUpsertWorkShiftGroups(
+//            @Valid @RequestBody List<WorkShiftGroupRequest> requests) {
 //        return ApiResponse.<List<WorkShiftGroupResponse>>builder()
 //                .result(workShiftGroupService.bulkUpsertWorkShiftGroups(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteWorkShiftGroups(@Valid @RequestParam("ids") List<Long> workShiftGroupIds) {
-//        workShiftGroupService.bulkDeleteWorkShiftGroups(workShiftGroupIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteWorkShiftGroups(@RequestParam("ids") List<Long> ids) {
+//        workShiftGroupService.bulkDeleteWorkShiftGroups(ids);
 //        return ApiResponse.<String>builder()
-//                .result(workShiftGroupIds.size() + " work Shift Groups have been deleted.")
+//                .result(ids.size() + " work shift groups have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<WorkShiftGroupResponse>> getWorkShiftGroups(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                  @RequestParam(required = false, defaultValue = "5") int pageSize,

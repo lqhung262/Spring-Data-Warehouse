@@ -32,21 +32,29 @@ public class SchoolController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<SchoolResponse>> bulkSchoolUpsert(@Valid @RequestBody List<SchoolRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<SchoolResponse>> bulkUpsertSchools(
+//            @Valid @RequestBody List<SchoolRequest> requests) {
 //        return ApiResponse.<List<SchoolResponse>>builder()
 //                .result(schoolService.bulkUpsertSchools(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteSchools(@Valid @RequestParam("ids") List<Long> schoolIds) {
-//        schoolService.bulkDeleteSchools(schoolIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteSchools(@RequestParam("ids") List<Long> ids) {
+//        schoolService.bulkDeleteSchools(ids);
 //        return ApiResponse.<String>builder()
-//                .result(schoolIds.size() + " schools have been deleted.")
+//                .result(ids.size() + " schools have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<SchoolResponse>> getSchools(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                  @RequestParam(required = false, defaultValue = "5") int pageSize,

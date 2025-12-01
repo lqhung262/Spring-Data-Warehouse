@@ -32,21 +32,29 @@ public class JobTitleController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<JobTitleResponse>> bulkJobTitleUpsert(@Valid @RequestBody List<JobTitleRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<JobTitleResponse>> bulkUpsertJobTitles(
+//            @Valid @RequestBody List<JobTitleRequest> requests) {
 //        return ApiResponse.<List<JobTitleResponse>>builder()
 //                .result(jobTitleService.bulkUpsertJobTitles(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteJobTitles(@Valid @RequestParam("ids") List<Long> jobTitleIds) {
-//        jobTitleService.bulkDeleteJobTitles(jobTitleIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteJobTitles(@RequestParam("ids") List<Long> ids) {
+//        jobTitleService.bulkDeleteJobTitles(ids);
 //        return ApiResponse.<String>builder()
-//                .result(jobTitleIds.size() + " job Titles have been deleted.")
+//                .result(ids.size() + " job titles have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<JobTitleResponse>> getJobTitles(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                      @RequestParam(required = false, defaultValue = "5") int pageSize,

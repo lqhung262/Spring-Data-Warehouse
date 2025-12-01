@@ -12,15 +12,15 @@ import java.util.Optional;
 public interface AttendanceTypeRepository extends JpaRepository<AttendanceType, Long> {
     Optional<AttendanceType> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả attendanceTypes tồn tại trong 1 câu query.
-//     */
-//    List<AttendanceType> findByAttendanceTypeCodeIn(Collection<String> attendanceTypeCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 attendanceType bằng attendanceTypeCode
-//     */
-//    Optional<AttendanceType> findByAttendanceTypeCode(String attendanceTypeCode);
-//
-//    Long countByAttendanceTypeIdIn(Collection<Long> attendanceTypeIds);
+    Optional<AttendanceType> findByAttendanceTypeCode(String code);
+
+    Optional<AttendanceType> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<AttendanceType> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<AttendanceType> findByNameIn(Collection<String> names);
+
+    List<AttendanceType> findByAttendanceTypeCodeIn(Collection<String> codes);
+
 }

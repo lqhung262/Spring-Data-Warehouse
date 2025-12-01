@@ -12,15 +12,14 @@ import java.util.Optional;
 public interface BloodGroupRepository extends JpaRepository<BloodGroup, Long> {
     Optional<BloodGroup> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả bloodGroups tồn tại trong 1 câu query.
-//     */
-//    List<BloodGroup> findByBloodGroupCodeIn(Collection<String> bloodGroupCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 bloodGroup bằng bloodGroupCode
-//     */
-//    Optional<BloodGroup> findByBloodGroupCode(String bloodGroupCode);
-//
-//    Long countByBloodGroupIdIn(Collection<Long> bloodGroupIds);
+    Optional<BloodGroup> findByBloodGroupCode(String code);
+
+    Optional<BloodGroup> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<BloodGroup> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<BloodGroup> findByNameIn(Collection<String> names);
+
+    List<BloodGroup> findByBloodGroupCodeIn(Collection<String> codes);
 }

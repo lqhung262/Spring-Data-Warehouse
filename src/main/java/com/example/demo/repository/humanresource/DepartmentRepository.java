@@ -12,15 +12,14 @@ import java.util.Optional;
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
     Optional<Department> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả departments tồn tại trong 1 câu query.
-//     */
-//    List<Department> findByDepartmentCodeIn(Collection<String> departmentCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 department bằng departmentCode
-//     */
-//    Optional<Department> findByDepartmentCode(String departmentCode);
-//
-//    Long countByDepartmentIdIn(Collection<Long> departmentIds);
+    Optional<Department> findByDepartmentCode(String code);
+
+    Optional<Department> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<Department> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<Department> findByNameIn(Collection<String> names);
+
+    List<Department> findByDepartmentCodeIn(Collection<String> codes);
 }

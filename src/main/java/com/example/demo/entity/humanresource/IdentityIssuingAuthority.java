@@ -22,7 +22,7 @@ public class IdentityIssuingAuthority {
     @Column(name = "source_id", length = 100, unique = true)
     private String sourceId;
 
-    @Column(name = "name", length = 255)
+    @Column(name = "name", length = 255, unique = true)
     private String name;
 
     @NotNull

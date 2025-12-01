@@ -32,21 +32,29 @@ public class WardController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<WardResponse>> bulkWardUpsert(@Valid @RequestBody List<WardRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<WardResponse>> bulkUpsertWards(
+//            @Valid @RequestBody List<WardRequest> requests) {
 //        return ApiResponse.<List<WardResponse>>builder()
 //                .result(wardService.bulkUpsertWards(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteWards(@Valid @RequestParam("ids") List<Long> wardIds) {
-//        wardService.bulkDeleteWards(wardIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteWards(@RequestParam("ids") List<Long> ids) {
+//        wardService.bulkDeleteWards(ids);
 //        return ApiResponse.<String>builder()
-//                .result(wardIds.size() + " wards have been deleted.")
+//                .result(ids.size() + " wards have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<WardResponse>> getWards(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                              @RequestParam(required = false, defaultValue = "5") int pageSize,

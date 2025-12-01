@@ -32,21 +32,29 @@ public class LaborStatusController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<LaborStatusResponse>> bulkLaborStatusUpsert(@Valid @RequestBody List<LaborStatusRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<LaborStatusResponse>> bulkUpsertLaborStatuses(
+//            @Valid @RequestBody List<LaborStatusRequest> requests) {
 //        return ApiResponse.<List<LaborStatusResponse>>builder()
 //                .result(laborStatusService.bulkUpsertLaborStatuses(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteLaborStatuses(@Valid @RequestParam("ids") List<Long> laborStatusIds) {
-//        laborStatusService.bulkDeleteLaborStatuses(laborStatusIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteLaborStatuses(@RequestParam("ids") List<Long> ids) {
+//        laborStatusService.bulkDeleteLaborStatuses(ids);
 //        return ApiResponse.<String>builder()
-//                .result(laborStatusIds.size() + " labor Statuses have been deleted.")
+//                .result(ids.size() + " labor statuses have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<LaborStatusResponse>> getLaborStatuses(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                             @RequestParam(required = false, defaultValue = "5") int pageSize,

@@ -32,21 +32,29 @@ public class LanguageController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<LanguageResponse>> bulkLanguageUpsert(@Valid @RequestBody List<LanguageRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<LanguageResponse>> bulkUpsertLanguages(
+//            @Valid @RequestBody List<LanguageRequest> requests) {
 //        return ApiResponse.<List<LanguageResponse>>builder()
 //                .result(languageService.bulkUpsertLanguages(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteLanguages(@Valid @RequestParam("ids") List<Long> languageIds) {
-//        languageService.bulkDeleteLanguages(languageIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteLanguages(@RequestParam("ids") List<Long> ids) {
+//        languageService.bulkDeleteLanguages(ids);
 //        return ApiResponse.<String>builder()
-//                .result(languageIds.size() + " languages have been deleted.")
+//                .result(ids.size() + " languages have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<LanguageResponse>> getLanguages(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                      @RequestParam(required = false, defaultValue = "5") int pageSize,

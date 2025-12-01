@@ -32,21 +32,29 @@ public class OldWardController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<OldWardResponse>> bulkOldWardUpsert(@Valid @RequestBody List<OldWardRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<OldWardResponse>> bulkUpsertOldWards(
+//            @Valid @RequestBody List<OldWardRequest> requests) {
 //        return ApiResponse.<List<OldWardResponse>>builder()
-//                .result(oldWardService.bulkUpsertOldWards(requests))
+//                .result(oldWardsService.bulkUpsertOldWards(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteOldWards(@Valid @RequestParam("ids") List<Long> oldWardIds) {
-//        oldWardService.bulkDeleteOldWards(oldWardIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteOldWards(@RequestParam("ids") List<Long> ids) {
+//        oldWardsService.bulkDeleteOldWards(ids);
 //        return ApiResponse.<String>builder()
-//                .result(oldWardIds.size() + " old Wards have been deleted.")
+//                .result(ids.size() + " old wards have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<OldWardResponse>> getOldWards(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                    @RequestParam(required = false, defaultValue = "5") int pageSize,

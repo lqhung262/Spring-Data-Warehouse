@@ -32,21 +32,29 @@ public class MedicalFacilityController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<MedicalFacilityResponse>> bulkMedicalFacilityUpsert(@Valid @RequestBody List<MedicalFacilityRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<MedicalFacilityResponse>> bulkUpsertMedicalFacilities(
+//            @Valid @RequestBody List<MedicalFacilityRequest> requests) {
 //        return ApiResponse.<List<MedicalFacilityResponse>>builder()
 //                .result(medicalFacilityService.bulkUpsertMedicalFacilities(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteMedicalFacilities(@Valid @RequestParam("ids") List<Long> medicalFacilityIds) {
-//        medicalFacilityService.bulkDeleteMedicalFacilities(medicalFacilityIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteMedicalFacilities(@RequestParam("ids") List<Long> ids) {
+//        medicalFacilityService.bulkDeleteMedicalFacilities(ids);
 //        return ApiResponse.<String>builder()
-//                .result(medicalFacilityIds.size() + " medical Facilities have been deleted.")
+//                .result(ids.size() + " medical facilities have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<MedicalFacilityResponse>> getMedicalFacilities(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                     @RequestParam(required = false, defaultValue = "5") int pageSize,

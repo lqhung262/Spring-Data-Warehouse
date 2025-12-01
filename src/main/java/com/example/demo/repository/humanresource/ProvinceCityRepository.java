@@ -2,8 +2,6 @@ package com.example.demo.repository.humanresource;
 
 import com.example.demo.entity.humanresource.ProvinceCity;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -22,11 +20,6 @@ public interface ProvinceCityRepository extends JpaRepository<ProvinceCity, Long
 
     List<ProvinceCity> findByNameIn(Collection<String> names);
 
-//    @Query("select p.sourceId from ProvinceCity p where p.sourceId in :sourceIds")
-//    List<String> findExistingSourceIdsIn(@Param("sourceIds") Collection<String> sourceIds);
-//
-//    @Query("select p.name from ProvinceCity p where p.name in :names")
-//    List<String> findExistingNamesIn(@Param("names") Collection<String> names);
 
     // Batch queries for bulk delete
     List<ProvinceCity> findByProvinceCityIdIn(Collection<Long> provinceCityIds);

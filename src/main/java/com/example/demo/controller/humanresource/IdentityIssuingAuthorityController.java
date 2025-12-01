@@ -32,21 +32,29 @@ public class IdentityIssuingAuthorityController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<IdentityIssuingAuthorityResponse>> bulkIdentityIssuingAuthorityUpsert(@Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<IdentityIssuingAuthorityResponse>> bulkUpsertIdentityIssuingAuthorities(
+//            @Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
 //        return ApiResponse.<List<IdentityIssuingAuthorityResponse>>builder()
 //                .result(identityIssuingAuthorityService.bulkUpsertIdentityIssuingAuthorities(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteIdentityIssuingAuthorities(@Valid @RequestParam("ids") List<Long> identityIssuingAuthorityIds) {
-//        identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(identityIssuingAuthorityIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteIdentityIssuingAuthorities(@RequestParam("ids") List<Long> ids) {
+//        identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(ids);
 //        return ApiResponse.<String>builder()
-//                .result(identityIssuingAuthorityIds.size() + " identity Issuing Authorities have been deleted.")
+//                .result(ids.size() + " identity issuing authorities have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<IdentityIssuingAuthorityResponse>> getIdentityIssuingAuthorities(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                                       @RequestParam(required = false, defaultValue = "5") int pageSize,

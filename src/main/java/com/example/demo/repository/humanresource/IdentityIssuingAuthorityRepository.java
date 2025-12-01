@@ -12,19 +12,14 @@ import java.util.Optional;
 public interface IdentityIssuingAuthorityRepository extends JpaRepository<IdentityIssuingAuthority, Long> {
     Optional<IdentityIssuingAuthority> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả IdentityIssuingAuthoritys tồn tại trong 1 câu query.
-//     */
+    Optional<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCode(String code);
 
-    /// /    List<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCodeIn(Collection<String> identityIssuingAuthorityCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 IdentityIssuingAuthority bằng identityIssuingAuthorityCode
-//     */
-//    Optional<IdentityIssuingAuthority> findByIdentityIssuingAuthorityId(Long identityIssuingAuthorityCode);
-//
-//    Long countByIdentityIssuingAuthorityIdIn(Collection<Long> identityIssuingAuthorityIds);
+    Optional<IdentityIssuingAuthority> findByName(String name);
 
-    // Count methods for cascade delete checks
-    long countByDocumentType_DocumentTypeId(Long documentTypeId);
+    // Batch queries for bulk upsert
+    List<IdentityIssuingAuthority> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<IdentityIssuingAuthority> findByNameIn(Collection<String> names);
+
+    List<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCodeIn(Collection<String> codes);
 }

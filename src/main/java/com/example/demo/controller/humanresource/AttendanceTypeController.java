@@ -32,22 +32,29 @@ public class AttendanceTypeController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<AttendanceTypeResponse>> bulkAttendanceTypeUpsert(@Valid @RequestBody List<AttendanceTypeRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<AttendanceTypeResponse>> bulkUpsertAttendanceTypes(
+//            @Valid @RequestBody List<AttendanceTypeRequest> requests) {
 //        return ApiResponse.<List<AttendanceTypeResponse>>builder()
 //                .result(attendanceTypeService.bulkUpsertAttendanceTypes(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteAttendanceTypes(@Valid @RequestParam("ids") List<Long> attendanceTypeIds) {
-//        attendanceTypeService.bulkDeleteAttendanceTypes(attendanceTypeIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteAttendanceTypes(@RequestParam("ids") List<Long> ids) {
+//        attendanceTypeService.bulkDeleteAttendanceTypes(ids);
 //        return ApiResponse.<String>builder()
-//                .result(attendanceTypeIds.size() + " attendanceTypes have been deleted.")
+//                .result(ids.size() + " attendance types have been deleted successfully")
 //                .build();
 //    }
-
-
     @GetMapping()
     ApiResponse<List<AttendanceTypeResponse>> getAttendanceTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                  @RequestParam(required = false, defaultValue = "5") int pageSize,

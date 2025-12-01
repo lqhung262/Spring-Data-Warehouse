@@ -31,21 +31,29 @@ public class EmployeeController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<EmployeeResponse>> bulkEmployeeUpsert(@Valid @RequestBody List<EmployeeRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<EmployeeResponse>> bulkUpsertEmployees(
+//            @Valid @RequestBody List<EmployeeRequest> requests) {
 //        return ApiResponse.<List<EmployeeResponse>>builder()
 //                .result(employeeService.bulkUpsertEmployees(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteEmployees(@Valid @RequestParam("ids") List<Long> employeeIds) {
-//        employeeService.bulkDeleteEmployees(employeeIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteEmployees(@RequestParam("ids") List<Long> ids) {
+//        employeeService.bulkDeleteEmployees(ids);
 //        return ApiResponse.<String>builder()
-//                .result(employeeIds.size() + " employees have been deleted.")
+//                .result(ids.size() + " employees have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<EmployeeResponse>> getEmployees(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                      @RequestParam(required = false, defaultValue = "5") int pageSize,

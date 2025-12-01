@@ -32,21 +32,29 @@ public class NationalityController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<NationalityResponse>> bulkNationalityUpsert(@Valid @RequestBody List<NationalityRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<NationalityResponse>> bulkUpsertNationalities(
+//            @Valid @RequestBody List<NationalityRequest> requests) {
 //        return ApiResponse.<List<NationalityResponse>>builder()
 //                .result(nationalityService.bulkUpsertNationalities(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteNationalities(@Valid @RequestParam("ids") List<Long> nationalityIds) {
-//        nationalityService.bulkDeleteNationalities(nationalityIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteNationalities(@RequestParam("ids") List<Long> ids) {
+//        nationalityService.bulkDeleteNationalities(ids);
 //        return ApiResponse.<String>builder()
-//                .result(nationalityIds.size() + " nationalities have been deleted.")
+//                .result(ids.size() + " nationalities have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<NationalityResponse>> getNationalities(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                             @RequestParam(required = false, defaultValue = "5") int pageSize,

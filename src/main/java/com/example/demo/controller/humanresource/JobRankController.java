@@ -32,21 +32,29 @@ public class JobRankController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<JobRankResponse>> bulkJobRankUpsert(@Valid @RequestBody List<JobRankRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<JobRankResponse>> bulkUpsertJobRanks(
+//            @Valid @RequestBody List<JobRankRequest> requests) {
 //        return ApiResponse.<List<JobRankResponse>>builder()
 //                .result(jobRankService.bulkUpsertJobRanks(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteJobRanks(@Valid @RequestParam("ids") List<Long> jobRankIds) {
-//        jobRankService.bulkDeleteJobRanks(jobRankIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteJobRanks(@RequestParam("ids") List<Long> ids) {
+//        jobRankService.bulkDeleteJobRanks(ids);
 //        return ApiResponse.<String>builder()
-//                .result(jobRankIds.size() + " job Ranks have been deleted.")
+//                .result(ids.size() + " job ranks have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<JobRankResponse>> getJobRanks(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                    @RequestParam(required = false, defaultValue = "5") int pageSize,

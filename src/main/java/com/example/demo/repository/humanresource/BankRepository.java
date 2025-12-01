@@ -12,15 +12,14 @@ import java.util.Optional;
 public interface BankRepository extends JpaRepository<Bank, Long> {
     Optional<Bank> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả banks tồn tại trong 1 câu query.
-//     */
-//    List<Bank> findByBankCodeIn(Collection<String> bankCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 bank bằng bankCode
-//     */
-//    Optional<Bank> findByBankCode(String bankCode);
-//
-//    Long countByBankIdIn(Collection<Long> bankIds);
+    Optional<Bank> findByBankCode(String code);
+
+    Optional<Bank> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<Bank> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<Bank> findByNameIn(Collection<String> names);
+
+    List<Bank> findByBankCodeIn(Collection<String> codes);
 }

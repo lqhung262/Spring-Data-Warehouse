@@ -69,10 +69,24 @@ public class ProvinceCityController {
      */
     @DeleteMapping("/_bulk-delete")
     @ResponseStatus(HttpStatus.OK)
-    ApiResponse<String> bulkDeleteProvinceCities(@RequestParam("ids") List<Long> ids) {
-        provinceCityService.bulkDeleteProvinceCities(ids);
-        return ApiResponse.<String>builder()
-                .result(ids.size() + " province cities have been deleted successfully")
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteProvinceCities(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = provinceCityService.bulkDeleteProvinceCities(ids);
+
+        // Determine response code
+        int responseCode;
+        if (!result.hasErrors()) {
+            responseCode = 1000; // All succeeded
+        } else if (result.hasSuccess()) {
+            responseCode = 207;  // Partial success (Multi-Status)
+        } else {
+            responseCode = 400;  // All failed
+        }
+
+        return ApiResponse.<BulkOperationResult<Long>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
                 .build();
     }
 

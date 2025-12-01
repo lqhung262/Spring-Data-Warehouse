@@ -32,21 +32,29 @@ public class WorkLocationController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<WorkLocationResponse>> bulkWorkLocationUpsert(@Valid @RequestBody List<WorkLocationRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<WorkLocationResponse>> bulkUpsertWorkLocations(
+//            @Valid @RequestBody List<WorkLocationRequest> requests) {
 //        return ApiResponse.<List<WorkLocationResponse>>builder()
 //                .result(workLocationService.bulkUpsertWorkLocations(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteWorkLocations(@Valid @RequestParam("ids") List<Long> workLocationIds) {
-//        workLocationService.bulkDeleteWorkLocations(workLocationIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteWorkLocations(@RequestParam("ids") List<Long> ids) {
+//        workLocationService.bulkDeleteWorkLocations(ids);
 //        return ApiResponse.<String>builder()
-//                .result(workLocationIds.size() + " work Locations have been deleted.")
+//                .result(ids.size() + " work locations have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<WorkLocationResponse>> getWorkLocations(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                              @RequestParam(required = false, defaultValue = "5") int pageSize,

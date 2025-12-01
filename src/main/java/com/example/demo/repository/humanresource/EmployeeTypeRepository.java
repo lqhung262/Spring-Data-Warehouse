@@ -12,16 +12,14 @@ import java.util.Optional;
 public interface EmployeeTypeRepository extends JpaRepository<EmployeeType, Long> {
     Optional<EmployeeType> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả employeeTypes tồn tại trong 1 câu query.
-//     */
-//    List<EmployeeType> findByEmployeeTypeCodeIn(Collection<String> employeeTypeCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 employeeType bằng employeeTypeCode
-//     */
-//    Optional<EmployeeType> findByEmployeeTypeCode(String employeeTypeCode);
-//
-//    Long countByEmployeeTypeIdIn(Collection<Long> employeeTypeIds);
+    Optional<EmployeeType> findByEmployeeTypeCode(String code);
 
+    Optional<EmployeeType> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<EmployeeType> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<EmployeeType> findByNameIn(Collection<String> names);
+
+    List<EmployeeType> findByEmployeeTypeCodeIn(Collection<String> codes);
 }

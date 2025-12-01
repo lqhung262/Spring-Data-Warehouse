@@ -32,21 +32,29 @@ public class OtTypeController {
         return response;
     }
 
+    /**
+     * BULK UPSERT ENDPOINT
+     */
 //    @PostMapping("/_bulk-upsert")
-//    ApiResponse<List<OtTypeResponse>> bulkOtTypeUpsert(@Valid @RequestBody List<OtTypeRequest> requests) {
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<List<OtTypeResponse>> bulkUpsertOtTypes(
+//            @Valid @RequestBody List<OtTypeRequest> requests) {
 //        return ApiResponse.<List<OtTypeResponse>>builder()
 //                .result(otTypeService.bulkUpsertOtTypes(requests))
 //                .build();
 //    }
 //
+//    /**
+//     * BULK DELETE ENDPOINT
+//     */
 //    @DeleteMapping("/_bulk-delete")
-//    public ApiResponse<String> bulkDeleteOtTypes(@Valid @RequestParam("ids") List<Long> otTypeIds) {
-//        otTypeService.bulkDeleteOtTypes(otTypeIds);
+//    @ResponseStatus(HttpStatus.OK)
+//    ApiResponse<String> bulkDeleteOtTypes(@RequestParam("ids") List<Long> ids) {
+//        otTypeService.bulkDeleteOtTypes(ids);
 //        return ApiResponse.<String>builder()
-//                .result(otTypeIds.size() + " ot Types have been deleted.")
+//                .result(ids.size() + " OT types have been deleted successfully")
 //                .build();
 //    }
-
     @GetMapping()
     ApiResponse<List<OtTypeResponse>> getOtTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                  @RequestParam(required = false, defaultValue = "5") int pageSize,
