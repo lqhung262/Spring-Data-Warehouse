@@ -10,6 +10,8 @@ import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ProvinceCityMapper;
 import com.example.demo.repository.humanresource.*;
 import com.example.demo.util.BulkOperationUtils;
+import com.example.demo.util.bulk.BulkDeleteConfig;
+import com.example.demo.util.bulk.BulkDeleteProcessor;
 import com.example.demo.util.bulk.BulkUpsertConfig;
 import com.example.demo.util.bulk.BulkUpsertProcessor;
 import jakarta.persistence.EntityManager;
@@ -174,32 +176,25 @@ public class ProvinceCityService {
 
     // ========================= BULK DELETE  ========================
 
-    public void bulkDeleteProvinceCities(List<Long> ids) {
-        log.info("Starting bulk delete for {} province cities", ids.size());
+    public BulkOperationResult<Long> bulkDeleteProvinceCities(List<Long> ids) {
 
-        Set<Long> uniqueIds = BulkOperationUtils.validateAndExtractUniqueValues(ids, "ID");
-        List<Long> idList = new ArrayList<>(uniqueIds);
+        // Build config
+        BulkDeleteConfig<ProvinceCity> config = BulkDeleteConfig.<ProvinceCity>builder()
+                .entityFinder(id -> provinceCityRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(provinceCityRepository::deleteById)
+                .entityName(entityName)
+                .build();
 
-        List<ProvinceCity> existingEntities = provinceCityRepository.findByProvinceCityIdIn(idList);
+        // Execute với processor
+        BulkDeleteProcessor<ProvinceCity> processor = new BulkDeleteProcessor<>(config);
 
-        if (existingEntities.size() != idList.size()) {
-            Set<Long> foundIds = existingEntities.stream()
-                    .map(ProvinceCity::getProvinceCityId)
-                    .collect(Collectors.toSet());
-            List<Long> missingIds = idList.stream()
-                    .filter(id -> !foundIds.contains(id))
-                    .toList();
-            throw new NotFoundException(entityName + "s not found with IDs: " + missingIds);
-        }
-
-        for (Long id : idList) {
-            checkForeignKeyConstraints(id);
-        }
-
-        provinceCityRepository.deleteAllById(idList);
-        log.info("Bulk delete completed: {} province cities deleted", idList.size());
+        return processor.execute(ids);
     }
 
+    /**
+     * Helper: Check FK constraints
+     */
     private void checkForeignKeyConstraints(Long id) {
         if (!provinceCityRepository.existsById(id)) {
             throw new NotFoundException(entityName);
