@@ -1,7 +1,6 @@
 package com.example.demo.service.humanresource;
 
 import com.example.demo.dto.BulkOperationResult;
-import com.example.demo.dto.BulkOperationError;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityRequest;
 import com.example.demo.dto.humanresource.ProvinceCity.ProvinceCityResponse;
 import com.example.demo.entity.humanresource.ProvinceCity;
@@ -11,7 +10,8 @@ import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ProvinceCityMapper;
 import com.example.demo.repository.humanresource.*;
 import com.example.demo.util.BulkOperationUtils;
-import com.example.demo.util.BulkOperationUtils.BatchClassification;
+import com.example.demo.util.bulk.BulkUpsertConfig;
+import com.example.demo.util.bulk.BulkUpsertProcessor;
 import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -104,21 +104,18 @@ public class ProvinceCityService {
     public BulkOperationResult<ProvinceCityResponse> bulkUpsertProvinceCities(
             List<ProvinceCityRequest> requests) {
 
-        log.info("Starting bulk upsert for {} province cities", requests.size());
-        long startTime = System.currentTimeMillis();
-
         // 1. Setup unique field extractors
         Map<String, Function<ProvinceCityRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
         uniqueFieldExtractors.put("source_id", ProvinceCityRequest::getSourceId);
         uniqueFieldExtractors.put("name", ProvinceCityRequest::getName);
 
-        // 2. Extract unique values
+        // 2. Lấy all value từ requests cho mỗi unique field
         Set<String> allSourceIds = BulkOperationUtils.extractUniqueValues(
                 requests, ProvinceCityRequest::getSourceId);
         Set<String> allNames = BulkOperationUtils.extractUniqueValues(
                 requests, ProvinceCityRequest::getName);
 
-        // 3. Query existing values từ DB
+        // Lấy existing values từ DB cho mỗi unique field
         Map<String, Set<String>> existingValuesMaps = new HashMap<>();
         existingValuesMaps.put("source_id",
                 provinceCityRepository.findBySourceIdIn(allSourceIds)
@@ -131,213 +128,31 @@ public class ProvinceCityService {
                         .map(ProvinceCity::getName)
                         .collect(Collectors.toSet()));
 
-        // 4.  Phân loại batch
-        BatchClassification<ProvinceCityRequest> classification =
-                BulkOperationUtils.classifyBatchByUniqueFields(
-                        requests, uniqueFieldExtractors, existingValuesMaps);
+        // 3. Build config
+        BulkUpsertConfig<ProvinceCityRequest, ProvinceCity, ProvinceCityResponse> config =
+                BulkUpsertConfig.<ProvinceCityRequest, ProvinceCity, ProvinceCityResponse>builder()
+                        .uniqueFieldExtractors(uniqueFieldExtractors)
+                        .existingValuesMaps(existingValuesMaps)
+                        .entityToResponseMapper(provinceCityMapper::toProvinceCityResponse)
+                        .requestToEntityMapper(provinceCityMapper::toProvinceCity)
+                        .entityUpdater(provinceCityMapper::updateProvinceCity)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        // Method reference matches RepositorySaveAll interface
+                        .repositorySaver(provinceCityRepository::saveAll)
+                        // Method reference matches RepositorySave interface
+                        .repositorySaveAndFlusher(provinceCityRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
 
-        // Initialize result tracking
-        List<ProvinceCityResponse> successResults = new ArrayList<>();
-        List<BulkOperationError> errors = new ArrayList<>();
+        // 4. Execute
+        BulkUpsertProcessor<ProvinceCityRequest, ProvinceCity, ProvinceCityResponse> processor =
+                new BulkUpsertProcessor<>(config);
 
-        // 5. Process Safe Batch
-        if (classification.hasSafeBatch()) {
-            log.info("Processing safe batch: {} requests", classification.getSafeBatch().size());
-            processSafeBatchWithTracking(
-                    classification.getSafeBatch(),
-                    existingValuesMaps,
-                    successResults,
-                    errors
-                    // starting index
-            );
-        }
-
-        // 6. Process Final Batch
-        if (classification.hasFinalBatch()) {
-            log.warn("Processing final batch: {} requests (potential conflicts)",
-                    classification.getFinalBatch().size());
-            int finalBatchStartIndex = classification.getSafeBatch().size();
-            processFinalBatchWithTracking(
-                    classification.getFinalBatch(),
-                    successResults,
-                    errors,
-                    finalBatchStartIndex
-            );
-        }
-
-        // 7. Build result
-        long duration = System.currentTimeMillis() - startTime;
-        BulkOperationResult<ProvinceCityResponse> result = buildBulkOperationResult(
-                requests.size(),
-                successResults,
-                errors,
-                duration
-        );
-
-        log.info("Bulk upsert completed: {}/{} succeeded, {}/{} failed in {}ms",
-                result.getSuccessCount(), result.getTotalRequests(),
-                result.getFailedCount(), result.getTotalRequests(),
-                duration);
-
-        return result;
+        return processor.execute(requests);
     }
 
     /**
-     * Process Safe Batch với error tracking
-     */
-    private void processSafeBatchWithTracking(
-            List<ProvinceCityRequest> safeBatch,
-            Map<String, Set<String>> existingValuesMaps,
-            List<ProvinceCityResponse> successResults,
-            List<BulkOperationError> errors) {
-
-        Set<String> existingSourceIds = existingValuesMaps.get("source_id");
-        List<ProvinceCity> existingEntities = provinceCityRepository.findBySourceIdIn(existingSourceIds);
-        Map<String, ProvinceCity> existingMap = BulkOperationUtils.toMap(
-                existingEntities, ProvinceCity::getSourceId);
-
-        List<ProvinceCity> entitiesToSave = new ArrayList<>();
-        Map<Integer, ProvinceCityRequest> indexToRequestMap = new HashMap<>();
-
-        // Build entities to save
-        for (int globalIndex = 0; globalIndex < safeBatch.size(); globalIndex++) {
-            ProvinceCityRequest request = safeBatch.get(globalIndex);
-
-            try {
-                ProvinceCity entity;
-                String sid = request.getSourceId();
-
-                if (sid != null && !sid.trim().isEmpty() && existingMap.containsKey(sid)) {
-                    entity = existingMap.get(sid);
-                    provinceCityMapper.updateProvinceCity(entity, request);
-                    log.debug("Safe batch [{}]: Updating source_id={}", globalIndex, sid);
-                } else {
-                    entity = provinceCityMapper.toProvinceCity(request);
-                    log.debug("Safe batch [{}]: Creating source_id={}", globalIndex, sid);
-                }
-
-                entitiesToSave.add(entity);
-                indexToRequestMap.put(globalIndex, request);
-
-            } catch (Exception e) {
-                log.error("Safe batch [{}]: Preparation failed - {}", globalIndex, e.getMessage());
-                errors.add(buildError(globalIndex, request, "Preparation failed", e));
-            }
-        }
-
-        // Save all and track results
-        try {
-            List<ProvinceCity> savedEntities = provinceCityRepository.saveAll(entitiesToSave);
-
-            for (ProvinceCity saved : savedEntities) {
-                successResults.add(provinceCityMapper.toProvinceCityResponse(saved));
-            }
-
-        } catch (Exception e) {
-            log.error("Safe batch: saveAll failed - {}", e.getMessage());
-
-            // If batch save fails, mark all as errors
-            for (int globalIndex = 0; globalIndex < entitiesToSave.size(); globalIndex++) {
-                ProvinceCityRequest request = indexToRequestMap.get(globalIndex);
-                errors.add(buildError(globalIndex, request, "Batch save failed", e));
-            }
-        }
-    }
-
-    /**
-     * Process Final Batch với individual save + tracking
-     */
-    private void processFinalBatchWithTracking(
-            List<ProvinceCityRequest> finalBatch,
-            List<ProvinceCityResponse> successResults,
-            List<BulkOperationError> errors,
-            int startIndex) {
-
-        for (int i = 0; i < finalBatch.size(); i++) {
-            ProvinceCityRequest request = finalBatch.get(i);
-            int globalIndex = startIndex + i;
-
-            try {
-                ProvinceCity entity = findExistingEntityForUpsert(request);
-
-                if (entity != null) {
-                    log.debug("Final batch [{}]: Updating entity id={}",
-                            globalIndex, entity.getProvinceCityId());
-                    provinceCityMapper.updateProvinceCity(entity, request);
-                } else {
-                    log.debug("Final batch [{}]: Creating new entity", globalIndex);
-                    entity = provinceCityMapper.toProvinceCity(request);
-                }
-
-                // Save + flush individual record
-                ProvinceCity saved = provinceCityRepository.saveAndFlush(entity);
-                entityManager.clear();
-
-                successResults.add(provinceCityMapper.toProvinceCityResponse(saved));
-
-            } catch (Exception e) {
-                log.error("Final batch [{}]: Failed - source_id={}, name={}, error: {}",
-                        globalIndex, request.getSourceId(), request.getName(), e.getMessage());
-                errors.add(buildError(globalIndex, request, "Save failed", e));
-            }
-        }
-    }
-
-    /**
-     * Helper: Build error object
-     */
-    private BulkOperationError buildError(
-            int index,
-            ProvinceCityRequest request,
-            String context,
-            Exception e) {
-
-        String identifier = String.format("source_id=%s, name=%s",
-                request.getSourceId(), request.getName());
-
-        String errorMessage = context + ": " +
-                (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
-
-        return BulkOperationError.builder()
-                .index(index)
-                .identifier(identifier)
-                .requestDetails(null)  // Không expose sensitive data
-                .errorMessage(errorMessage)
-                .errorType(e.getClass().getSimpleName())
-                .build();
-    }
-
-    /**
-     * Helper: Build final result
-     */
-    private BulkOperationResult<ProvinceCityResponse> buildBulkOperationResult(
-            int totalRequests,
-            List<ProvinceCityResponse> successResults,
-            List<BulkOperationError> errors,
-            long durationMs) {
-
-        int successCount = successResults.size();
-        int failedCount = errors.size();
-
-        String summary = String.format(
-                "Bulk upsert completed: %d/%d succeeded, %d/%d failed (%.2fs)",
-                successCount, totalRequests,
-                failedCount, totalRequests,
-                durationMs / 1000.0
-        );
-
-        return BulkOperationResult.<ProvinceCityResponse>builder()
-                .totalRequests(totalRequests)
-                .successCount(successCount)
-                .failedCount(failedCount)
-                .successResults(successResults)
-                .errors(errors)
-                .summary(summary)
-                .build();
-    }
-
-    /**
-     * Helper: Find existing entity for upsert
+     * Helper: Find existing entity
      */
     private ProvinceCity findExistingEntityForUpsert(ProvinceCityRequest request) {
         if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {

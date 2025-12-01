@@ -65,8 +65,7 @@ public final class BulkOperationUtils {
         return map;
     }
 
-
-    // ================== NEW METHODS FOR BULK UPSERT WITH FINAL BATCH =======================
+    // ================== BULK UPSERT CLASSIFICATION =======================
 
     /**
      * Phân loại requests thành Safe Batch và Final Batch dựa trên unique fields.
@@ -87,42 +86,11 @@ public final class BulkOperationUtils {
         List<T> safeBatch = new ArrayList<>();
         List<T> finalBatch = new ArrayList<>();
 
-        // Track unique values đã gặp trong request để detect duplicates
-        Map<String, Set<String>> seenValuesInRequest = new HashMap<>();
-        uniqueFieldExtractors.keySet().forEach(field ->
-                seenValuesInRequest.put(field, new HashSet<>())
-        );
+        // Initialize tracker for seen values
+        UniqueValueTracker tracker = new UniqueValueTracker(uniqueFieldExtractors.keySet());
 
         for (T request : requests) {
-            boolean shouldGoToFinalBatch = false;
-
-            // Check từng unique field
-            for (Map.Entry<String, Function<T, String>> entry : uniqueFieldExtractors.entrySet()) {
-                String fieldName = entry.getKey();
-                String value = entry.getValue().apply(request);
-
-                // Skip null/empty values
-                if (value == null || value.trim().isEmpty()) {
-                    continue;
-                }
-
-                // Check 1: Duplicate trong request list
-                if (!seenValuesInRequest.get(fieldName).add(value)) {
-                    log.warn("Duplicate {} '{}' found in request.  Moving to final batch.", fieldName, value);
-                    shouldGoToFinalBatch = true;
-                    break;
-                }
-
-                // Check 2: Tồn tại trong DB
-                Set<String> existingValues = existingValuesMaps.get(fieldName);
-                if (existingValues != null && existingValues.contains(value)) {
-                    log.debug("{} '{}' already exists in DB. Moving to final batch.", fieldName, value);
-                    shouldGoToFinalBatch = true;
-                    break;
-                }
-            }
-
-            if (shouldGoToFinalBatch) {
+            if (shouldGoToFinalBatch(request, uniqueFieldExtractors, existingValuesMaps, tracker)) {
                 finalBatch.add(request);
             } else {
                 safeBatch.add(request);
@@ -135,6 +103,59 @@ public final class BulkOperationUtils {
     }
 
     /**
+     * EXTRACTED: Check if request should go to final batch
+     */
+    private static <T> boolean shouldGoToFinalBatch(
+            T request,
+            Map<String, Function<T, String>> uniqueFieldExtractors,
+            Map<String, Set<String>> existingValuesMaps,
+            UniqueValueTracker tracker) {
+
+        // duyệt mỗi field unique
+        for (Map.Entry<String, Function<T, String>> entry : uniqueFieldExtractors.entrySet()) {
+            String fieldName = entry.getKey();
+            String value = entry.getValue().apply(request);
+
+            // Skip null/empty values
+            if (isNullOrEmpty(value)) {
+                continue;
+            }
+
+            // Check 1: Duplicate trong request
+            if (tracker.isDuplicate(fieldName, value)) {
+                log.warn("Duplicate {} '{}' found in request.  Moving to final batch.", fieldName, value);
+                return true;
+            }
+
+            // Check 2: Exists in DB
+            if (existsInDatabase(fieldName, value, existingValuesMaps)) {
+                log.debug("{} '{}' already exists in DB. Moving to final batch.", fieldName, value);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * EXTRACTED: Check if value is null or empty
+     */
+    private static boolean isNullOrEmpty(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    /**
+     * EXTRACTED: Check if value exists in database
+     */
+    private static boolean existsInDatabase(
+            String fieldName,
+            String value,
+            Map<String, Set<String>> existingValuesMaps) {
+        Set<String> existingValues = existingValuesMaps.get(fieldName);
+        return existingValues != null && existingValues.contains(value);
+    }
+
+    /**
      * Extract tất cả unique values từ list requests cho 1 field cụ thể.
      * Chỉ lấy non-null, non-empty values.
      */
@@ -144,11 +165,30 @@ public final class BulkOperationUtils {
         Set<String> values = new LinkedHashSet<>();
         for (T request : requests) {
             String value = extractor.apply(request);
-            if (value != null && !value.trim().isEmpty()) {
+            if (!isNullOrEmpty(value)) {
                 values.add(value);
             }
         }
         return values;
+    }
+
+    /**
+     * INNER CLASS: Track seen values để detect duplicates
+     */
+    private static class UniqueValueTracker {
+        private final Map<String, Set<String>> seenValuesInRequest;
+
+        UniqueValueTracker(Set<String> fieldNames) {
+            this.seenValuesInRequest = new HashMap<>();
+            fieldNames.forEach(field -> seenValuesInRequest.put(field, new HashSet<>()));
+        }
+
+        /**
+         * Check và track value.  Return true nếu duplicate.
+         */
+        boolean isDuplicate(String fieldName, String value) {
+            return !seenValuesInRequest.get(fieldName).add(value);
+        }
     }
 
     /**
