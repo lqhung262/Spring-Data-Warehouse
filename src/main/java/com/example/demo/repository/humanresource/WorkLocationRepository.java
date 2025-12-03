@@ -11,15 +11,15 @@ import java.util.Optional;
 @Repository
 public interface WorkLocationRepository extends JpaRepository<WorkLocation, Long> {
     Optional<WorkLocation> findBySourceId(String sourceId);
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả workLocations tồn tại trong 1 câu query.
-//     */
-//    List<WorkLocation> findByWorkLocationCodeIn(Collection<String> workLocationCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 workLocation bằng workLocationCode
-//     */
-//    Optional<WorkLocation> findByWorkLocationCode(String workLocationCode);
-//
-//    Long countByWorkLocationIdIn(Collection<Long> workLocationIds);
+
+    Optional<WorkLocation> findByWorkLocationCode(String code);
+
+    Optional<WorkLocation> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<WorkLocation> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<WorkLocation> findByNameIn(Collection<String> names);
+
+    List<WorkLocation> findByWorkLocationCodeIn(Collection<String> codes);
 }

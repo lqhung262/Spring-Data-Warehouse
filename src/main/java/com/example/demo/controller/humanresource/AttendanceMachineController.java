@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.AttendanceMachine.AttendanceMachineRequest;
 import com.example.demo.dto.humanresource.AttendanceMachine.AttendanceMachineResponse;
 import com.example.demo.service.humanresource.AttendanceMachineService;
@@ -32,29 +33,63 @@ public class AttendanceMachineController {
         return response;
     }
 
-    /**
-     * BULK UPSERT ENDPOINT
-     */
+//    /**
+//     * BULK UPSERT ENDPOINT
+//     */
 //    @PostMapping("/_bulk-upsert")
 //    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<AttendanceMachineResponse>> bulkUpsertAttendanceMachines(
+//    ApiResponse<BulkOperationResult<AttendanceMachineResponse>> bulkUpsertAttendanceMachines(
 //            @Valid @RequestBody List<AttendanceMachineRequest> requests) {
-//        return ApiResponse.<List<AttendanceMachineResponse>>builder()
-//                .result(attendanceMachineService.bulkUpsertAttendanceMachines(requests))
+//
+//        BulkOperationResult<AttendanceMachineResponse> result =
+//                attendanceMachineService.bulkUpsertAttendanceMachines(requests);
+//
+//        // Determine response code based on result
+//        int responseCode;
+//        if (!result.hasErrors()) {
+//            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+//            responseCode = 1000;
+//        } else if (result.hasSuccess()) {
+//            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+//            responseCode = 207;
+//        } else {
+//            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+//            responseCode = 400;
+//        }
+//
+//        return ApiResponse.<BulkOperationResult<AttendanceMachineResponse>>builder()
+//                .code(responseCode)
+//                .message(result.getSummary())
+//                .result(result)
 //                .build();
 //    }
 //
 //    /**
-//     * BULK DELETE ENDPOINT
+//     * BULK DELETE
 //     */
 //    @DeleteMapping("/_bulk-delete")
 //    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteAttendanceMachines(@RequestParam("ids") List<Long> ids) {
-//        attendanceMachineService.bulkDeleteAttendanceMachines(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " attendance machines have been deleted successfully")
+//    ApiResponse<BulkOperationResult<Long>> bulkDeleteAttendanceMachines(@RequestParam("ids") List<Long> ids) {
+//
+//        BulkOperationResult<Long> result = attendanceMachineService.bulkDeleteAttendanceMachines(ids);
+//
+//        // Determine response code
+//        int responseCode;
+//        if (!result.hasErrors()) {
+//            responseCode = 1000; // All succeeded
+//        } else if (result.hasSuccess()) {
+//            responseCode = 207;  // Partial success (Multi-Status)
+//        } else {
+//            responseCode = 400;  // All failed
+//        }
+//
+//        return ApiResponse.<BulkOperationResult<Long>>builder()
+//                .code(responseCode)
+//                .message(result.getSummary())
+//                .result(result)
 //                .build();
 //    }
+
     @GetMapping()
     ApiResponse<List<AttendanceMachineResponse>> getAttendanceMachines(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                        @RequestParam(required = false, defaultValue = "5") int pageSize,

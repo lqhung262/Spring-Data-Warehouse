@@ -12,15 +12,14 @@ import java.util.Optional;
 public interface WorkShiftRepository extends JpaRepository<WorkShift, Long> {
     Optional<WorkShift> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả workShifts tồn tại trong 1 câu query.
-//     */
-//    List<WorkShift> findByWorkShiftCodeIn(Collection<String> workShiftCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 workShift bằng workShiftCode
-//     */
-//    Optional<WorkShift> findByWorkShiftCode(String workShiftCode);
-//
-//    Long countByWorkShiftIdIn(Collection<Long> workShiftIds);
+    Optional<WorkShift> findByWorkShiftCode(String code);
+
+    Optional<WorkShift> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<WorkShift> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<WorkShift> findByNameIn(Collection<String> names);
+
+    List<WorkShift> findByWorkShiftCodeIn(Collection<String> codes);
 }

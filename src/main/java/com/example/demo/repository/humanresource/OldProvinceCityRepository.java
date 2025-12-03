@@ -14,6 +14,13 @@ import java.util.Optional;
 public interface OldProvinceCityRepository extends JpaRepository<OldProvinceCity, Long> {
     Optional<OldProvinceCity> findBySourceId(String sourceId);
 
+    Optional<OldProvinceCity> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<OldProvinceCity> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<OldProvinceCity> findByNameIn(Collection<String> names);
+
     // Count methods for cascade delete checks
     long countByProvinceCity_ProvinceCityId(Long provinceCityId);
 

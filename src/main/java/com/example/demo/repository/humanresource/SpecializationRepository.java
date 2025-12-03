@@ -11,15 +11,15 @@ import java.util.Optional;
 @Repository
 public interface SpecializationRepository extends JpaRepository<Specialization, Long> {
     Optional<Specialization> findBySourceId(String sourceId);
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả specializations tồn tại trong 1 câu query.
-//     */
-//    List<Specialization> findBySpecializationCodeIn(Collection<String> specializationCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 specialization bằng specializationCode
-//     */
-//    Optional<Specialization> findBySpecializationCode(String specializationCode);
-//
-//    Long countBySpecializationIdIn(Collection<Long> specializationIds);
+
+    Optional<Specialization> findBySpecializationCode(String code);
+
+    Optional<Specialization> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<Specialization> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<Specialization> findByNameIn(Collection<String> names);
+
+    List<Specialization> findBySpecializationCodeIn(Collection<String> codes);
 }

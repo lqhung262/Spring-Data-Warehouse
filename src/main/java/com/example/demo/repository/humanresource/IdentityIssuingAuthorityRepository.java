@@ -12,8 +12,6 @@ import java.util.Optional;
 public interface IdentityIssuingAuthorityRepository extends JpaRepository<IdentityIssuingAuthority, Long> {
     Optional<IdentityIssuingAuthority> findBySourceId(String sourceId);
 
-    Optional<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCode(String code);
-
     Optional<IdentityIssuingAuthority> findByName(String name);
 
     // Batch queries for bulk upsert
@@ -21,5 +19,4 @@ public interface IdentityIssuingAuthorityRepository extends JpaRepository<Identi
 
     List<IdentityIssuingAuthority> findByNameIn(Collection<String> names);
 
-    List<IdentityIssuingAuthority> findByIdentityIssuingAuthorityCodeIn(Collection<String> codes);
 }

@@ -9,7 +9,14 @@ import com.example.demo.mapper.humanresource.AttendanceMachineMapper;
 import com.example.demo.repository.humanresource.AttendanceMachineRepository;
 import com.example.demo.repository.humanresource.EmployeeAttendanceMachineRepository;
 import com.example.demo.exception.CannotDeleteException;
+import com.example.demo.util.BulkOperationUtils;
+import com.example.demo.util.bulk.BulkDeleteConfig;
+import com.example.demo.util.bulk.BulkDeleteProcessor;
+import com.example.demo.util.bulk.BulkUpsertConfig;
+import com.example.demo.util.bulk.BulkUpsertProcessor;
+import com.example.demo.dto.BulkOperationResult;
 import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,8 +25,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +36,8 @@ public class AttendanceMachineService {
     final AttendanceMachineRepository attendanceMachineRepository;
     final AttendanceMachineMapper attendanceMachineMapper;
     final EmployeeAttendanceMachineRepository employeeAttendanceMachineRepository;
+    final EntityManager entityManager;
+
 
     @Value("${entities.humanresource.attendancemachine}")
     private String entityName;
@@ -49,62 +58,106 @@ public class AttendanceMachineService {
 
 
 //    /**
-//     * Xử lý Bulk Upsert
+//     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+//     * - Safe Batch: saveAll() - requests không có unique conflicts
+//     * - Final Batch: save + flush từng request - requests có potential conflicts
+//     * - Trả về detailed result với success/failure breakdown
 //     */
-//    @Transactional
-//    public List<AttendanceMachineResponse> bulkUpsertAttendanceMachines(List<AttendanceMachineRequest> requests) {
+//    public BulkOperationResult<AttendanceMachineResponse> bulkUpsertProvinceCities(
+//            List<AttendanceMachineRequest> requests) {
 //
-//        // Lấy tất cả attendanceMachineCodes từ request
-//        List<String> attendanceMachineCodes = requests.stream()
-//                .map(AttendanceMachineRequest::getAttendanceMachineCode)
-//                .toList();
+//        // 1. Setup unique field extractors
+//        Map<String, Function<AttendanceMachineRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
+//        uniqueFieldExtractors.put("attendance_machine_code", AttendanceMachineRequest::getAttendanceMachineCode);
+//        uniqueFieldExtractors.put("source_id", AttendanceMachineRequest::getSourceId);
+//        uniqueFieldExtractors.put("name", AttendanceMachineRequest::getName);
 //
-//        // Tìm tất cả các attendanceMachine đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, AttendanceMachine> existingAttendanceMachinesMap = attendanceMachineRepository.findByAttendanceMachineCodeIn(attendanceMachineCodes).stream()
-//                .collect(Collectors.toMap(AttendanceMachine::getAttendanceMachineCode, attendanceMachine -> attendanceMachine));
+//        // 2. Lấy all value từ requests cho mỗi unique field
+//        Set<String> allCodes = BulkOperationUtils.extractUniqueValues(
+//                requests, AttendanceMachineRequest::getAttendanceMachineCode);
+//        Set<String> allSourceIds = BulkOperationUtils.extractUniqueValues(
+//                requests, AttendanceMachineRequest::getSourceId);
+//        Set<String> allNames = BulkOperationUtils.extractUniqueValues(
+//                requests, AttendanceMachineRequest::getName);
 //
-//        List<AttendanceMachine> attendanceMachinesToSave = new java.util.ArrayList<>();
+//        // Lấy existing values từ DB cho mỗi unique field
+//        Map<String, Set<String>> existingValuesMaps = new HashMap<>();
+//        existingValuesMaps.put("attendance_machine_code",
+//                attendanceMachineRepository.findByAttendanceMachineCode(allCodes)
+//                        .stream()
+//                        .map(AttendanceMachine::getAttendanceMachineCode)
+//                        .collect(Collectors.toSet()));
+//        existingValuesMaps.put("source_id",
+//                attendanceMachineRepository.findBySourceIdIn(allSourceIds)
+//                        .stream()
+//                        .map(AttendanceMachine::getSourceId)
+//                        .collect(Collectors.toSet()));
+//        existingValuesMaps.put("name",
+//                attendanceMachineRepository.findByNameIn(allNames)
+//                        .stream()
+//                        .map(AttendanceMachine::getName)
+//                        .collect(Collectors.toSet()));
 //
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (AttendanceMachineRequest request : requests) {
-//            AttendanceMachine attendanceMachine = existingAttendanceMachinesMap.get(request.getAttendanceMachineCode());
+//        // 3. Build config
+//        BulkUpsertConfig<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse> config =
+//                BulkUpsertConfig.<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse>builder()
+//                        .uniqueFieldExtractors(uniqueFieldExtractors)
+//                        .existingValuesMaps(existingValuesMaps)
+//                        .entityToResponseMapper(attendanceMachineMapper::toAttendanceMachineResponse)
+//                        .requestToEntityMapper(attendanceMachineMapper::toAttendanceMachine)
+//                        .entityUpdater(attendanceMachineMapper::updateAttendanceMachine)
+//                        .existingEntityFinder(this::findExistingEntityForUpsert)
+//                        // Method reference matches RepositorySaveAll interface
+//                        .repositorySaver(attendanceMachineRepository::saveAll)
+//                        // Method reference matches RepositorySave interface
+//                        .repositorySaveAndFlusher(attendanceMachineRepository::saveAndFlush)
+//                        .entityManagerClearer(entityManager::clear)
+//                        .build();
 //
-//            if (attendanceMachine != null) {
-//                // --- Logic UPDATE ---
-//                // AttendanceMachine đã tồn tại -> Cập nhật
-//                attendanceMachineMapper.updateAttendanceMachine(attendanceMachine, request);
-//                attendanceMachinesToSave.add(attendanceMachine);
-//            } else {
-//                // --- Logic INSERT ---
-//                // AttendanceMachine chưa tồn tại -> Tạo mới
-//                AttendanceMachine newAttendanceMachine = attendanceMachineMapper.toAttendanceMachine(request);
-//                attendanceMachinesToSave.add(newAttendanceMachine);
-//            }
-//        }
+//        // 4. Execute
+//        BulkUpsertProcessor<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse> processor =
+//                new BulkUpsertProcessor<>(config);
 //
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<AttendanceMachine> savedAttendanceMachines = attendanceMachineRepository.saveAll(attendanceMachinesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedAttendanceMachines.stream()
-//                .map(attendanceMachineMapper::toAttendanceMachineResponse)
-//                .toList();
+//        return processor.execute(requests);
 //    }
 //
 //    /**
-//     * Xử lý Bulk Delete
+//     * Helper: Find existing entity
 //     */
-//    @Transactional
-//    public void bulkDeleteAttendanceMachines(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = attendanceMachineRepository.countByAttendanceMachineIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
+//    private AttendanceMachine findExistingEntityForUpsert(AttendanceMachineRequest request) {
+//        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+//            Optional<AttendanceMachine> bySourceId = attendanceMachineRepository.findBySourceId(request.getSourceId());
+//            if (bySourceId.isPresent()) {
+//                return bySourceId.get();
+//            }
 //        }
 //
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        attendanceMachineRepository.deleteAllById(ids);
+//        if (request.getName() != null && !request.getName().trim().isEmpty()) {
+//            Optional<AttendanceMachine> byName = attendanceMachineRepository.findByName(request.getName());
+//            if (byName.isPresent()) {
+//                return byName.get();
+//            }
+//        }
+//
+//        return null;
+//    }
+//
+//    // ========================= BULK DELETE  ========================
+//
+//    public BulkOperationResult<Long> bulkDeleteProvinceCities(List<Long> ids) {
+//
+//        // Build config
+//        BulkDeleteConfig<AttendanceMachine> config = BulkDeleteConfig.<AttendanceMachine>builder()
+//                .entityFinder(id -> attendanceMachineRepository.findById(id).orElse(null))
+//                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+//                .repositoryDeleter(attendanceMachineRepository::deleteById)
+//                .entityName(entityName)
+//                .build();
+//
+//        // Execute với processor
+//        BulkDeleteProcessor<AttendanceMachine> processor = new BulkDeleteProcessor<>(config);
+//
+//        return processor.execute(ids);
 //    }
 
     public List<AttendanceMachineResponse> getAttendanceMachines(Pageable pageable) {

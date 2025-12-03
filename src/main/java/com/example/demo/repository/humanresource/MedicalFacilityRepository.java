@@ -14,6 +14,17 @@ import java.util.Optional;
 public interface MedicalFacilityRepository extends JpaRepository<MedicalFacility, Long> {
     Optional<MedicalFacility> findBySourceId(String sourceId);
 
+    Optional<MedicalFacility> findByMedicalFacilityCode(String code);
+
+    Optional<MedicalFacility> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<MedicalFacility> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<MedicalFacility> findByNameIn(Collection<String> names);
+
+    List<MedicalFacility> findByMedicalFacilityCodeIn(Collection<String> codes);
+
     // Count methods for cascade delete checks
     long countByProvinceCity_ProvinceCityId(Long provinceCityId);
 

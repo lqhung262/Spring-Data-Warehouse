@@ -6,12 +6,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface WardRepository extends JpaRepository<Ward, Long> {
     Optional<Ward> findBySourceId(String sourceId);
+
+    Optional<Ward> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<Ward> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<Ward> findByNameIn(Collection<String> names);
+
 
     // For cascade delete checks - count references from Employee and OldWard
     long countByProvinceCity_ProvinceCityId(Long provinceCityId);

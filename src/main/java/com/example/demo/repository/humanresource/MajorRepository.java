@@ -12,15 +12,14 @@ import java.util.Optional;
 public interface MajorRepository extends JpaRepository<Major, Long> {
     Optional<Major> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả majors tồn tại trong 1 câu query.
-//     */
-//    List<Major> findByMajorCodeIn(Collection<String> majorCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 major bằng majorCode
-//     */
-//    Optional<Major> findByMajorCode(String majorCode);
-//
-//    Long countByMajorIdIn(Collection<Long> majorIds);
+    Optional<Major> findByMajorCode(String code);
+
+    Optional<Major> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<Major> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<Major> findByNameIn(Collection<String> names);
+
+    List<Major> findByMajorCodeIn(Collection<String> codes);
 }

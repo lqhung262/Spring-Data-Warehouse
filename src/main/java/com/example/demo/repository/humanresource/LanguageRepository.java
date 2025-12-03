@@ -12,15 +12,14 @@ import java.util.Optional;
 public interface LanguageRepository extends JpaRepository<Language, Long> {
     Optional<Language> findBySourceId(String sourceId);
 
-//    /**
-//     * Tối ưu cho Upsert: Tìm tất cả languages tồn tại trong 1 câu query.
-//     */
-//    List<Language> findByLanguageCodeIn(Collection<String> languageCodes);
-//
-//    /**
-//     * Dùng cho Upsert: Tìm 1 language bằng languageCode
-//     */
-//    Optional<Language> findByLanguageCode(String languageCode);
-//
-//    Long countByLanguageIdIn(Collection<Long> languageIds);
+    Optional<Language> findByLanguageCode(String code);
+
+    Optional<Language> findByName(String name);
+
+    // Batch queries for bulk upsert
+    List<Language> findBySourceIdIn(Collection<String> sourceIds);
+
+    List<Language> findByNameIn(Collection<String> names);
+
+    List<Language> findByLanguageCodeIn(Collection<String> codes);
 }
