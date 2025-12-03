@@ -9,7 +9,7 @@ import com.example.demo.exception.CannotDeleteException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.ProvinceCityMapper;
 import com.example.demo.repository.humanresource.*;
-import com.example.demo.util.BulkOperationUtils;
+import com.example.demo.util.bulk.*;
 import com.example.demo.util.bulk.BulkDeleteConfig;
 import com.example.demo.util.bulk.BulkDeleteProcessor;
 import com.example.demo.util.bulk.BulkUpsertConfig;
@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -106,47 +105,42 @@ public class ProvinceCityService {
     public BulkOperationResult<ProvinceCityResponse> bulkUpsertProvinceCities(
             List<ProvinceCityRequest> requests) {
 
-        // 1. Setup unique field extractors
-        Map<String, Function<ProvinceCityRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
-        uniqueFieldExtractors.put("source_id", ProvinceCityRequest::getSourceId);
-        uniqueFieldExtractors.put("name", ProvinceCityRequest::getName);
+        // 1. Define unique field configurations (ProvinceCity has 2 unique fields)
+        UniqueFieldConfig<ProvinceCityRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", ProvinceCityRequest::getSourceId);
+        UniqueFieldConfig<ProvinceCityRequest> nameConfig =
+                new UniqueFieldConfig<>("name", ProvinceCityRequest::getName);
 
-        // 2. Lấy all value từ requests cho mỗi unique field
-        Set<String> allSourceIds = BulkOperationUtils.extractUniqueValues(
-                requests, ProvinceCityRequest::getSourceId);
-        Set<String> allNames = BulkOperationUtils.extractUniqueValues(
-                requests, ProvinceCityRequest::getName);
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<ProvinceCity>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", provinceCityRepository::findBySourceIdIn);
+        entityFetchers.put("name", provinceCityRepository::findByNameIn);
 
-        // Lấy existing values từ DB cho mỗi unique field
-        Map<String, Set<String>> existingValuesMaps = new HashMap<>();
-        existingValuesMaps.put("source_id",
-                provinceCityRepository.findBySourceIdIn(allSourceIds)
-                        .stream()
-                        .map(ProvinceCity::getSourceId)
-                        .collect(Collectors.toSet()));
-        existingValuesMaps.put("name",
-                provinceCityRepository.findByNameIn(allNames)
-                        .stream()
-                        .map(ProvinceCity::getName)
-                        .collect(Collectors.toSet()));
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<ProvinceCityRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        ProvinceCity::getSourceId, // Can use any unique field extractor
+                        sourceIdConfig,
+                        nameConfig
+                );
 
-        // 3. Build config
+        // 4.  Build bulk upsert config
         BulkUpsertConfig<ProvinceCityRequest, ProvinceCity, ProvinceCityResponse> config =
                 BulkUpsertConfig.<ProvinceCityRequest, ProvinceCity, ProvinceCityResponse>builder()
-                        .uniqueFieldExtractors(uniqueFieldExtractors)
-                        .existingValuesMaps(existingValuesMaps)
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
                         .entityToResponseMapper(provinceCityMapper::toProvinceCityResponse)
                         .requestToEntityMapper(provinceCityMapper::toProvinceCity)
                         .entityUpdater(provinceCityMapper::updateProvinceCity)
                         .existingEntityFinder(this::findExistingEntityForUpsert)
-                        // Method reference matches RepositorySaveAll interface
                         .repositorySaver(provinceCityRepository::saveAll)
-                        // Method reference matches RepositorySave interface
                         .repositorySaveAndFlusher(provinceCityRepository::saveAndFlush)
                         .entityManagerClearer(entityManager::clear)
                         .build();
 
-        // 4. Execute
+        // 5. Execute bulk upsert
         BulkUpsertProcessor<ProvinceCityRequest, ProvinceCity, ProvinceCityResponse> processor =
                 new BulkUpsertProcessor<>(config);
 

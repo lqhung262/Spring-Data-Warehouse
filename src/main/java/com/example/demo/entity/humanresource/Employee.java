@@ -143,15 +143,6 @@ public class Employee {
     @Column(name = "termination_date")
     private LocalDateTime terminationDate;
 
-    @Column(name = "social_insurance_no", unique = true, length = 50)
-    private String socialInsuranceNo;
-
-    @Column(name = "social_insurance_code", unique = true, length = 50)
-    private String socialInsuranceCode;
-
-    @Column(name = "health_insurance_card", unique = true, length = 50)
-    private String healthInsuranceCard;
-
     @OneToMany(mappedBy = "employee", fetch = FetchType.LAZY)
     private Set<EmployeeDecision> employeeDecisionList;
 
@@ -245,10 +236,6 @@ public class Employee {
     @JoinColumn(name = "id_issue_place_cmnd")
     private IdentityIssuingAuthority idIssuePlaceCmnd;
 
-    @Size(max = 100)
-    @NotNull
-    @Column(name = "corporation_code", nullable = false, length = 100)
-    private String corporationCode;
 
     @Size(max = 20)
     @Column(name = "id_number_cmnd", length = 20)
@@ -268,9 +255,6 @@ public class Employee {
     @JoinColumn(name = "id_issue_place_cccd")
     private IdentityIssuingAuthority idIssuePlaceCccd;
 
-    @Size(max = 50)
-    @Column(name = "tax_code", length = 50)
-    private String taxCode;
 
     @Column(name = "entitled_leave_days")
     private Integer entitledLeaveDays;
@@ -281,6 +265,30 @@ public class Employee {
     @Size(max = 255)
     @Column(name = "health_status")
     private String healthStatus;
+
+    @Size(max = 100)
+    @NotNull
+    @Column(name = "corporation_code", nullable = false, length = 100, unique = true)
+    private String corporationCode;
+
+    @Size(max = 50)
+    @NotNull
+    @Column(name = "tax_code", length = 50, nullable = false, unique = true)
+    private String taxCode;
+
+    @Size(max = 50)
+    @Column(name = "social_insurance_no", length = 50, nullable = false, unique = true)
+    private String socialInsuranceNo;
+
+    @Size(max = 50)
+    @NotNull
+    @Column(name = "social_insurance_code", length = 50, nullable = false, unique = true)
+    private String socialInsuranceCode;
+
+    @Size(max = 50)
+    @NotNull
+    @Column(name = "health_insurance_card", length = 50, nullable = false, unique = true)
+    private String healthInsuranceCard;
 
     @Override
     public boolean equals(Object o) {
