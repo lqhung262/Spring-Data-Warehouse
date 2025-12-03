@@ -136,18 +136,22 @@ public class EmployeeTypeService {
     }
 
     public void deleteEmployeeType(Long id) {
+        checkForeignKeyConstraints(id);
+
+        employeeTypeRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!employeeTypeRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
 
-        // Check references (RESTRICT strategy)
+        // Check references from EmployeeDecision
         long refCount = employeeDecisionRepository.countByEmployeeType_EmployeeTypeId(id);
         if (refCount > 0) {
             throw new CannotDeleteException(
                     "EmployeeType", id, "EmployeeDecision", refCount
             );
         }
-
-        employeeTypeRepository.deleteById(id);
     }
 }

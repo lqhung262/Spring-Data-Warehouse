@@ -137,6 +137,12 @@ public class SchoolService {
     }
 
     public void deleteSchool(Long id) {
+        checkForeignKeyConstraints(id);
+
+        schoolRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!schoolRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -151,7 +157,5 @@ public class SchoolService {
                     "School", id, "referencing records", totalCount
             );
         }
-
-        schoolRepository.deleteById(id);
     }
 }

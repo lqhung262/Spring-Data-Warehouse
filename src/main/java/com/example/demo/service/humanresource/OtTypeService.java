@@ -133,6 +133,12 @@ public class OtTypeService {
     }
 
     public void deleteOtType(Long id) {
+        checkForeignKeyConstraints(id);
+
+        otTypeRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!otTypeRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -144,7 +150,5 @@ public class OtTypeService {
                     "OtType", id, "EmployeeWorkShift", refCount
             );
         }
-
-        otTypeRepository.deleteById(id);
     }
 }

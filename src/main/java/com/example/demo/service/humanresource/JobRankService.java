@@ -134,6 +134,12 @@ public class JobRankService {
     }
 
     public void deleteJobRank(Long id) {
+        checkForeignKeyConstraints(id);
+
+        jobRankRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!jobRankRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -145,7 +151,5 @@ public class JobRankService {
                     "JobRank", id, "EmployeeDecision", refCount
             );
         }
-
-        jobRankRepository.deleteById(id);
     }
 }

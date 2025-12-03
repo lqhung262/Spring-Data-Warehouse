@@ -138,13 +138,17 @@ public class OldWardService {
     }
 
     public void deleteOldWard(Long id) {
+        checkForeignKeyConstraints(id);
+
+        oldWardRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!oldWardRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
 
         // Note: OldWard can be safely deleted as no direct FK references
         // Database will enforce constraints if needed
-
-        oldWardRepository.deleteById(id);
     }
 }

@@ -138,6 +138,12 @@ public class IdentityIssuingAuthorityService {
     }
 
     public void deleteIdentityIssuingAuthority(Long id) {
+        checkForeignKeyConstraints(id);
+
+        identityIssuingAuthorityRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!identityIssuingAuthorityRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -152,7 +158,5 @@ public class IdentityIssuingAuthorityService {
                     "IdentityIssuingAuthority", id, "Employee", totalCount
             );
         }
-
-        identityIssuingAuthorityRepository.deleteById(id);
     }
 }

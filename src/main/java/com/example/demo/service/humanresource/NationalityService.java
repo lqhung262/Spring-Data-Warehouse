@@ -134,6 +134,12 @@ public class NationalityService {
     }
 
     public void deleteNationality(Long id) {
+        checkForeignKeyConstraints(id);
+
+        nationalityRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!nationalityRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -145,7 +151,5 @@ public class NationalityService {
                     "Nationality", id, "Employee", refCount
             );
         }
-
-        nationalityRepository.deleteById(id);
     }
 }

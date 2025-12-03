@@ -136,6 +136,12 @@ public class LanguageService {
     }
 
     public void deleteLanguage(Long id) {
+        checkForeignKeyConstraints(id);
+
+        languageRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!languageRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -151,7 +157,5 @@ public class LanguageService {
                     "Language", id, "Employee", totalCount
             );
         }
-
-        languageRepository.deleteById(id);
     }
 }

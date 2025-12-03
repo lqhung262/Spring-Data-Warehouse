@@ -135,6 +135,12 @@ public class BankService {
     }
 
     public void deleteBank(Long id) {
+        checkForeignKeyConstraints(id);
+
+        bankRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!bankRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -146,7 +152,5 @@ public class BankService {
                     "Bank", id, "Employee", refCount
             );
         }
-
-        bankRepository.deleteById(id);
     }
 }

@@ -141,6 +141,12 @@ public class WardService {
     }
 
     public void deleteWard(Long id) {
+        checkForeignKeyConstraints(id);
+
+        wardRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!wardRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -157,7 +163,5 @@ public class WardService {
                     "Ward", id, "referencing records", totalCount
             );
         }
-
-        wardRepository.deleteById(id);
     }
 }

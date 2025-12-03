@@ -134,6 +134,12 @@ public class SpecializationService {
     }
 
     public void deleteSpecialization(Long id) {
+        checkForeignKeyConstraints(id);
+
+        specializationRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!specializationRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -145,7 +151,5 @@ public class SpecializationService {
                     "Specialization", id, "EmployeeEducation", refCount
             );
         }
-
-        specializationRepository.deleteById(id);
     }
 }

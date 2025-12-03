@@ -136,6 +136,12 @@ public class AttendanceTypeService {
     }
 
     public void deleteAttendanceType(Long id) {
+        checkReferenceBeforeDelete(id);
+
+        attendanceTypeRepository.deleteById(id);
+    }
+
+    private void checkReferenceBeforeDelete(Long id) {
         if (!attendanceTypeRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -147,7 +153,5 @@ public class AttendanceTypeService {
                     "AttendanceType", id, "EmployeeWorkShift", refCount
             );
         }
-
-        attendanceTypeRepository.deleteById(id);
     }
 }

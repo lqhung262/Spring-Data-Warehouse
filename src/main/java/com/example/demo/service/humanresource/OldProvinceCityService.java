@@ -140,6 +140,12 @@ public class OldProvinceCityService {
     }
 
     public void deleteOldProvinceCity(Long id) {
+        checkForeignKeyConstraints(id);
+
+        oldProvinceCityRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!oldDistrictRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -151,7 +157,5 @@ public class OldProvinceCityService {
                     "OldProvinceCity", id, "OldDistrict", childCount
             );
         }
-
-        oldProvinceCityRepository.deleteById(id);
     }
 }

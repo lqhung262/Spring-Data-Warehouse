@@ -136,6 +136,12 @@ public class DepartmentService {
     }
 
     public void deleteDepartment(Long id) {
+        checkForeignKeyConstraints(id);
+
+        departmentRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!departmentRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -147,7 +153,5 @@ public class DepartmentService {
                     "Department", id, "EmployeeDecision", refCount
             );
         }
-
-        departmentRepository.deleteById(id);
     }
 }

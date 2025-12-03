@@ -131,6 +131,12 @@ public class WorkLocationService {
     }
 
     public void deleteWorkLocation(Long id) {
+        checkForeignKeyConstraints(id);
+
+        workLocationRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!workLocationRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -142,7 +148,5 @@ public class WorkLocationService {
                     "WorkLocation", id, "EmployeeWorkLocation", refCount
             );
         }
-
-        workLocationRepository.deleteById(id);
     }
 }

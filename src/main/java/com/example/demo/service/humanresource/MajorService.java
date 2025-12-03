@@ -134,6 +134,12 @@ public class MajorService {
     }
 
     public void deleteMajor(Long id) {
+        checkReferenceBeforeDelete(id);
+
+        majorRepository.deleteById(id);
+    }
+
+    private void checkReferenceBeforeDelete(Long id) {
         if (!majorRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -145,7 +151,5 @@ public class MajorService {
                     "Major", id, "EmployeeEducation", refCount
             );
         }
-
-        majorRepository.deleteById(id);
     }
 }

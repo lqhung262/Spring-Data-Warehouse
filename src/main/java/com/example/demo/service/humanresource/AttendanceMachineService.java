@@ -190,6 +190,12 @@ public class AttendanceMachineService {
     }
 
     public void deleteAttendanceMachine(Long id) {
+        checkForeignKeyConstraints(id);
+
+        attendanceMachineRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!attendanceMachineRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -201,7 +207,5 @@ public class AttendanceMachineService {
                     "AttendanceMachine", id, "EmployeeAttendanceMachine", refCount
             );
         }
-
-        attendanceMachineRepository.deleteById(id);
     }
 }

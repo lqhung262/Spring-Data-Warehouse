@@ -134,6 +134,12 @@ public class WorkShiftGroupService {
     }
 
     public void deleteWorkShiftGroup(Long id) {
+        checkForeignKeyConstraints(id);
+
+        workShiftGroupRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!workShiftGroupRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -145,7 +151,5 @@ public class WorkShiftGroupService {
                     "WorkShiftGroup", id, "EmployeeWorkShift", refCount
             );
         }
-
-        workShiftGroupRepository.deleteById(id);
     }
 }

@@ -137,6 +137,12 @@ public class EducationLevelService {
     }
 
     public void deleteEducationLevel(Long id) {
+        checkForeignKeyConstraints(id);
+
+        educationLevelRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!educationLevelRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -148,7 +154,5 @@ public class EducationLevelService {
                     "EducationLevel", id, "EmployeeEducation", refCount
             );
         }
-
-        educationLevelRepository.deleteById(id);
     }
 }

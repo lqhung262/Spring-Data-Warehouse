@@ -136,6 +136,12 @@ public class MaritalStatusService {
     }
 
     public void deleteMaritalStatus(Long id) {
+        checkForeignKeyConstraints(id);
+
+        maritalStatusRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!maritalStatusRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -147,7 +153,5 @@ public class MaritalStatusService {
                     "MaritalStatus", id, "Employee", refCount
             );
         }
-
-        maritalStatusRepository.deleteById(id);
     }
 }

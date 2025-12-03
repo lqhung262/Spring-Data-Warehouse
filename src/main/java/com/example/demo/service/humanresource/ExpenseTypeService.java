@@ -133,6 +133,12 @@ public class ExpenseTypeService {
     }
 
     public void deleteExpenseType(Long id) {
+        checkForeignKeyConstraints(id);
+
+        expenseTypeRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!expenseTypeRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -147,7 +153,5 @@ public class ExpenseTypeService {
                     "ExpenseType", id, "EmployeeDecision", totalCount
             );
         }
-
-        expenseTypeRepository.deleteById(id);
     }
 }

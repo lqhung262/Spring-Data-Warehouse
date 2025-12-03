@@ -134,6 +134,12 @@ public class LaborStatusService {
     }
 
     public void deleteLaborStatus(Long id) {
+        checkReferenceBeforeDelete(id);
+
+        laborStatusRepository.deleteById(id);
+    }
+
+    private void checkReferenceBeforeDelete(Long id) {
         if (!laborStatusRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -145,7 +151,5 @@ public class LaborStatusService {
                     "LaborStatus", id, "Employee", refCount
             );
         }
-
-        laborStatusRepository.deleteById(id);
     }
 }

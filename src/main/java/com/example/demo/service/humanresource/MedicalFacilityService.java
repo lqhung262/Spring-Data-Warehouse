@@ -139,6 +139,12 @@ public class MedicalFacilityService {
     }
 
     public void deleteMedicalFacility(Long id) {
+        checkForeignKeyConstraints(id);
+
+        medicalFacilityRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!medicalFacilityRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
@@ -150,7 +156,5 @@ public class MedicalFacilityService {
                     "MedicalFacility", id, "Employee", refCount
             );
         }
-
-        medicalFacilityRepository.deleteById(id);
     }
 }

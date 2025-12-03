@@ -135,18 +135,22 @@ public class BloodGroupService {
     }
 
     public void deleteBloodGroup(Long id) {
+        checkForeignKeyConstraints(id);
+
+        bloodGroupRepository.deleteById(id);
+    }
+
+    private void checkForeignKeyConstraints(Long id) {
         if (!bloodGroupRepository.existsById(id)) {
             throw new NotFoundException(entityName);
         }
 
-        // Check references (RESTRICT strategy)
-        long refCount = employeeRepository.countByBloodGroup_BloodGroupId(id);
-        if (refCount > 0) {
+        // Check references from Employee
+        long employeeRefCount = employeeRepository.countByBloodGroup_BloodGroupId(id);
+        if (employeeRefCount > 0) {
             throw new CannotDeleteException(
-                    "BloodGroup", id, "Employee", refCount
+                    "BloodGroup", id, "Employee", employeeRefCount
             );
         }
-
-        bloodGroupRepository.deleteById(id);
     }
 }
