@@ -89,11 +89,16 @@ public final class BulkOperationUtils {
         // Initialize tracker for seen values
         UniqueValueTracker tracker = new UniqueValueTracker(uniqueFieldExtractors.keySet());
 
-        for (T request : requests) {
-            if (shouldGoToFinalBatch(request, uniqueFieldExtractors, existingValuesMaps, tracker)) {
+        for (int i = 0; i < requests.size(); i++) {
+            T request = requests.get(i);
+            boolean isFinal = shouldGoToFinalBatch(request, uniqueFieldExtractors, existingValuesMaps, tracker);
+
+            if (isFinal) {
                 finalBatch.add(request);
+                log.debug("Request[{}] → FINAL BATCH", i);
             } else {
                 safeBatch.add(request);
+                log.debug("Request[{}] → SAFE BATCH", i);
             }
         }
 
@@ -118,22 +123,28 @@ public final class BulkOperationUtils {
 
             // Skip null/empty values
             if (isNullOrEmpty(value)) {
+                log.trace("Field {} is null/empty, skipping", fieldName);
                 continue;
             }
 
             // Check 1: Duplicate trong request
-            if (tracker.isDuplicate(fieldName, value)) {
-                log.warn("Duplicate {} '{}' found in request.  Moving to final batch.", fieldName, value);
+            boolean isDup = tracker.isDuplicate(fieldName, value);
+            if (isDup) {
+                log.warn("→ FINAL: Duplicate {} '{}' found in request", fieldName, value);
                 return true;
             }
 
             // Check 2: Exists in DB
-            if (existsInDatabase(fieldName, value, existingValuesMaps)) {
-                log.debug("{} '{}' already exists in DB. Moving to final batch.", fieldName, value);
+            boolean existsInDb = existsInDatabase(fieldName, value, existingValuesMaps);
+            log.trace("Field {} = '{}': isDuplicate={}, existsInDB={}", fieldName, value, isDup, existsInDb);
+
+            if (existsInDb) {
+                log.warn("→ FINAL: {} '{}' already exists in DB", fieldName, value);
                 return true;
             }
         }
 
+        log.debug("→ SAFE: All unique fields are clean");
         return false;
     }
 

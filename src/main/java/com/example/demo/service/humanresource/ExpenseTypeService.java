@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.ExpenseType.ExpenseTypeRequest;
 import com.example.demo.dto.humanresource.ExpenseType.ExpenseTypeResponse;
 import com.example.demo.entity.humanresource.ExpenseType;
@@ -9,7 +10,8 @@ import com.example.demo.mapper.humanresource.ExpenseTypeMapper;
 import com.example.demo.repository.humanresource.ExpenseTypeRepository;
 import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
 import com.example.demo.exception.CannotDeleteException;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class ExpenseTypeService {
     final ExpenseTypeRepository expenseTypeRepository;
     final ExpenseTypeMapper expenseTypeMapper;
     final EmployeeDecisionRepository employeeDecisionRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.expensetype}")
     private String entityName;
@@ -46,63 +48,98 @@ public class ExpenseTypeService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<ExpenseTypeResponse> bulkUpsertExpenseTypes(List<ExpenseTypeRequest> requests) {
-//
-//        // Lấy tất cả expenseTypeCodes từ request
-//        List<String> expenseTypeCodes = requests.stream()
-//                .map(ExpenseTypeRequest::getExpenseTypeCode)
-//                .toList();
-//
-//        // Tìm tất cả các expenseType đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, ExpenseType> existingExpenseTypesMap = expenseTypeRepository.findByExpenseTypeCodeIn(expenseTypeCodes).stream()
-//                .collect(Collectors.toMap(ExpenseType::getExpenseTypeCode, expenseType -> expenseType));
-//
-//        List<ExpenseType> expenseTypesToSave = new java.util.ArrayList<>();
-//
-//        // L��p qua danh sách request để quyết định UPDATE hay INSERT
-//        for (ExpenseTypeRequest request : requests) {
-//            ExpenseType expenseType = existingExpenseTypesMap.get(request.getExpenseTypeCode());
-//
-//            if (expenseType != null) {
-//                // --- Logic UPDATE ---
-//                // ExpenseType đã tồn tại -> Cập nhật
-//                expenseTypeMapper.updateExpenseType(expenseType, request);
-//                expenseTypesToSave.add(expenseType);
-//            } else {
-//                // --- Logic INSERT ---
-//                // ExpenseType chưa tồn tại -> Tạo mới
-//                ExpenseType newExpenseType = expenseTypeMapper.toExpenseType(request);
-//                expenseTypesToSave.add(newExpenseType);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<ExpenseType> savedExpenseTypes = expenseTypeRepository.saveAll(expenseTypesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedExpenseTypes.stream()
-//                .map(expenseTypeMapper::toExpenseTypeResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteExpenseTypes(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = expenseTypeRepository.countByExpenseTypeIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        expenseTypeRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<ExpenseTypeResponse> bulkUpsertExpenseTypes(
+            List<ExpenseTypeRequest> requests) {
+
+        // 1. Define unique field configurations (ExpenseType has 2 unique fields)
+        UniqueFieldConfig<ExpenseTypeRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", ExpenseTypeRequest::getSourceId);
+        UniqueFieldConfig<ExpenseTypeRequest> codeConfig =
+                new UniqueFieldConfig<>("expense_type_code", ExpenseTypeRequest::getExpenseTypeCode);
+        UniqueFieldConfig<ExpenseTypeRequest> nameConfig =
+                new UniqueFieldConfig<>("name", ExpenseTypeRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<ExpenseType>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", expenseTypeRepository::findBySourceIdIn);
+        entityFetchers.put("expense_type_code", expenseTypeRepository::findByExpenseTypeCodeIn);
+        entityFetchers.put("name", expenseTypeRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<ExpenseType, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", ExpenseType::getSourceId);
+        entityFieldExtractors.put("expense_type_code", ExpenseType::getExpenseTypeCode);
+        entityFieldExtractors.put("name", ExpenseType::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<ExpenseTypeRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<ExpenseTypeRequest, ExpenseType, ExpenseTypeResponse> config =
+                BulkUpsertConfig.<ExpenseTypeRequest, ExpenseType, ExpenseTypeResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(expenseTypeMapper::toExpenseTypeResponse)
+                        .requestToEntityMapper(expenseTypeMapper::toExpenseType)
+                        .entityUpdater(expenseTypeMapper::updateExpenseType)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(expenseTypeRepository::saveAll)
+                        .repositorySaveAndFlusher(expenseTypeRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<ExpenseTypeRequest, ExpenseType, ExpenseTypeResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private ExpenseType findExistingEntityForUpsert(ExpenseTypeRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<ExpenseType> bySourceId = expenseTypeRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteExpenseTypes(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<ExpenseType> config = BulkDeleteConfig.<ExpenseType>builder()
+                .entityFinder(id -> expenseTypeRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(expenseTypeRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<ExpenseType> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<ExpenseTypeResponse> getExpenseTypes(Pageable pageable) {
         Page<ExpenseType> page = expenseTypeRepository.findAll(pageable);
         return page.getContent()

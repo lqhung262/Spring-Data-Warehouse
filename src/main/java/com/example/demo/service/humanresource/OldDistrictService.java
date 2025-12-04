@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.OldDistrict.OldDistrictRequest;
 import com.example.demo.dto.humanresource.OldDistrict.OldDistrictResponse;
 import com.example.demo.entity.humanresource.OldDistrict;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.OldDistrictMapper;
 import com.example.demo.repository.humanresource.OldDistrictRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -17,9 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.OldWardRepository;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,7 @@ public class OldDistrictService {
     final OldDistrictRepository oldDistrictRepository;
     final OldDistrictMapper oldDistrictMapper;
     final OldWardRepository oldWardRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.olddistrict}")
     private String entityName;
@@ -49,63 +51,96 @@ public class OldDistrictService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<OldDistrictResponse> bulkUpsertOldDistricts(List<OldDistrictRequest> requests) {
-//
-//        // Lấy tất cả oldDistrictCodes từ request
-//        List<String> oldDistrictCodes = requests.stream()
-//                .map(OldDistrictRequest::getOldDistrictCode)
-//                .toList();
-//
-//        // Tìm tất cả các oldDistrict đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, OldDistrict> existingOldDistrictsMap = oldDistrictRepository.findByOldDistrictCodeIn(oldDistrictCodes).stream()
-//                .collect(Collectors.toMap(OldDistrict::getOldDistrictCode, oldDistrict -> oldDistrict));
-//
-//        List<OldDistrict> oldDistrictsToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (OldDistrictRequest request : requests) {
-//            OldDistrict oldDistrict = existingOldDistrictsMap.get(request.getOldDistrictCode());
-//
-//            if (oldDistrict != null) {
-//                // --- Logic UPDATE ---
-//                // OldDistrict đã tồn tại -> Cập nhật
-//                oldDistrictMapper.updateOldDistrict(oldDistrict, request);
-//                oldDistrictsToSave.add(oldDistrict);
-//            } else {
-//                // --- Logic INSERT ---
-//                // OldDistrict chưa tồn tại -> Tạo mới
-//                OldDistrict newOldDistrict = oldDistrictMapper.toOldDistrict(request);
-//                oldDistrictsToSave.add(newOldDistrict);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<OldDistrict> savedOldDistricts = oldDistrictRepository.saveAll(oldDistrictsToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedOldDistricts.stream()
-//                .map(oldDistrictMapper::toOldDistrictResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteOldDistricts(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = oldDistrictRepository.countByOldDistrictIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        oldDistrictRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<OldDistrictResponse> bulkUpsertOldDistricts(
+            List<OldDistrictRequest> requests) {
+
+        // 1. Define unique field configurations (OldDistrict has 2 unique fields)
+        UniqueFieldConfig<OldDistrictRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", OldDistrictRequest::getSourceId);
+        UniqueFieldConfig<OldDistrictRequest> nameConfig =
+                new UniqueFieldConfig<>("name", OldDistrictRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<OldDistrict>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", oldDistrictRepository::findBySourceIdIn);
+        entityFetchers.put("name", oldDistrictRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors (to extract values from returned entities)
+        Map<String, Function<OldDistrict, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", OldDistrict::getSourceId);
+        entityFieldExtractors.put("name", OldDistrict::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<OldDistrictRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<OldDistrictRequest, OldDistrict, OldDistrictResponse> config =
+                BulkUpsertConfig.<OldDistrictRequest, OldDistrict, OldDistrictResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(oldDistrictMapper::toOldDistrictResponse)
+                        .requestToEntityMapper(oldDistrictMapper::toOldDistrict)
+                        .entityUpdater(oldDistrictMapper::updateOldDistrict)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(oldDistrictRepository::saveAll)
+                        .repositorySaveAndFlusher(oldDistrictRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<OldDistrictRequest, OldDistrict, OldDistrictResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity for upsert
+     * STRICT LOGIC: Only match by sourceId (primary identifier)
+     */
+    private OldDistrict findExistingEntityForUpsert(OldDistrictRequest request) {
+        // ONLY match by sourceId (canonical identifier)
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<OldDistrict> bySourceId = oldDistrictRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        // Do NOT fallback to code or name matching
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteOldDistricts(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<OldDistrict> config = BulkDeleteConfig.<OldDistrict>builder()
+                .entityFinder(id -> oldDistrictRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(oldDistrictRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<OldDistrict> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<OldDistrictResponse> getOldDistricts(Pageable pageable) {
         Page<OldDistrict> page = oldDistrictRepository.findAll(pageable);
         return page.getContent()

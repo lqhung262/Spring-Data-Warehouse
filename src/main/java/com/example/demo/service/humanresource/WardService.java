@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Ward.WardRequest;
 import com.example.demo.dto.humanresource.Ward.WardResponse;
 import com.example.demo.entity.humanresource.Ward;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WardMapper;
 import com.example.demo.repository.humanresource.WardRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -19,9 +21,8 @@ import com.example.demo.repository.humanresource.OldWardRepository;
 import com.example.demo.repository.humanresource.OldDistrictRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class WardService {
     final OldWardRepository oldWardRepository;
     final OldDistrictRepository oldDistrictRepository;
     final EmployeeRepository employeeRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.ward}")
     private String entityName;
@@ -52,63 +54,96 @@ public class WardService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<WardResponse> bulkUpsertWards(List<WardRequest> requests) {
-//
-//        // Lấy tất cả wardCodes từ request
-//        List<String> wardCodes = requests.stream()
-//                .map(WardRequest::getWardCode)
-//                .toList();
-//
-//        // Tìm tất cả các ward đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, Ward> existingWardsMap = wardRepository.findByWardCodeIn(wardCodes).stream()
-//                .collect(Collectors.toMap(Ward::getWardCode, ward -> ward));
-//
-//        List<Ward> wardsToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (WardRequest request : requests) {
-//            Ward ward = existingWardsMap.get(request.getWardCode());
-//
-//            if (ward != null) {
-//                // --- Logic UPDATE ---
-//                // Ward đã tồn tại -> Cập nhật
-//                wardMapper.updateWard(ward, request);
-//                wardsToSave.add(ward);
-//            } else {
-//                // --- Logic INSERT ---
-//                // Ward chưa tồn tại -> Tạo mới
-//                Ward newWard = wardMapper.toWard(request);
-//                wardsToSave.add(newWard);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<Ward> savedWards = wardRepository.saveAll(wardsToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedWards.stream()
-//                .map(wardMapper::toWardResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteWards(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = wardRepository.countByWardIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        wardRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<WardResponse> bulkUpsertWards(
+            List<WardRequest> requests) {
+
+        // 1. Define unique field configurations (Ward has 2 unique fields)
+        UniqueFieldConfig<WardRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", WardRequest::getSourceId);
+        UniqueFieldConfig<WardRequest> nameConfig =
+                new UniqueFieldConfig<>("name", WardRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<Ward>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", wardRepository::findBySourceIdIn);
+        entityFetchers.put("name", wardRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors (to extract values from returned entities)
+        Map<String, Function<Ward, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", Ward::getSourceId);
+        entityFieldExtractors.put("name", Ward::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<WardRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<WardRequest, Ward, WardResponse> config =
+                BulkUpsertConfig.<WardRequest, Ward, WardResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(wardMapper::toWardResponse)
+                        .requestToEntityMapper(wardMapper::toWard)
+                        .entityUpdater(wardMapper::updateWard)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(wardRepository::saveAll)
+                        .repositorySaveAndFlusher(wardRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<WardRequest, Ward, WardResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity for upsert
+     * STRICT LOGIC: Only match by sourceId (primary identifier)
+     */
+    private Ward findExistingEntityForUpsert(WardRequest request) {
+        // ONLY match by sourceId (canonical identifier)
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<Ward> bySourceId = wardRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        // Do NOT fallback to code or name matching
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteWards(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<Ward> config = BulkDeleteConfig.<Ward>builder()
+                .entityFinder(id -> wardRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(wardRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<Ward> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<WardResponse> getWards(Pageable pageable) {
         Page<Ward> page = wardRepository.findAll(pageable);
         return page.getContent()

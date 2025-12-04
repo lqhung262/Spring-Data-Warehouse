@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.WorkShift.WorkShiftRequest;
 import com.example.demo.dto.humanresource.WorkShift.WorkShiftResponse;
 import com.example.demo.service.humanresource.WorkShiftService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/work-shifts")
@@ -35,26 +38,47 @@ public class WorkShiftController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<WorkShiftResponse>> bulkUpsertWorkShifts(
-//            @Valid @RequestBody List<WorkShiftRequest> requests) {
-//        return ApiResponse.<List<WorkShiftResponse>>builder()
-//                .result(workShiftService.bulkUpsertWorkShifts(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteWorkShifts(@RequestParam("ids") List<Long> ids) {
-//        workShiftService.bulkDeleteWorkShifts(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " work shifts have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<WorkShiftResponse>> bulkUpsertWorkShifts(
+            @Valid @RequestBody List<WorkShiftRequest> requests) {
+
+        BulkOperationResult<WorkShiftResponse> result =
+                workShiftService.bulkUpsertWorkShifts(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<WorkShiftResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteWorkShifts(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = workShiftService.bulkDeleteWorkShifts(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<WorkShiftResponse>> getWorkShifts(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                        @RequestParam(required = false, defaultValue = "5") int pageSize,

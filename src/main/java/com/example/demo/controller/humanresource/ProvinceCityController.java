@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
+
 @RestController
 @RequestMapping("/province-cities")
 @RequiredArgsConstructor
@@ -74,20 +76,7 @@ public class ProvinceCityController {
         BulkOperationResult<Long> result = provinceCityService.bulkDeleteProvinceCities(ids);
 
         // Determine response code
-        int responseCode;
-        if (!result.hasErrors()) {
-            responseCode = 1000; // All succeeded
-        } else if (result.hasSuccess()) {
-            responseCode = 207;  // Partial success (Multi-Status)
-        } else {
-            responseCode = 400;  // All failed
-        }
-
-        return ApiResponse.<BulkOperationResult<Long>>builder()
-                .code(responseCode)
-                .message(result.getSummary())
-                .result(result)
-                .build();
+        return getBulkOperationResultApiResponse(result);
     }
 
     @GetMapping()

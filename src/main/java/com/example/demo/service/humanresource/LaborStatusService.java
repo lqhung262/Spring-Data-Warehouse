@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.LaborStatus.LaborStatusRequest;
 import com.example.demo.dto.humanresource.LaborStatus.LaborStatusResponse;
 import com.example.demo.entity.humanresource.LaborStatus;
@@ -9,7 +10,8 @@ import com.example.demo.mapper.humanresource.LaborStatusMapper;
 import com.example.demo.repository.humanresource.LaborStatusRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 import com.example.demo.exception.CannotDeleteException;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class LaborStatusService {
     final LaborStatusRepository laborStatusRepository;
     final LaborStatusMapper laborStatusMapper;
     final EmployeeRepository employeeRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.laborstatus}")
     private String entityName;
@@ -47,63 +49,98 @@ public class LaborStatusService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<LaborStatusResponse> bulkUpsertLaborStatuses(List<LaborStatusRequest> requests) {
-//
-//        // Lấy tất cả laborStatusCodes từ request
-//        List<String> laborStatusCodes = requests.stream()
-//                .map(LaborStatusRequest::getLaborStatusCode)
-//                .toList();
-//
-//        // Tìm tất cả các laborStatus đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, LaborStatus> existingLaborStatusesMap = laborStatusRepository.findByLaborStatusCodeIn(laborStatusCodes).stream()
-//                .collect(Collectors.toMap(LaborStatus::getLaborStatusCode, laborStatus -> laborStatus));
-//
-//        List<LaborStatus> laborStatusesToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (LaborStatusRequest request : requests) {
-//            LaborStatus laborStatus = existingLaborStatusesMap.get(request.getLaborStatusCode());
-//
-//            if (laborStatus != null) {
-//                // --- Logic UPDATE ---
-//                // LaborStatus đã tồn tại -> Cập nhật
-//                laborStatusMapper.updateLaborStatus(laborStatus, request);
-//                laborStatusesToSave.add(laborStatus);
-//            } else {
-//                // --- Logic INSERT ---
-//                // LaborStatus chưa tồn tại -> Tạo mới
-//                LaborStatus newLaborStatus = laborStatusMapper.toLaborStatus(request);
-//                laborStatusesToSave.add(newLaborStatus);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<LaborStatus> savedLaborStatuses = laborStatusRepository.saveAll(laborStatusesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedLaborStatuses.stream()
-//                .map(laborStatusMapper::toLaborStatusResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteLaborStatuses(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = laborStatusRepository.countByLaborStatusIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        laborStatusRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<LaborStatusResponse> bulkUpsertLaborStatuses(
+            List<LaborStatusRequest> requests) {
+
+        // 1. Define unique field configurations (LaborStatus has 2 unique fields)
+        UniqueFieldConfig<LaborStatusRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", LaborStatusRequest::getSourceId);
+        UniqueFieldConfig<LaborStatusRequest> codeConfig =
+                new UniqueFieldConfig<>("labor_status_code", LaborStatusRequest::getLaborStatusCode);
+        UniqueFieldConfig<LaborStatusRequest> nameConfig =
+                new UniqueFieldConfig<>("name", LaborStatusRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<LaborStatus>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", laborStatusRepository::findBySourceIdIn);
+        entityFetchers.put("labor_status_code", laborStatusRepository::findByLaborStatusCodeIn);
+        entityFetchers.put("name", laborStatusRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<LaborStatus, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", LaborStatus::getSourceId);
+        entityFieldExtractors.put("labor_status_code", LaborStatus::getLaborStatusCode);
+        entityFieldExtractors.put("name", LaborStatus::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<LaborStatusRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<LaborStatusRequest, LaborStatus, LaborStatusResponse> config =
+                BulkUpsertConfig.<LaborStatusRequest, LaborStatus, LaborStatusResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(laborStatusMapper::toLaborStatusResponse)
+                        .requestToEntityMapper(laborStatusMapper::toLaborStatus)
+                        .entityUpdater(laborStatusMapper::updateLaborStatus)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(laborStatusRepository::saveAll)
+                        .repositorySaveAndFlusher(laborStatusRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<LaborStatusRequest, LaborStatus, LaborStatusResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private LaborStatus findExistingEntityForUpsert(LaborStatusRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<LaborStatus> bySourceId = laborStatusRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteLaborStatuses(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<LaborStatus> config = BulkDeleteConfig.<LaborStatus>builder()
+                .entityFinder(id -> laborStatusRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkReferenceBeforeDelete)
+                .repositoryDeleter(laborStatusRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<LaborStatus> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<LaborStatusResponse> getLaborStatuses(Pageable pageable) {
         Page<LaborStatus> page = laborStatusRepository.findAll(pageable);
         return page.getContent()

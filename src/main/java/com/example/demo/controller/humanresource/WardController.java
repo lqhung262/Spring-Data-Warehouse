@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Ward.WardRequest;
 import com.example.demo.dto.humanresource.Ward.WardResponse;
 import com.example.demo.service.humanresource.WardService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/wards")
@@ -35,26 +38,47 @@ public class WardController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<WardResponse>> bulkUpsertWards(
-//            @Valid @RequestBody List<WardRequest> requests) {
-//        return ApiResponse.<List<WardResponse>>builder()
-//                .result(wardService.bulkUpsertWards(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteWards(@RequestParam("ids") List<Long> ids) {
-//        wardService.bulkDeleteWards(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " wards have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<WardResponse>> bulkUpsertWards(
+            @Valid @RequestBody List<WardRequest> requests) {
+
+        BulkOperationResult<WardResponse> result =
+                wardService.bulkUpsertWards(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<WardResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteWards(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = wardService.bulkDeleteWards(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<WardResponse>> getWards(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                              @RequestParam(required = false, defaultValue = "5") int pageSize,

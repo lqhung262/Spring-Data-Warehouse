@@ -116,12 +116,17 @@ public class ProvinceCityService {
         entityFetchers.put("source_id", provinceCityRepository::findBySourceIdIn);
         entityFetchers.put("name", provinceCityRepository::findByNameIn);
 
+        // 2.5. Define entity field extractors (to extract values from returned entities)
+        Map<String, Function<ProvinceCity, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", ProvinceCity::getSourceId);
+        entityFieldExtractors.put("name", ProvinceCity::getName);
+
         // 3. Setup unique fields using helper
         UniqueFieldsSetupHelper.UniqueFieldsSetup<ProvinceCityRequest> setup =
                 UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
                         requests,
                         entityFetchers,
-                        ProvinceCity::getSourceId, // Can use any unique field extractor
+                        entityFieldExtractors,
                         sourceIdConfig,
                         nameConfig
                 );
@@ -148,9 +153,11 @@ public class ProvinceCityService {
     }
 
     /**
-     * Helper: Find existing entity
+     * Helper: Find existing entity for upsert
+     * STRICT LOGIC: Only match by sourceId (primary identifier)
      */
     private ProvinceCity findExistingEntityForUpsert(ProvinceCityRequest request) {
+        // ONLY match by sourceId (canonical identifier)
         if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
             Optional<ProvinceCity> bySourceId = provinceCityRepository.findBySourceId(request.getSourceId());
             if (bySourceId.isPresent()) {
@@ -158,13 +165,7 @@ public class ProvinceCityService {
             }
         }
 
-        if (request.getName() != null && !request.getName().trim().isEmpty()) {
-            Optional<ProvinceCity> byName = provinceCityRepository.findByName(request.getName());
-            if (byName.isPresent()) {
-                return byName.get();
-            }
-        }
-
+        // Do NOT fallback to name matching
         return null;
     }
 

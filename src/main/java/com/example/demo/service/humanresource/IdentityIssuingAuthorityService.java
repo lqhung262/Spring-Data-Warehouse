@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.IdentityIssuingAuthority.IdentityIssuingAuthorityRequest;
 import com.example.demo.dto.humanresource.IdentityIssuingAuthority.IdentityIssuingAuthorityResponse;
 import com.example.demo.entity.humanresource.IdentityIssuingAuthority;
@@ -9,7 +10,8 @@ import com.example.demo.mapper.humanresource.IdentityIssuingAuthorityMapper;
 import com.example.demo.repository.humanresource.IdentityIssuingAuthorityRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 import com.example.demo.exception.CannotDeleteException;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class IdentityIssuingAuthorityService {
     final IdentityIssuingAuthorityRepository identityIssuingAuthorityRepository;
     final IdentityIssuingAuthorityMapper identityIssuingAuthorityMapper;
     final EmployeeRepository employeeRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.identityissuingauthoirity}")
     private String entityName;
@@ -49,63 +51,93 @@ public class IdentityIssuingAuthorityService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<IdentityIssuingAuthorityResponse> bulkUpsertIdentityIssuingAuthorities(List<IdentityIssuingAuthorityRequest> requests) {
-//
-//        // Lấy tất cả identityIssuingAuthorityCodes từ request
-//        List<String> identityIssuingAuthorityCodes = requests.stream()
-//                .map(IdentityIssuingAuthorityRequest::getIdentityIssuingAuthorityCode)
-//                .toList();
-//
-//        // Tìm tất cả các identityIssuingAuthority đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, IdentityIssuingAuthority> existingIdentityIssuingAuthoritysMap = identityIssuingAuthorityRepository.findByIdentityIssuingAuthorityCodeIn(identityIssuingAuthorityCodes).stream()
-//                .collect(Collectors.toMap(IdentityIssuingAuthority::getIdentityIssuingAuthorityCode, identityIssuingAuthority -> identityIssuingAuthority));
-//
-//        List<IdentityIssuingAuthority> identityIssuingAuthoritysToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (IdentityIssuingAuthorityRequest request : requests) {
-//            IdentityIssuingAuthority identityIssuingAuthority = existingIdentityIssuingAuthoritysMap.get(request.getIdentityIssuingAuthorityCode());
-//
-//            if (identityIssuingAuthority != null) {
-//                // --- Logic UPDATE ---
-//                // IdentityIssuingAuthority đã tồn tại -> Cập nhật
-//                identityIssuingAuthorityMapper.updateIdentityIssuingAuthority(identityIssuingAuthority, request);
-//                identityIssuingAuthoritysToSave.add(identityIssuingAuthority);
-//            } else {
-//                // --- Logic INSERT ---
-//                // IdentityIssuingAuthority chưa tồn tại -> Tạo mới
-//                IdentityIssuingAuthority newIdentityIssuingAuthority = identityIssuingAuthorityMapper.toIdentityIssuingAuthority(request);
-//                identityIssuingAuthoritysToSave.add(newIdentityIssuingAuthority);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<IdentityIssuingAuthority> savedIdentityIssuingAuthoritys = identityIssuingAuthorityRepository.saveAll(identityIssuingAuthoritysToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedIdentityIssuingAuthoritys.stream()
-//                .map(identityIssuingAuthorityMapper::toIdentityIssuingAuthorityResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteIdentityIssuingAuthorities(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = identityIssuingAuthorityRepository.countByIdentityIssuingAuthorityIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        identityIssuingAuthorityRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<IdentityIssuingAuthorityResponse> bulkUpsertIdentityIssuingAuthorities(
+            List<IdentityIssuingAuthorityRequest> requests) {
+
+        // 1. Define unique field configurations (IdentityIssuingAuthority has 2 unique fields)
+        UniqueFieldConfig<IdentityIssuingAuthorityRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", IdentityIssuingAuthorityRequest::getSourceId);
+        UniqueFieldConfig<IdentityIssuingAuthorityRequest> nameConfig =
+                new UniqueFieldConfig<>("name", IdentityIssuingAuthorityRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<IdentityIssuingAuthority>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", identityIssuingAuthorityRepository::findBySourceIdIn);
+        entityFetchers.put("name", identityIssuingAuthorityRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<IdentityIssuingAuthority, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", IdentityIssuingAuthority::getSourceId);
+        entityFieldExtractors.put("name", IdentityIssuingAuthority::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<IdentityIssuingAuthorityRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<IdentityIssuingAuthorityRequest, IdentityIssuingAuthority, IdentityIssuingAuthorityResponse> config =
+                BulkUpsertConfig.<IdentityIssuingAuthorityRequest, IdentityIssuingAuthority, IdentityIssuingAuthorityResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(identityIssuingAuthorityMapper::toIdentityIssuingAuthorityResponse)
+                        .requestToEntityMapper(identityIssuingAuthorityMapper::toIdentityIssuingAuthority)
+                        .entityUpdater(identityIssuingAuthorityMapper::updateIdentityIssuingAuthority)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(identityIssuingAuthorityRepository::saveAll)
+                        .repositorySaveAndFlusher(identityIssuingAuthorityRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<IdentityIssuingAuthorityRequest, IdentityIssuingAuthority, IdentityIssuingAuthorityResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private IdentityIssuingAuthority findExistingEntityForUpsert(IdentityIssuingAuthorityRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<IdentityIssuingAuthority> bySourceId = identityIssuingAuthorityRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteIdentityIssuingAuthorities(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<IdentityIssuingAuthority> config = BulkDeleteConfig.<IdentityIssuingAuthority>builder()
+                .entityFinder(id -> identityIssuingAuthorityRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(identityIssuingAuthorityRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<IdentityIssuingAuthority> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<IdentityIssuingAuthorityResponse> getIdentityIssuingAuthorities(Pageable pageable) {
         Page<IdentityIssuingAuthority> page = identityIssuingAuthorityRepository.findAll(pageable);
         return page.getContent()

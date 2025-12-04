@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.IdentityIssuingAuthority.IdentityIssuingAuthorityRequest;
 import com.example.demo.dto.humanresource.IdentityIssuingAuthority.IdentityIssuingAuthorityResponse;
 import com.example.demo.service.humanresource.IdentityIssuingAuthorityService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/identity-issuing-authorities")
@@ -35,26 +38,47 @@ public class IdentityIssuingAuthorityController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<IdentityIssuingAuthorityResponse>> bulkUpsertIdentityIssuingAuthorities(
-//            @Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
-//        return ApiResponse.<List<IdentityIssuingAuthorityResponse>>builder()
-//                .result(identityIssuingAuthorityService.bulkUpsertIdentityIssuingAuthorities(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteIdentityIssuingAuthorities(@RequestParam("ids") List<Long> ids) {
-//        identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " identity issuing authorities have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<IdentityIssuingAuthorityResponse>> bulkUpsertIdentityIssuingAuthorities(
+            @Valid @RequestBody List<IdentityIssuingAuthorityRequest> requests) {
+
+        BulkOperationResult<IdentityIssuingAuthorityResponse> result =
+                identityIssuingAuthorityService.bulkUpsertIdentityIssuingAuthorities(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<IdentityIssuingAuthorityResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteIdentityIssuingAuthorities(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = identityIssuingAuthorityService.bulkDeleteIdentityIssuingAuthorities(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<IdentityIssuingAuthorityResponse>> getIdentityIssuingAuthorities(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                                       @RequestParam(required = false, defaultValue = "5") int pageSize,

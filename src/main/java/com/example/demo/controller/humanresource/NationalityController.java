@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Nationality.NationalityRequest;
 import com.example.demo.dto.humanresource.Nationality.NationalityResponse;
 import com.example.demo.service.humanresource.NationalityService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/nationalities")
@@ -35,26 +38,47 @@ public class NationalityController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<NationalityResponse>> bulkUpsertNationalities(
-//            @Valid @RequestBody List<NationalityRequest> requests) {
-//        return ApiResponse.<List<NationalityResponse>>builder()
-//                .result(nationalityService.bulkUpsertNationalities(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteNationalities(@RequestParam("ids") List<Long> ids) {
-//        nationalityService.bulkDeleteNationalities(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " nationalities have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<NationalityResponse>> bulkUpsertNationalities(
+            @Valid @RequestBody List<NationalityRequest> requests) {
+
+        BulkOperationResult<NationalityResponse> result =
+                nationalityService.bulkUpsertNationalities(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<NationalityResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteNationalities(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = nationalityService.bulkDeleteNationalities(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<NationalityResponse>> getNationalities(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                             @RequestParam(required = false, defaultValue = "5") int pageSize,

@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.EmployeeType.EmployeeTypeRequest;
 import com.example.demo.dto.humanresource.EmployeeType.EmployeeTypeResponse;
 import com.example.demo.entity.humanresource.EmployeeType;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.EmployeeTypeMapper;
 import com.example.demo.repository.humanresource.EmployeeTypeRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
 import com.example.demo.exception.CannotDeleteException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class EmployeeTypeService {
     final EmployeeTypeRepository employeeTypeRepository;
     final EmployeeTypeMapper employeeTypeMapper;
     final EmployeeDecisionRepository employeeDecisionRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.employeetype}")
     private String entityName;
@@ -49,63 +51,98 @@ public class EmployeeTypeService {
 
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<EmployeeTypeResponse> bulkUpsertEmployeeTypes(List<EmployeeTypeRequest> requests) {
-//
-//        // Lấy tất cả employeeTypeCodes từ request
-//        List<String> employeeTypeCodes = requests.stream()
-//                .map(EmployeeTypeRequest::getEmployeeTypeCode)
-//                .toList();
-//
-//        // Tìm tất cả các employeeType đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, EmployeeType> existingEmployeeTypesMap = employeeTypeRepository.findByEmployeeTypeCodeIn(employeeTypeCodes).stream()
-//                .collect(Collectors.toMap(EmployeeType::getEmployeeTypeCode, employeeType -> employeeType));
-//
-//        List<EmployeeType> employeeTypesToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (EmployeeTypeRequest request : requests) {
-//            EmployeeType employeeType = existingEmployeeTypesMap.get(request.getEmployeeTypeCode());
-//
-//            if (employeeType != null) {
-//                // --- Logic UPDATE ---
-//                // EmployeeType đã tồn tại -> Cập nhật
-//                employeeTypeMapper.updateEmployeeType(employeeType, request);
-//                employeeTypesToSave.add(employeeType);
-//            } else {
-//                // --- Logic INSERT ---
-//                // EmployeeType chưa tồn tại -> Tạo mới
-//                EmployeeType newEmployeeType = employeeTypeMapper.toEmployeeType(request);
-//                employeeTypesToSave.add(newEmployeeType);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<EmployeeType> savedEmployeeTypes = employeeTypeRepository.saveAll(employeeTypesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedEmployeeTypes.stream()
-//                .map(employeeTypeMapper::toEmployeeTypeResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteEmployeeTypes(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = employeeTypeRepository.countByEmployeeTypeIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        employeeTypeRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<EmployeeTypeResponse> bulkUpsertEmployeeTypes(
+            List<EmployeeTypeRequest> requests) {
+
+        // 1. Define unique field configurations (EmployeeType has 2 unique fields)
+        UniqueFieldConfig<EmployeeTypeRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", EmployeeTypeRequest::getSourceId);
+        UniqueFieldConfig<EmployeeTypeRequest> codeConfig =
+                new UniqueFieldConfig<>("employee_type_code", EmployeeTypeRequest::getEmployeeTypeCode);
+        UniqueFieldConfig<EmployeeTypeRequest> nameConfig =
+                new UniqueFieldConfig<>("name", EmployeeTypeRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<EmployeeType>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", employeeTypeRepository::findBySourceIdIn);
+        entityFetchers.put("employee_type_code", employeeTypeRepository::findByEmployeeTypeCodeIn);
+        entityFetchers.put("name", employeeTypeRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<EmployeeType, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", EmployeeType::getSourceId);
+        entityFieldExtractors.put("employee_type_code", EmployeeType::getEmployeeTypeCode);
+        entityFieldExtractors.put("name", EmployeeType::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<EmployeeTypeRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<EmployeeTypeRequest, EmployeeType, EmployeeTypeResponse> config =
+                BulkUpsertConfig.<EmployeeTypeRequest, EmployeeType, EmployeeTypeResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(employeeTypeMapper::toEmployeeTypeResponse)
+                        .requestToEntityMapper(employeeTypeMapper::toEmployeeType)
+                        .entityUpdater(employeeTypeMapper::updateEmployeeType)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(employeeTypeRepository::saveAll)
+                        .repositorySaveAndFlusher(employeeTypeRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<EmployeeTypeRequest, EmployeeType, EmployeeTypeResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private EmployeeType findExistingEntityForUpsert(EmployeeTypeRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<EmployeeType> bySourceId = employeeTypeRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteEmployeeTypes(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<EmployeeType> config = BulkDeleteConfig.<EmployeeType>builder()
+                .entityFinder(id -> employeeTypeRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(employeeTypeRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<EmployeeType> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<EmployeeTypeResponse> getEmployeeTypes(Pageable pageable) {
         Page<EmployeeType> page = employeeTypeRepository.findAll(pageable);
         return page.getContent()

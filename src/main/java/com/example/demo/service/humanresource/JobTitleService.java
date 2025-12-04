@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.JobTitle.JobTitleRequest;
 import com.example.demo.dto.humanresource.JobTitle.JobTitleResponse;
 import com.example.demo.entity.humanresource.JobTitle;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.JobTitleMapper;
 import com.example.demo.repository.humanresource.JobTitleRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
 import com.example.demo.exception.CannotDeleteException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class JobTitleService {
     final JobTitleRepository jobTitleRepository;
     final JobTitleMapper jobTitleMapper;
     final EmployeeDecisionRepository employeeDecisionRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.jobtitle}")
     private String entityName;
@@ -47,63 +49,98 @@ public class JobTitleService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<JobTitleResponse> bulkUpsertJobTitles(List<JobTitleRequest> requests) {
-//
-//        // Lấy tất cả jobTitleCodes từ request
-//        List<String> jobTitleCodes = requests.stream()
-//                .map(JobTitleRequest::getJobTitleCode)
-//                .toList();
-//
-//        // Tìm tất cả các jobTitle đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, JobTitle> existingJobTitlesMap = jobTitleRepository.findByJobTitleCodeIn(jobTitleCodes).stream()
-//                .collect(Collectors.toMap(JobTitle::getJobTitleCode, jobTitle -> jobTitle));
-//
-//        List<JobTitle> jobTitlesToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (JobTitleRequest request : requests) {
-//            JobTitle jobTitle = existingJobTitlesMap.get(request.getJobTitleCode());
-//
-//            if (jobTitle != null) {
-//                // --- Logic UPDATE ---
-//                // JobTitle đã tồn tại -> Cập nhật
-//                jobTitleMapper.updateJobTitle(jobTitle, request);
-//                jobTitlesToSave.add(jobTitle);
-//            } else {
-//                // --- Logic INSERT ---
-//                // JobTitle chưa tồn tại -> Tạo mới
-//                JobTitle newJobTitle = jobTitleMapper.toJobTitle(request);
-//                jobTitlesToSave.add(newJobTitle);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<JobTitle> savedJobTitles = jobTitleRepository.saveAll(jobTitlesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedJobTitles.stream()
-//                .map(jobTitleMapper::toJobTitleResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteJobTitles(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = jobTitleRepository.countByJobTitleIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        jobTitleRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<JobTitleResponse> bulkUpsertJobTitles(
+            List<JobTitleRequest> requests) {
+
+        // 1. Define unique field configurations (JobTitle has 2 unique fields)
+        UniqueFieldConfig<JobTitleRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", JobTitleRequest::getSourceId);
+        UniqueFieldConfig<JobTitleRequest> codeConfig =
+                new UniqueFieldConfig<>("job_title_code", JobTitleRequest::getJobTitleCode);
+        UniqueFieldConfig<JobTitleRequest> nameConfig =
+                new UniqueFieldConfig<>("name", JobTitleRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<JobTitle>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", jobTitleRepository::findBySourceIdIn);
+        entityFetchers.put("job_title_code", jobTitleRepository::findByJobTitleCodeIn);
+        entityFetchers.put("name", jobTitleRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<JobTitle, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", JobTitle::getSourceId);
+        entityFieldExtractors.put("job_title_code", JobTitle::getJobTitleCode);
+        entityFieldExtractors.put("name", JobTitle::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<JobTitleRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<JobTitleRequest, JobTitle, JobTitleResponse> config =
+                BulkUpsertConfig.<JobTitleRequest, JobTitle, JobTitleResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(jobTitleMapper::toJobTitleResponse)
+                        .requestToEntityMapper(jobTitleMapper::toJobTitle)
+                        .entityUpdater(jobTitleMapper::updateJobTitle)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(jobTitleRepository::saveAll)
+                        .repositorySaveAndFlusher(jobTitleRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<JobTitleRequest, JobTitle, JobTitleResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private JobTitle findExistingEntityForUpsert(JobTitleRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<JobTitle> bySourceId = jobTitleRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteJobTitles(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<JobTitle> config = BulkDeleteConfig.<JobTitle>builder()
+                .entityFinder(id -> jobTitleRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(jobTitleRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<JobTitle> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<JobTitleResponse> getJobTitles(Pageable pageable) {
         Page<JobTitle> page = jobTitleRepository.findAll(pageable);
         return page.getContent()

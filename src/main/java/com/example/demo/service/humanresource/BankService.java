@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Bank.BankRequest;
 import com.example.demo.dto.humanresource.Bank.BankResponse;
 import com.example.demo.entity.humanresource.Bank;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.BankMapper;
 import com.example.demo.repository.humanresource.BankRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -17,9 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,7 @@ public class BankService {
     final BankRepository bankRepository;
     final BankMapper bankMapper;
     final EmployeeRepository employeeRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.bank}")
     private String entityName;
@@ -45,64 +47,98 @@ public class BankService {
         return bankMapper.toBankResponse(bankRepository.save(bank));
     }
 
-//    /**
-//     * Xử lý Bulk Upsert
-//     */
-//    @Transactional
-//    public List<BankResponse> bulkUpsertBanks(List<BankRequest> requests) {
-//
-//        // Lấy tất cả bankCodes từ request
-//        List<String> bankCodes = requests.stream()
-//                .map(BankRequest::getBankCode)
-//                .toList();
-//
-//        // Tìm tất cả các bank đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, Bank> existingBanksMap = bankRepository.findByBankCodeIn(bankCodes).stream()
-//                .collect(Collectors.toMap(Bank::getBankCode, bank -> bank));
-//
-//        List<Bank> banksToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (BankRequest request : requests) {
-//            Bank bank = existingBanksMap.get(request.getBankCode());
-//
-//            if (bank != null) {
-//                // --- Logic UPDATE ---
-//                // Bank đã tồn tại -> Cập nhật
-//                bankMapper.updateBank(bank, request);
-//                banksToSave.add(bank);
-//            } else {
-//                // --- Logic INSERT ---
-//                // Bank chưa tồn tại -> Tạo mới
-//                Bank newBank = bankMapper.toBank(request);
-//                banksToSave.add(newBank);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<Bank> savedBanks = bankRepository.saveAll(banksToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedBanks.stream()
-//                .map(bankMapper::toBankResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteBanks(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = bankRepository.countByBankIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        bankRepository.deleteAllById(ids);
-//    }
+    /**
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
+     */
+    public BulkOperationResult<BankResponse> bulkUpsertBanks(
+            List<BankRequest> requests) {
+
+        // 1. Define unique field configurations (Bank has 2 unique fields)
+        UniqueFieldConfig<BankRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", BankRequest::getSourceId);
+        UniqueFieldConfig<BankRequest> codeConfig =
+                new UniqueFieldConfig<>("bank_code", BankRequest::getBankCode);
+        UniqueFieldConfig<BankRequest> nameConfig =
+                new UniqueFieldConfig<>("name", BankRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<Bank>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", bankRepository::findBySourceIdIn);
+        entityFetchers.put("bank_code", bankRepository::findByBankCodeIn);
+        entityFetchers.put("name", bankRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<Bank, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", Bank::getSourceId);
+        entityFieldExtractors.put("bank_code", Bank::getBankCode);
+        entityFieldExtractors.put("name", Bank::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<BankRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<BankRequest, Bank, BankResponse> config =
+                BulkUpsertConfig.<BankRequest, Bank, BankResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(bankMapper::toBankResponse)
+                        .requestToEntityMapper(bankMapper::toBank)
+                        .entityUpdater(bankMapper::updateBank)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(bankRepository::saveAll)
+                        .repositorySaveAndFlusher(bankRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<BankRequest, Bank, BankResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private Bank findExistingEntityForUpsert(BankRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<Bank> bySourceId = bankRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteBanks(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<Bank> config = BulkDeleteConfig.<Bank>builder()
+                .entityFinder(id -> bankRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(bankRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<Bank> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
 
 
     public List<BankResponse> getBanks(Pageable pageable) {

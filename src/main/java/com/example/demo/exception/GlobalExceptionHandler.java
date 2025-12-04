@@ -4,9 +4,12 @@ import com.example.demo.dto.ApiResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -43,6 +46,19 @@ public class GlobalExceptionHandler {
                         e.getMessage(),
                         null
                 ));
+    }
+
+    // Handle validation errors for @Valid on request bodies (MethodArgumentNotValidException)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ResponseEntity<ApiResponse<Object>> handleValidationException(MethodArgumentNotValidException e) {
+        List<String> fieldErrors = e.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .toList();
+
+        String msg = "Validation failure";
+        return ResponseEntity
+                .badRequest()
+                .body(new ApiResponse<>(400, msg, fieldErrors));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

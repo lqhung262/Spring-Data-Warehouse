@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.OtType.OtTypeRequest;
 import com.example.demo.dto.humanresource.OtType.OtTypeResponse;
 import com.example.demo.service.humanresource.OtTypeService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/ot-types")
@@ -35,26 +38,47 @@ public class OtTypeController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<OtTypeResponse>> bulkUpsertOtTypes(
-//            @Valid @RequestBody List<OtTypeRequest> requests) {
-//        return ApiResponse.<List<OtTypeResponse>>builder()
-//                .result(otTypeService.bulkUpsertOtTypes(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteOtTypes(@RequestParam("ids") List<Long> ids) {
-//        otTypeService.bulkDeleteOtTypes(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " OT types have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<OtTypeResponse>> bulkUpsertOtTypes(
+            @Valid @RequestBody List<OtTypeRequest> requests) {
+
+        BulkOperationResult<OtTypeResponse> result =
+                otTypeService.bulkUpsertOtTypes(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<OtTypeResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteOtTypes(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = otTypeService.bulkDeleteOtTypes(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<OtTypeResponse>> getOtTypes(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                  @RequestParam(required = false, defaultValue = "5") int pageSize,

@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.BloodGroup.BloodGroupRequest;
 import com.example.demo.dto.humanresource.BloodGroup.BloodGroupResponse;
 import com.example.demo.entity.humanresource.BloodGroup;
@@ -9,7 +10,8 @@ import com.example.demo.mapper.humanresource.BloodGroupMapper;
 import com.example.demo.repository.humanresource.BloodGroupRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 import com.example.demo.exception.CannotDeleteException;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class BloodGroupService {
     final BloodGroupRepository bloodGroupRepository;
     final BloodGroupMapper bloodGroupMapper;
     final EmployeeRepository employeeRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.bloodgroup}")
     private String entityName;
@@ -46,64 +48,98 @@ public class BloodGroupService {
         return bloodGroupMapper.toBloodGroupResponse(bloodGroupRepository.save(bloodGroup));
     }
 
-//    /**
-//     * Xử lý Bulk Upsert
-//     */
-//    @Transactional
-//    public List<BloodGroupResponse> bulkUpsertBloodGroups(List<BloodGroupRequest> requests) {
-//
-//        // Lấy tất cả bloodGroupCodes từ request
-//        List<String> bloodGroupCodes = requests.stream()
-//                .map(BloodGroupRequest::getBloodGroupCode)
-//                .toList();
-//
-//        // Tìm tất cả các bloodGroup đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, BloodGroup> existingBloodGroupsMap = bloodGroupRepository.findByBloodGroupCodeIn(bloodGroupCodes).stream()
-//                .collect(Collectors.toMap(BloodGroup::getBloodGroupCode, bloodGroup -> bloodGroup));
-//
-//        List<BloodGroup> bloodGroupsToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (BloodGroupRequest request : requests) {
-//            BloodGroup bloodGroup = existingBloodGroupsMap.get(request.getBloodGroupCode());
-//
-//            if (bloodGroup != null) {
-//                // --- Logic UPDATE ---
-//                // BloodGroup đã tồn tại -> Cập nhật
-//                bloodGroupMapper.updateBloodGroup(bloodGroup, request);
-//                bloodGroupsToSave.add(bloodGroup);
-//            } else {
-//                // --- Logic INSERT ---
-//                // BloodGroup chưa tồn tại -> Tạo mới
-//                BloodGroup newBloodGroup = bloodGroupMapper.toBloodGroup(request);
-//                bloodGroupsToSave.add(newBloodGroup);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<BloodGroup> savedBloodGroups = bloodGroupRepository.saveAll(bloodGroupsToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedBloodGroups.stream()
-//                .map(bloodGroupMapper::toBloodGroupResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteBloodGroups(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = bloodGroupRepository.countByBloodGroupIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        bloodGroupRepository.deleteAllById(ids);
-//    }
+    /**
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
+     */
+    public BulkOperationResult<BloodGroupResponse> bulkUpsertBloodGroups(
+            List<BloodGroupRequest> requests) {
+
+        // 1. Define unique field configurations (BloodGroup has 2 unique fields)
+        UniqueFieldConfig<BloodGroupRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", BloodGroupRequest::getSourceId);
+        UniqueFieldConfig<BloodGroupRequest> codeConfig =
+                new UniqueFieldConfig<>("blood_group_code", BloodGroupRequest::getBloodGroupCode);
+        UniqueFieldConfig<BloodGroupRequest> nameConfig =
+                new UniqueFieldConfig<>("name", BloodGroupRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<BloodGroup>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", bloodGroupRepository::findBySourceIdIn);
+        entityFetchers.put("blood_group_code", bloodGroupRepository::findByBloodGroupCodeIn);
+        entityFetchers.put("name", bloodGroupRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<BloodGroup, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", BloodGroup::getSourceId);
+        entityFieldExtractors.put("blood_group_code", BloodGroup::getBloodGroupCode);
+        entityFieldExtractors.put("name", BloodGroup::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<BloodGroupRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<BloodGroupRequest, BloodGroup, BloodGroupResponse> config =
+                BulkUpsertConfig.<BloodGroupRequest, BloodGroup, BloodGroupResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(bloodGroupMapper::toBloodGroupResponse)
+                        .requestToEntityMapper(bloodGroupMapper::toBloodGroup)
+                        .entityUpdater(bloodGroupMapper::updateBloodGroup)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(bloodGroupRepository::saveAll)
+                        .repositorySaveAndFlusher(bloodGroupRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<BloodGroupRequest, BloodGroup, BloodGroupResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private BloodGroup findExistingEntityForUpsert(BloodGroupRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<BloodGroup> bySourceId = bloodGroupRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteBloodGroups(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<BloodGroup> config = BulkDeleteConfig.<BloodGroup>builder()
+                .entityFinder(id -> bloodGroupRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(bloodGroupRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<BloodGroup> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
 
     public List<BloodGroupResponse> getBloodGroups(Pageable pageable) {
         Page<BloodGroup> page = bloodGroupRepository.findAll(pageable);

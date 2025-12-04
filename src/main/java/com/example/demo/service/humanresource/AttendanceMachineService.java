@@ -9,13 +9,8 @@ import com.example.demo.mapper.humanresource.AttendanceMachineMapper;
 import com.example.demo.repository.humanresource.AttendanceMachineRepository;
 import com.example.demo.repository.humanresource.EmployeeAttendanceMachineRepository;
 import com.example.demo.exception.CannotDeleteException;
-import com.example.demo.util.BulkOperationUtils;
-import com.example.demo.util.bulk.BulkDeleteConfig;
-import com.example.demo.util.bulk.BulkDeleteProcessor;
-import com.example.demo.util.bulk.BulkUpsertConfig;
-import com.example.demo.util.bulk.BulkUpsertProcessor;
+import com.example.demo.util.bulk.*;
 import com.example.demo.dto.BulkOperationResult;
-import jakarta.transaction.Transactional;
 import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -57,108 +51,101 @@ public class AttendanceMachineService {
     }
 
 
-//    /**
-//     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
-//     * - Safe Batch: saveAll() - requests không có unique conflicts
-//     * - Final Batch: save + flush từng request - requests có potential conflicts
-//     * - Trả về detailed result với success/failure breakdown
-//     */
-//    public BulkOperationResult<AttendanceMachineResponse> bulkUpsertProvinceCities(
-//            List<AttendanceMachineRequest> requests) {
-//
-//        // 1. Setup unique field extractors
-//        Map<String, Function<AttendanceMachineRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
-//        uniqueFieldExtractors.put("attendance_machine_code", AttendanceMachineRequest::getAttendanceMachineCode);
-//        uniqueFieldExtractors.put("source_id", AttendanceMachineRequest::getSourceId);
-//        uniqueFieldExtractors.put("name", AttendanceMachineRequest::getName);
-//
-//        // 2. Lấy all value từ requests cho mỗi unique field
-//        Set<String> allCodes = BulkOperationUtils.extractUniqueValues(
-//                requests, AttendanceMachineRequest::getAttendanceMachineCode);
-//        Set<String> allSourceIds = BulkOperationUtils.extractUniqueValues(
-//                requests, AttendanceMachineRequest::getSourceId);
-//        Set<String> allNames = BulkOperationUtils.extractUniqueValues(
-//                requests, AttendanceMachineRequest::getName);
-//
-//        // Lấy existing values từ DB cho mỗi unique field
-//        Map<String, Set<String>> existingValuesMaps = new HashMap<>();
-//        existingValuesMaps.put("attendance_machine_code",
-//                attendanceMachineRepository.findByAttendanceMachineCode(allCodes)
-//                        .stream()
-//                        .map(AttendanceMachine::getAttendanceMachineCode)
-//                        .collect(Collectors.toSet()));
-//        existingValuesMaps.put("source_id",
-//                attendanceMachineRepository.findBySourceIdIn(allSourceIds)
-//                        .stream()
-//                        .map(AttendanceMachine::getSourceId)
-//                        .collect(Collectors.toSet()));
-//        existingValuesMaps.put("name",
-//                attendanceMachineRepository.findByNameIn(allNames)
-//                        .stream()
-//                        .map(AttendanceMachine::getName)
-//                        .collect(Collectors.toSet()));
-//
-//        // 3. Build config
-//        BulkUpsertConfig<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse> config =
-//                BulkUpsertConfig.<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse>builder()
-//                        .uniqueFieldExtractors(uniqueFieldExtractors)
-//                        .existingValuesMaps(existingValuesMaps)
-//                        .entityToResponseMapper(attendanceMachineMapper::toAttendanceMachineResponse)
-//                        .requestToEntityMapper(attendanceMachineMapper::toAttendanceMachine)
-//                        .entityUpdater(attendanceMachineMapper::updateAttendanceMachine)
-//                        .existingEntityFinder(this::findExistingEntityForUpsert)
-//                        // Method reference matches RepositorySaveAll interface
-//                        .repositorySaver(attendanceMachineRepository::saveAll)
-//                        // Method reference matches RepositorySave interface
-//                        .repositorySaveAndFlusher(attendanceMachineRepository::saveAndFlush)
-//                        .entityManagerClearer(entityManager::clear)
-//                        .build();
-//
-//        // 4. Execute
-//        BulkUpsertProcessor<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse> processor =
-//                new BulkUpsertProcessor<>(config);
-//
-//        return processor.execute(requests);
-//    }
-//
-//    /**
-//     * Helper: Find existing entity
-//     */
-//    private AttendanceMachine findExistingEntityForUpsert(AttendanceMachineRequest request) {
-//        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
-//            Optional<AttendanceMachine> bySourceId = attendanceMachineRepository.findBySourceId(request.getSourceId());
-//            if (bySourceId.isPresent()) {
-//                return bySourceId.get();
-//            }
-//        }
-//
-//        if (request.getName() != null && !request.getName().trim().isEmpty()) {
-//            Optional<AttendanceMachine> byName = attendanceMachineRepository.findByName(request.getName());
-//            if (byName.isPresent()) {
-//                return byName.get();
-//            }
-//        }
-//
-//        return null;
-//    }
-//
-//    // ========================= BULK DELETE  ========================
-//
-//    public BulkOperationResult<Long> bulkDeleteProvinceCities(List<Long> ids) {
-//
-//        // Build config
-//        BulkDeleteConfig<AttendanceMachine> config = BulkDeleteConfig.<AttendanceMachine>builder()
-//                .entityFinder(id -> attendanceMachineRepository.findById(id).orElse(null))
-//                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
-//                .repositoryDeleter(attendanceMachineRepository::deleteById)
-//                .entityName(entityName)
-//                .build();
-//
-//        // Execute với processor
-//        BulkDeleteProcessor<AttendanceMachine> processor = new BulkDeleteProcessor<>(config);
-//
-//        return processor.execute(ids);
-//    }
+    /**
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
+     */
+    public BulkOperationResult<AttendanceMachineResponse> bulkUpsertAttendanceMachines(
+            List<AttendanceMachineRequest> requests) {
+
+        // 1. Define unique field configurations (AttendanceMachine has 2 unique fields)
+        UniqueFieldConfig<AttendanceMachineRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", AttendanceMachineRequest::getSourceId);
+        UniqueFieldConfig<AttendanceMachineRequest> codeConfig =
+                new UniqueFieldConfig<>("attendance_machine_code", AttendanceMachineRequest::getAttendanceMachineCode);
+        UniqueFieldConfig<AttendanceMachineRequest> nameConfig =
+                new UniqueFieldConfig<>("name", AttendanceMachineRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<AttendanceMachine>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", attendanceMachineRepository::findBySourceIdIn);
+        entityFetchers.put("attendance_machine_code", attendanceMachineRepository::findByAttendanceMachineCodeIn);
+        entityFetchers.put("name", attendanceMachineRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors (to extract values from returned entities)
+        Map<String, Function<AttendanceMachine, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", AttendanceMachine::getSourceId);
+        entityFieldExtractors.put("attendance_machine_code", AttendanceMachine::getAttendanceMachineCode);
+        entityFieldExtractors.put("name", AttendanceMachine::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<AttendanceMachineRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse> config =
+                BulkUpsertConfig.<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(attendanceMachineMapper::toAttendanceMachineResponse)
+                        .requestToEntityMapper(attendanceMachineMapper::toAttendanceMachine)
+                        .entityUpdater(attendanceMachineMapper::updateAttendanceMachine)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(attendanceMachineRepository::saveAll)
+                        .repositorySaveAndFlusher(attendanceMachineRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<AttendanceMachineRequest, AttendanceMachine, AttendanceMachineResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity for upsert
+     * STRICT LOGIC: Only match by sourceId (primary identifier)
+     */
+    private AttendanceMachine findExistingEntityForUpsert(AttendanceMachineRequest request) {
+        // ONLY match by sourceId (canonical identifier)
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<AttendanceMachine> bySourceId = attendanceMachineRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        // Do NOT fallback to code or name matching
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteAttendanceMachines(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<AttendanceMachine> config = BulkDeleteConfig.<AttendanceMachine>builder()
+                .entityFinder(id -> attendanceMachineRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(attendanceMachineRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<AttendanceMachine> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
 
     public List<AttendanceMachineResponse> getAttendanceMachines(Pageable pageable) {
         Page<AttendanceMachine> page = attendanceMachineRepository.findAll(pageable);

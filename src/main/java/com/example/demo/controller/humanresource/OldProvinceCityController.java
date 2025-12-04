@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.OldProvinceCity.OldProvinceCityRequest;
 import com.example.demo.dto.humanresource.OldProvinceCity.OldProvinceCityResponse;
 import com.example.demo.service.humanresource.OldProvinceCityService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/old-province-cities")
@@ -35,26 +38,47 @@ public class OldProvinceCityController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<OldProvinceCityResponse>> bulkUpsertOldProvinceCities(
-//            @Valid @RequestBody List<OldProvinceCityRequest> requests) {
-//        return ApiResponse.<List<OldProvinceCityResponse>>builder()
-//                .result(oldProvinceCityService.bulkUpsertOldProvinceCities(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteOldProvinceCities(@RequestParam("ids") List<Long> ids) {
-//        oldProvinceCityService.bulkDeleteOldProvinceCities(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " old province cities have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<OldProvinceCityResponse>> bulkUpsertOldProvinceCities(
+            @Valid @RequestBody List<OldProvinceCityRequest> requests) {
+
+        BulkOperationResult<OldProvinceCityResponse> result =
+                oldProvinceCityService.bulkUpsertOldProvinceCities(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<OldProvinceCityResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteOldProvinceCities(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = oldProvinceCityService.bulkDeleteOldProvinceCities(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<OldProvinceCityResponse>> getOldProvinceCities(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                                     @RequestParam(required = false, defaultValue = "5") int pageSize,

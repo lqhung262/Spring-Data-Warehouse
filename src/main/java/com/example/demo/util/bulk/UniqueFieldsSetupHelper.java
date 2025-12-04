@@ -22,20 +22,20 @@ public class UniqueFieldsSetupHelper {
     /**
      * Build complete unique fields configuration from field configs
      *
-     * @param requests             List of requests
-     * @param fieldConfigs         Varargs of UniqueFieldConfig
-     * @param entityFetchers       Map of (fieldName -> fetcher function)
-     * @param entityValueExtractor Function to extract value from entity (for any unique field)
+     * @param requests              List of requests
+     * @param entityFetchers        Map of (fieldName -> fetcher function)
+     * @param entityFieldExtractors Map of (fieldName -> entity value extractor function)
+     * @param fieldConfigs          Varargs of UniqueFieldConfig
      * @return UniqueFieldsSetup with extractors and existing values maps
      */
     @SafeVarargs
     public static <TRequest, TEntity> UniqueFieldsSetup<TRequest> buildUniqueFieldsSetup(
             List<TRequest> requests,
             Map<String, Function<Set<String>, List<TEntity>>> entityFetchers,
-            Function<TEntity, String> entityValueExtractor,
+            Map<String, Function<TEntity, String>> entityFieldExtractors,
             UniqueFieldConfig<TRequest>... fieldConfigs) {
 
-        // 1. Build extractors map
+        // 1. Build extractors map (for requests)
         Map<String, Function<TRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
         for (UniqueFieldConfig<TRequest> config : fieldConfigs) {
             uniqueFieldExtractors.put(config.getFieldName(), config.getValueExtractor());
@@ -56,12 +56,12 @@ public class UniqueFieldsSetupHelper {
             String fieldName = config.getFieldName();
             Set<String> requestValues = requestValuesMaps.get(fieldName);
 
-            // Extract existing values or use empty set
+            // Extract existing values with proper field extractor
             Set<String> existingValues = extractExistingValues(
                     fieldName,
                     requestValues,
                     entityFetchers,
-                    entityValueExtractor
+                    entityFieldExtractors
             );
 
             existingValuesMaps.put(fieldName, existingValues);
@@ -72,13 +72,25 @@ public class UniqueFieldsSetupHelper {
 
     /**
      * EXTRACTED METHOD: Extract existing values for a single field
-     * Hàm tìm các giá trị đã tồn tại trong cơ sở dữ liệu cho một trường duy nhất
+     * <p>
+     * PROPER LOGIC:
+     * 1. Fetch entities from DB using the fetcher (e.g., findByCodeIn(["MS2", "MS3"]))
+     * 2. Extract the field values from returned entities using the correct extractor
+     * 3. Return the Set of values that actually exist in DB
+     * <p>
+     * Example:
+     * - fieldName = "marital_status_code"
+     * - requestValues = {"MS2", "MS3"}
+     * - fetcher = findByMaritalStatusCodeIn({"MS2", "MS3"}) returns [entity with code="MS2"]
+     * - entityFieldExtractor = MaritalStatus::getMaritalStatusCode
+     * - Extract "MS2" from entity
+     * - Return {"MS2"} (only MS2 exists, MS3 doesn't)
      */
     private static <TEntity> Set<String> extractExistingValues(
             String fieldName,
             Set<String> requestValues,
             Map<String, Function<Set<String>, List<TEntity>>> entityFetchers,
-            Function<TEntity, String> entityValueExtractor) {
+            Map<String, Function<TEntity, String>> entityFieldExtractors) {
 
         // Case 1: No request values
         if (requestValues.isEmpty()) {
@@ -92,11 +104,31 @@ public class UniqueFieldsSetupHelper {
             return Collections.emptySet();
         }
 
-        // Case 3: Fetch and extract values
+        // Case 3: No entity field extractor
+        Function<TEntity, String> entityExtractor = entityFieldExtractors.get(fieldName);
+        if (entityExtractor == null) {
+            log.warn("No entity field extractor found for field: {}", fieldName);
+            return Collections.emptySet();
+        }
+
+        // Case 4: Fetch entities and extract field values
         List<TEntity> existingEntities = fetcher.apply(requestValues);
-        return existingEntities.stream()
-                .map(entityValueExtractor)
+
+        if (existingEntities.isEmpty()) {
+            log.debug("No existing entities found for field '{}'", fieldName);
+            return Collections.emptySet();
+        }
+
+        // Extract the actual field values from entities
+        Set<String> existingValues = existingEntities.stream()
+                .map(entityExtractor)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+
+        log.debug("Found {} existing values for field '{}': {}",
+                existingValues.size(), fieldName, existingValues);
+
+        return existingValues;
     }
 
     /**

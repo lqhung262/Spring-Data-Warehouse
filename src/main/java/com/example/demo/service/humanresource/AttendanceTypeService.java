@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.AttendanceType.AttendanceTypeRequest;
 import com.example.demo.dto.humanresource.AttendanceType.AttendanceTypeResponse;
 import com.example.demo.entity.humanresource.AttendanceType;
@@ -9,7 +10,8 @@ import com.example.demo.mapper.humanresource.AttendanceTypeMapper;
 import com.example.demo.repository.humanresource.AttendanceTypeRepository;
 import com.example.demo.repository.humanresource.EmployeeWorkShiftRepository;
 import com.example.demo.exception.CannotDeleteException;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class AttendanceTypeService {
     final AttendanceTypeRepository attendanceTypeRepository;
     final AttendanceTypeMapper attendanceTypeMapper;
     final EmployeeWorkShiftRepository employeeWorkShiftRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.attendancetype}")
     private String entityName;
@@ -46,64 +48,98 @@ public class AttendanceTypeService {
         return attendanceTypeMapper.toAttendanceTypeResponse(attendanceTypeRepository.save(attendanceType));
     }
 
-//    /**
-//     * Xử lý Bulk Upsert
-//     */
-//    @Transactional
-//    public List<AttendanceTypeResponse> bulkUpsertAttendanceTypes(List<AttendanceTypeRequest> requests) {
-//
-//        // Lấy tất cả attendanceTypeCodes từ request
-//        List<String> attendanceTypeCodes = requests.stream()
-//                .map(AttendanceTypeRequest::getAttendanceTypeCode)
-//                .toList();
-//
-//        // Tìm tất cả các attendanceType đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, AttendanceType> existingAttendanceTypesMap = attendanceTypeRepository.findByAttendanceTypeCodeIn(attendanceTypeCodes).stream()
-//                .collect(Collectors.toMap(AttendanceType::getAttendanceTypeCode, attendanceType -> attendanceType));
-//
-//        List<AttendanceType> attendanceTypesToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (AttendanceTypeRequest request : requests) {
-//            AttendanceType attendanceType = existingAttendanceTypesMap.get(request.getAttendanceTypeCode());
-//
-//            if (attendanceType != null) {
-//                // --- Logic UPDATE ---
-//                // AttendanceType đã tồn tại -> Cập nhật
-//                attendanceTypeMapper.updateAttendanceType(attendanceType, request);
-//                attendanceTypesToSave.add(attendanceType);
-//            } else {
-//                // --- Logic INSERT ---
-//                // AttendanceType chưa tồn tại -> Tạo mới
-//                AttendanceType newAttendanceType = attendanceTypeMapper.toAttendanceType(request);
-//                attendanceTypesToSave.add(newAttendanceType);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<AttendanceType> savedAttendanceTypes = attendanceTypeRepository.saveAll(attendanceTypesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedAttendanceTypes.stream()
-//                .map(attendanceTypeMapper::toAttendanceTypeResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteAttendanceTypes(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = attendanceTypeRepository.countByAttendanceTypeIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        attendanceTypeRepository.deleteAllById(ids);
-//    }
+    /**
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
+     */
+    public BulkOperationResult<AttendanceTypeResponse> bulkUpsertAttendanceTypes(
+            List<AttendanceTypeRequest> requests) {
+
+        // 1. Define unique field configurations (AttendanceType has 2 unique fields)
+        UniqueFieldConfig<AttendanceTypeRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", AttendanceTypeRequest::getSourceId);
+        UniqueFieldConfig<AttendanceTypeRequest> codeConfig =
+                new UniqueFieldConfig<>("attendance_type_code", AttendanceTypeRequest::getAttendanceTypeCode);
+        UniqueFieldConfig<AttendanceTypeRequest> nameConfig =
+                new UniqueFieldConfig<>("name", AttendanceTypeRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<AttendanceType>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", attendanceTypeRepository::findBySourceIdIn);
+        entityFetchers.put("attendance_type_code", attendanceTypeRepository::findByAttendanceTypeCodeIn);
+        entityFetchers.put("name", attendanceTypeRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<AttendanceType, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", AttendanceType::getSourceId);
+        entityFieldExtractors.put("attendance_type_code", AttendanceType::getAttendanceTypeCode);
+        entityFieldExtractors.put("name", AttendanceType::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<AttendanceTypeRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<AttendanceTypeRequest, AttendanceType, AttendanceTypeResponse> config =
+                BulkUpsertConfig.<AttendanceTypeRequest, AttendanceType, AttendanceTypeResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(attendanceTypeMapper::toAttendanceTypeResponse)
+                        .requestToEntityMapper(attendanceTypeMapper::toAttendanceType)
+                        .entityUpdater(attendanceTypeMapper::updateAttendanceType)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(attendanceTypeRepository::saveAll)
+                        .repositorySaveAndFlusher(attendanceTypeRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<AttendanceTypeRequest, AttendanceType, AttendanceTypeResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private AttendanceType findExistingEntityForUpsert(AttendanceTypeRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<AttendanceType> bySourceId = attendanceTypeRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteAttendanceTypes(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<AttendanceType> config = BulkDeleteConfig.<AttendanceType>builder()
+                .entityFinder(id -> attendanceTypeRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkReferenceBeforeDelete)
+                .repositoryDeleter(attendanceTypeRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<AttendanceType> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
 
 
     public List<AttendanceTypeResponse> getAttendanceTypes(Pageable pageable) {

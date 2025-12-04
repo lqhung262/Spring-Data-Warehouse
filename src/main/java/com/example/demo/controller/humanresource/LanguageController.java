@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Language.LanguageRequest;
 import com.example.demo.dto.humanresource.Language.LanguageResponse;
 import com.example.demo.service.humanresource.LanguageService;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
+import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
 @RequestMapping("/languages")
@@ -35,26 +38,47 @@ public class LanguageController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<LanguageResponse>> bulkUpsertLanguages(
-//            @Valid @RequestBody List<LanguageRequest> requests) {
-//        return ApiResponse.<List<LanguageResponse>>builder()
-//                .result(languageService.bulkUpsertLanguages(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteLanguages(@RequestParam("ids") List<Long> ids) {
-//        languageService.bulkDeleteLanguages(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " languages have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<LanguageResponse>> bulkUpsertLanguages(
+            @Valid @RequestBody List<LanguageRequest> requests) {
+
+        BulkOperationResult<LanguageResponse> result =
+                languageService.bulkUpsertLanguages(requests);
+
+        // Determine response code based on result
+        int responseCode;
+        if (!result.hasErrors()) {
+            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
+            responseCode = 1000;
+        } else if (result.hasSuccess()) {
+            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
+            responseCode = 207;
+        } else {
+            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
+            responseCode = 400;
+        }
+
+        return ApiResponse.<BulkOperationResult<LanguageResponse>>builder()
+                .code(responseCode)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteLanguages(@RequestParam("ids") List<Long> ids) {
+
+        BulkOperationResult<Long> result = languageService.bulkDeleteLanguages(ids);
+
+        // Determine response code
+        return getBulkOperationResultApiResponse(result);
+    }
+
     @GetMapping()
     ApiResponse<List<LanguageResponse>> getLanguages(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                      @RequestParam(required = false, defaultValue = "5") int pageSize,

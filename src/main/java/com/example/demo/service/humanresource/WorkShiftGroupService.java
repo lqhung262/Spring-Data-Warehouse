@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.WorkShiftGroup.WorkShiftGroupRequest;
 import com.example.demo.dto.humanresource.WorkShiftGroup.WorkShiftGroupResponse;
 import com.example.demo.entity.humanresource.WorkShiftGroup;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.WorkShiftGroupMapper;
 import com.example.demo.repository.humanresource.WorkShiftGroupRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.EmployeeWorkShiftRepository;
 import com.example.demo.exception.CannotDeleteException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class WorkShiftGroupService {
     final WorkShiftGroupRepository workShiftGroupRepository;
     final WorkShiftGroupMapper workShiftGroupMapper;
     final EmployeeWorkShiftRepository employeeWorkShiftRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.workshiftgroup}")
     private String entityName;
@@ -47,63 +49,101 @@ public class WorkShiftGroupService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<WorkShiftGroupResponse> bulkUpsertWorkShiftGroups(List<WorkShiftGroupRequest> requests) {
-//
-//        // Lấy tất cả workShiftGroupCodes từ request
-//        List<String> workShiftGroupCodes = requests.stream()
-//                .map(WorkShiftGroupRequest::getWorkShiftGroupCode)
-//                .toList();
-//
-//        // Tìm tất cả các workShiftGroup đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, WorkShiftGroup> existingWorkShiftGroupsMap = workShiftGroupRepository.findByWorkShiftGroupCodeIn(workShiftGroupCodes).stream()
-//                .collect(Collectors.toMap(WorkShiftGroup::getWorkShiftGroupCode, workShiftGroup -> workShiftGroup));
-//
-//        List<WorkShiftGroup> workShiftGroupsToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (WorkShiftGroupRequest request : requests) {
-//            WorkShiftGroup workShiftGroup = existingWorkShiftGroupsMap.get(request.getWorkShiftGroupCode());
-//
-//            if (workShiftGroup != null) {
-//                // --- Logic UPDATE ---
-//                // WorkShiftGroup đã tồn tại -> Cập nhật
-//                workShiftGroupMapper.updateWorkShiftGroup(workShiftGroup, request);
-//                workShiftGroupsToSave.add(workShiftGroup);
-//            } else {
-//                // --- Logic INSERT ---
-//                // WorkShiftGroup chưa tồn tại -> Tạo mới
-//                WorkShiftGroup newWorkShiftGroup = workShiftGroupMapper.toWorkShiftGroup(request);
-//                workShiftGroupsToSave.add(newWorkShiftGroup);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<WorkShiftGroup> savedWorkShiftGroups = workShiftGroupRepository.saveAll(workShiftGroupsToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedWorkShiftGroups.stream()
-//                .map(workShiftGroupMapper::toWorkShiftGroupResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteWorkShiftGroups(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = workShiftGroupRepository.countByWorkShiftGroupIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        workShiftGroupRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<WorkShiftGroupResponse> bulkUpsertWorkShiftGroups(
+            List<WorkShiftGroupRequest> requests) {
+
+        // 1. Define unique field configurations (WorkShiftGroup has 2 unique fields)
+        UniqueFieldConfig<WorkShiftGroupRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", WorkShiftGroupRequest::getSourceId);
+        UniqueFieldConfig<WorkShiftGroupRequest> codeConfig =
+                new UniqueFieldConfig<>("work_shift_group_code", WorkShiftGroupRequest::getWorkShiftGroupCode);
+        UniqueFieldConfig<WorkShiftGroupRequest> nameConfig =
+                new UniqueFieldConfig<>("name", WorkShiftGroupRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<WorkShiftGroup>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", workShiftGroupRepository::findBySourceIdIn);
+        entityFetchers.put("work_shift_group_code", workShiftGroupRepository::findByWorkShiftGroupCodeIn);
+        entityFetchers.put("name", workShiftGroupRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors (to extract values from returned entities)
+        Map<String, Function<WorkShiftGroup, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", WorkShiftGroup::getSourceId);
+        entityFieldExtractors.put("work_shift_group_code", WorkShiftGroup::getWorkShiftGroupCode);
+        entityFieldExtractors.put("name", WorkShiftGroup::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<WorkShiftGroupRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<WorkShiftGroupRequest, WorkShiftGroup, WorkShiftGroupResponse> config =
+                BulkUpsertConfig.<WorkShiftGroupRequest, WorkShiftGroup, WorkShiftGroupResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(workShiftGroupMapper::toWorkShiftGroupResponse)
+                        .requestToEntityMapper(workShiftGroupMapper::toWorkShiftGroup)
+                        .entityUpdater(workShiftGroupMapper::updateWorkShiftGroup)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(workShiftGroupRepository::saveAll)
+                        .repositorySaveAndFlusher(workShiftGroupRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<WorkShiftGroupRequest, WorkShiftGroup, WorkShiftGroupResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity for upsert
+     * STRICT LOGIC: Only match by sourceId (primary identifier)
+     */
+    private WorkShiftGroup findExistingEntityForUpsert(WorkShiftGroupRequest request) {
+        // ONLY match by sourceId (canonical identifier)
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<WorkShiftGroup> bySourceId = workShiftGroupRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        // Do NOT fallback to code or name matching
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteWorkShiftGroups(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<WorkShiftGroup> config = BulkDeleteConfig.<WorkShiftGroup>builder()
+                .entityFinder(id -> workShiftGroupRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(workShiftGroupRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<WorkShiftGroup> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<WorkShiftGroupResponse> getWorkShiftGroups(Pageable pageable) {
         Page<WorkShiftGroup> page = workShiftGroupRepository.findAll(pageable);
         return page.getContent()

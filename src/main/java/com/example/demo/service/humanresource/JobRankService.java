@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.JobRank.JobRankRequest;
 import com.example.demo.dto.humanresource.JobRank.JobRankResponse;
 import com.example.demo.entity.humanresource.JobRank;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.JobRankMapper;
 import com.example.demo.repository.humanresource.JobRankRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.EmployeeDecisionRepository;
 import com.example.demo.exception.CannotDeleteException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class JobRankService {
     final JobRankRepository jobRankRepository;
     final JobRankMapper jobRankMapper;
     final EmployeeDecisionRepository employeeDecisionRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.jobrank}")
     private String entityName;
@@ -47,63 +49,99 @@ public class JobRankService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<JobRankResponse> bulkUpsertJobRanks(List<JobRankRequest> requests) {
-//
-//        // Lấy tất cả jobRankCodes từ request
-//        List<String> jobRankCodes = requests.stream()
-//                .map(JobRankRequest::getJobRankCode)
-//                .toList();
-//
-//        // Tìm tất cả các jobRank đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, JobRank> existingJobRanksMap = jobRankRepository.findByJobRankCodeIn(jobRankCodes).stream()
-//                .collect(Collectors.toMap(JobRank::getJobRankCode, jobRank -> jobRank));
-//
-//        List<JobRank> jobRanksToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (JobRankRequest request : requests) {
-//            JobRank jobRank = existingJobRanksMap.get(request.getJobRankCode());
-//
-//            if (jobRank != null) {
-//                // --- Logic UPDATE ---
-//                // JobRank đã tồn tại -> Cập nhật
-//                jobRankMapper.updateJobRank(jobRank, request);
-//                jobRanksToSave.add(jobRank);
-//            } else {
-//                // --- Logic INSERT ---
-//                // JobRank chưa tồn tại -> Tạo mới
-//                JobRank newJobRank = jobRankMapper.toJobRank(request);
-//                jobRanksToSave.add(newJobRank);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<JobRank> savedJobRanks = jobRankRepository.saveAll(jobRanksToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedJobRanks.stream()
-//                .map(jobRankMapper::toJobRankResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteJobRanks(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = jobRankRepository.countByJobRankIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        jobRankRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<JobRankResponse> bulkUpsertJobRanks(
+            List<JobRankRequest> requests) {
+
+        // 1. Define unique field configurations (JobRank has 2 unique fields)
+        UniqueFieldConfig<JobRankRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", JobRankRequest::getSourceId);
+        UniqueFieldConfig<JobRankRequest> codeConfig =
+                new UniqueFieldConfig<>("job_rank_code", JobRankRequest::getJobRankCode);
+        UniqueFieldConfig<JobRankRequest> nameConfig =
+                new UniqueFieldConfig<>("name", JobRankRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<JobRank>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", jobRankRepository::findBySourceIdIn);
+        entityFetchers.put("job_rank_code", jobRankRepository::findByJobRankCodeIn);
+        entityFetchers.put("name", jobRankRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<JobRank, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", JobRank::getSourceId);
+        entityFieldExtractors.put("job_rank_code", JobRank::getJobRankCode);
+        entityFieldExtractors.put("name", JobRank::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<JobRankRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<JobRankRequest, JobRank, JobRankResponse> config =
+                BulkUpsertConfig.<JobRankRequest, JobRank, JobRankResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(jobRankMapper::toJobRankResponse)
+                        .requestToEntityMapper(jobRankMapper::toJobRank)
+                        .entityUpdater(jobRankMapper::updateJobRank)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(jobRankRepository::saveAll)
+                        .repositorySaveAndFlusher(jobRankRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<JobRankRequest, JobRank, JobRankResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private JobRank findExistingEntityForUpsert(JobRankRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<JobRank> bySourceId = jobRankRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteJobRanks(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<JobRank> config = BulkDeleteConfig.<JobRank>builder()
+                .entityFinder(id -> jobRankRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(jobRankRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<JobRank> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<JobRankResponse> getJobRanks(Pageable pageable) {
         Page<JobRank> page = jobRankRepository.findAll(pageable);
         return page.getContent()

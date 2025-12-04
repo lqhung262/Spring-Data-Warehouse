@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Nationality.NationalityRequest;
 import com.example.demo.dto.humanresource.Nationality.NationalityResponse;
 import com.example.demo.entity.humanresource.Nationality;
@@ -9,7 +10,8 @@ import com.example.demo.mapper.humanresource.NationalityMapper;
 import com.example.demo.repository.humanresource.NationalityRepository;
 import com.example.demo.repository.humanresource.EmployeeRepository;
 import com.example.demo.exception.CannotDeleteException;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class NationalityService {
     final NationalityRepository nationalityRepository;
     final NationalityMapper nationalityMapper;
     final EmployeeRepository employeeRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.nationality}")
     private String entityName;
@@ -47,63 +49,101 @@ public class NationalityService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<NationalityResponse> bulkUpsertNationalities(List<NationalityRequest> requests) {
-//
-//        // Lấy tất cả nationalityCodes từ request
-//        List<String> nationalityCodes = requests.stream()
-//                .map(NationalityRequest::getNationalityCode)
-//                .toList();
-//
-//        // Tìm tất cả các nationality đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, Nationality> existingNationalitiesMap = nationalityRepository.findByNationalityCodeIn(nationalityCodes).stream()
-//                .collect(Collectors.toMap(Nationality::getNationalityCode, nationality -> nationality));
-//
-//        List<Nationality> nationalitiesToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (NationalityRequest request : requests) {
-//            Nationality nationality = existingNationalitiesMap.get(request.getNationalityCode());
-//
-//            if (nationality != null) {
-//                // --- Logic UPDATE ---
-//                // Nationality đã tồn tại -> Cập nhật
-//                nationalityMapper.updateNationality(nationality, request);
-//                nationalitiesToSave.add(nationality);
-//            } else {
-//                // --- Logic INSERT ---
-//                // Nationality chưa tồn tại -> Tạo mới
-//                Nationality newNationality = nationalityMapper.toNationality(request);
-//                nationalitiesToSave.add(newNationality);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<Nationality> savedNationalities = nationalityRepository.saveAll(nationalitiesToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedNationalities.stream()
-//                .map(nationalityMapper::toNationalityResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteNationalities(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = nationalityRepository.countByNationalityIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        nationalityRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<NationalityResponse> bulkUpsertNationalities(
+            List<NationalityRequest> requests) {
+
+        // 1. Define unique field configurations (Nationality has 2 unique fields)
+        UniqueFieldConfig<NationalityRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", NationalityRequest::getSourceId);
+        UniqueFieldConfig<NationalityRequest> codeConfig =
+                new UniqueFieldConfig<>("nationality_code", NationalityRequest::getNationalityCode);
+        UniqueFieldConfig<NationalityRequest> nameConfig =
+                new UniqueFieldConfig<>("name", NationalityRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<Nationality>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", nationalityRepository::findBySourceIdIn);
+        entityFetchers.put("nationality_code", nationalityRepository::findByNationalityCodeIn);
+        entityFetchers.put("name", nationalityRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors (to extract values from returned entities)
+        Map<String, Function<Nationality, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", Nationality::getSourceId);
+        entityFieldExtractors.put("nationality_code", Nationality::getNationalityCode);
+        entityFieldExtractors.put("name", Nationality::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<NationalityRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<NationalityRequest, Nationality, NationalityResponse> config =
+                BulkUpsertConfig.<NationalityRequest, Nationality, NationalityResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(nationalityMapper::toNationalityResponse)
+                        .requestToEntityMapper(nationalityMapper::toNationality)
+                        .entityUpdater(nationalityMapper::updateNationality)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(nationalityRepository::saveAll)
+                        .repositorySaveAndFlusher(nationalityRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<NationalityRequest, Nationality, NationalityResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity for upsert
+     * STRICT LOGIC: Only match by sourceId (primary identifier)
+     */
+    private Nationality findExistingEntityForUpsert(NationalityRequest request) {
+        // ONLY match by sourceId (canonical identifier)
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<Nationality> bySourceId = nationalityRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        // Do NOT fallback to code or name matching
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteNationalities(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<Nationality> config = BulkDeleteConfig.<Nationality>builder()
+                .entityFinder(id -> nationalityRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkForeignKeyConstraints)
+                .repositoryDeleter(nationalityRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<Nationality> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<NationalityResponse> getNationalities(Pageable pageable) {
         Page<Nationality> page = nationalityRepository.findAll(pageable);
         return page.getContent()

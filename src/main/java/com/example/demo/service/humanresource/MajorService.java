@@ -1,5 +1,6 @@
 package com.example.demo.service.humanresource;
 
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Major.MajorRequest;
 import com.example.demo.dto.humanresource.Major.MajorResponse;
 import com.example.demo.entity.humanresource.Major;
@@ -7,7 +8,8 @@ import com.example.demo.exception.AlreadyExistsException;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.MajorMapper;
 import com.example.demo.repository.humanresource.MajorRepository;
-import jakarta.transaction.Transactional;
+import com.example.demo.util.bulk.*;
+import jakarta.persistence.EntityManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,9 +20,8 @@ import org.springframework.stereotype.Service;
 import com.example.demo.repository.humanresource.EmployeeEducationRepository;
 import com.example.demo.exception.CannotDeleteException;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class MajorService {
     final MajorRepository majorRepository;
     final MajorMapper majorMapper;
     final EmployeeEducationRepository employeeEducationRepository;
+    final EntityManager entityManager;
 
     @Value("${entities.humanresource.major}")
     private String entityName;
@@ -47,63 +49,98 @@ public class MajorService {
     }
 
     /**
-     * Xử lý Bulk Upsert
+     * Bulk Upsert với Final Batch Logic, Partial Success Pattern:
+     * - Safe Batch: saveAll() - requests không có unique conflicts
+     * - Final Batch: save + flush từng request - requests có potential conflicts
+     * - Trả về detailed result với success/failure breakdown
      */
-//    @Transactional
-//    public List<MajorResponse> bulkUpsertMajors(List<MajorRequest> requests) {
-//
-//        // Lấy tất cả majorCodes từ request
-//        List<String> majorCodes = requests.stream()
-//                .map(MajorRequest::getMajorCode)
-//                .toList();
-//
-//        // Tìm tất cả các major đã tồn tại TRONG 1 CÂU QUERY
-//        Map<String, Major> existingMajorsMap = majorRepository.findByMajorCodeIn(majorCodes).stream()
-//                .collect(Collectors.toMap(Major::getMajorCode, major -> major));
-//
-//        List<Major> majorsToSave = new java.util.ArrayList<>();
-//
-//        // Lặp qua danh sách request để quyết định UPDATE hay INSERT
-//        for (MajorRequest request : requests) {
-//            Major major = existingMajorsMap.get(request.getMajorCode());
-//
-//            if (major != null) {
-//                // --- Logic UPDATE ---
-//                // Major đã tồn tại -> Cập nhật
-//                majorMapper.updateMajor(major, request);
-//                majorsToSave.add(major);
-//            } else {
-//                // --- Logic INSERT ---
-//                // Major chưa tồn tại -> Tạo mới
-//                Major newMajor = majorMapper.toMajor(request);
-//                majorsToSave.add(newMajor);
-//            }
-//        }
-//
-//        // Lưu tất cả (cả insert và update) TRONG 1 LỆNH
-//        List<Major> savedMajors = majorRepository.saveAll(majorsToSave);
-//
-//        // Map sang Response DTO và trả về
-//        return savedMajors.stream()
-//                .map(majorMapper::toMajorResponse)
-//                .toList();
-//    }
-//
-//    /**
-//     * Xử lý Bulk Delete
-//     */
-//    @Transactional
-//    public void bulkDeleteMajors(List<Long> ids) {
-//        // Kiểm tra xem có bao nhiêu ID tồn tại
-//        long existingCount = majorRepository.countByMajorIdIn(ids);
-//        if (existingCount != ids.size()) {
-//            // Không phải tất cả ID đều tồn tại
-//            throw new NotFoundException("Some" + entityName + "s not found. Cannot complete bulk delete.");
-//        }
-//
-//        // Xóa tất cả bằng ID trong 1 câu query (hiệu quả)
-//        majorRepository.deleteAllById(ids);
-//    }
+    public BulkOperationResult<MajorResponse> bulkUpsertMajors(
+            List<MajorRequest> requests) {
+
+        // 1. Define unique field configurations (Major has 2 unique fields)
+        UniqueFieldConfig<MajorRequest> sourceIdConfig =
+                new UniqueFieldConfig<>("source_id", MajorRequest::getSourceId);
+        UniqueFieldConfig<MajorRequest> codeConfig =
+                new UniqueFieldConfig<>("major_code", MajorRequest::getMajorCode);
+        UniqueFieldConfig<MajorRequest> nameConfig =
+                new UniqueFieldConfig<>("name", MajorRequest::getName);
+
+        // 2. Define entity fetchers for each unique field
+        Map<String, Function<Set<String>, List<Major>>> entityFetchers = new HashMap<>();
+        entityFetchers.put("source_id", majorRepository::findBySourceIdIn);
+        entityFetchers.put("major_code", majorRepository::findByMajorCodeIn);
+        entityFetchers.put("name", majorRepository::findByNameIn);
+
+        // 2.5. Define entity field extractors
+        Map<String, Function<Major, String>> entityFieldExtractors = new HashMap<>();
+        entityFieldExtractors.put("source_id", Major::getSourceId);
+        entityFieldExtractors.put("major_code", Major::getMajorCode);
+        entityFieldExtractors.put("name", Major::getName);
+
+        // 3. Setup unique fields using helper
+        UniqueFieldsSetupHelper.UniqueFieldsSetup<MajorRequest> setup =
+                UniqueFieldsSetupHelper.buildUniqueFieldsSetup(
+                        requests,
+                        entityFetchers,
+                        entityFieldExtractors,
+                        sourceIdConfig,
+                        codeConfig,
+                        nameConfig
+                );
+
+        // 4.  Build bulk upsert config
+        BulkUpsertConfig<MajorRequest, Major, MajorResponse> config =
+                BulkUpsertConfig.<MajorRequest, Major, MajorResponse>builder()
+                        .uniqueFieldExtractors(setup.getUniqueFieldExtractors())
+                        .existingValuesMaps(setup.getExistingValuesMaps())
+                        .entityToResponseMapper(majorMapper::toMajorResponse)
+                        .requestToEntityMapper(majorMapper::toMajor)
+                        .entityUpdater(majorMapper::updateMajor)
+                        .existingEntityFinder(this::findExistingEntityForUpsert)
+                        .repositorySaver(majorRepository::saveAll)
+                        .repositorySaveAndFlusher(majorRepository::saveAndFlush)
+                        .entityManagerClearer(entityManager::clear)
+                        .build();
+
+        // 5. Execute bulk upsert
+        BulkUpsertProcessor<MajorRequest, Major, MajorResponse> processor =
+                new BulkUpsertProcessor<>(config);
+
+        return processor.execute(requests);
+    }
+
+    /**
+     * Helper: Find existing entity
+     */
+    private Major findExistingEntityForUpsert(MajorRequest request) {
+        if (request.getSourceId() != null && !request.getSourceId().trim().isEmpty()) {
+            Optional<Major> bySourceId = majorRepository.findBySourceId(request.getSourceId());
+            if (bySourceId.isPresent()) {
+                return bySourceId.get();
+            }
+        }
+
+        return null;
+    }
+
+    // ========================= BULK DELETE  ========================
+
+    public BulkOperationResult<Long> bulkDeleteMajors(List<Long> ids) {
+
+        // Build config
+        BulkDeleteConfig<Major> config = BulkDeleteConfig.<Major>builder()
+                .entityFinder(id -> majorRepository.findById(id).orElse(null))
+                .foreignKeyConstraintsChecker(this::checkReferenceBeforeDelete)
+                .repositoryDeleter(majorRepository::deleteById)
+                .entityName(entityName)
+                .build();
+
+        // Execute với processor
+        BulkDeleteProcessor<Major> processor = new BulkDeleteProcessor<>(config);
+
+        return processor.execute(ids);
+    }
+
     public List<MajorResponse> getMajors(Pageable pageable) {
         Page<Major> page = majorRepository.findAll(pageable);
         return page.getContent()
