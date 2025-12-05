@@ -277,6 +277,7 @@ public class Employee {
     private String taxCode;
 
     @Size(max = 50)
+    @NotNull
     @Column(name = "social_insurance_no", length = 50, nullable = false, unique = true)
     private String socialInsuranceNo;
 
