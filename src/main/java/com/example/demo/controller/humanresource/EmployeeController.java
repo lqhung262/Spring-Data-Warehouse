@@ -1,6 +1,7 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Employee.EmployeeRequest;
 import com.example.demo.dto.humanresource.Employee.EmployeeResponse;
 import com.example.demo.service.humanresource.EmployeeService;
@@ -34,26 +35,32 @@ public class EmployeeController {
     /**
      * BULK UPSERT ENDPOINT
      */
-//    @PostMapping("/_bulk-upsert")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<List<EmployeeResponse>> bulkUpsertEmployees(
-//            @Valid @RequestBody List<EmployeeRequest> requests) {
-//        return ApiResponse.<List<EmployeeResponse>>builder()
-//                .result(employeeService.bulkUpsertEmployees(requests))
-//                .build();
-//    }
-//
-//    /**
-//     * BULK DELETE ENDPOINT
-//     */
-//    @DeleteMapping("/_bulk-delete")
-//    @ResponseStatus(HttpStatus.OK)
-//    ApiResponse<String> bulkDeleteEmployees(@RequestParam("ids") List<Long> ids) {
-//        employeeService.bulkDeleteEmployees(ids);
-//        return ApiResponse.<String>builder()
-//                .result(ids.size() + " employees have been deleted successfully")
-//                .build();
-//    }
+    @PostMapping("/_bulk-upsert")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<EmployeeResponse>> bulkUpsertEmployees(
+            @Valid @RequestBody List<EmployeeRequest> requests) {
+        BulkOperationResult<EmployeeResponse> result = employeeService.bulkUpsertEmployees(requests);
+        return ApiResponse.<BulkOperationResult<EmployeeResponse>>builder()
+                .code(result.hasErrors() ? 207 : 1000) // 207 = Multi-Status for partial success
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
+    /**
+     * BULK DELETE ENDPOINT
+     */
+    @DeleteMapping("/_bulk-delete")
+    @ResponseStatus(HttpStatus.OK)
+    ApiResponse<BulkOperationResult<Long>> bulkDeleteEmployees(@RequestParam("ids") List<Long> ids) {
+        BulkOperationResult<Long> result = employeeService.bulkDeleteEmployees(ids);
+        return ApiResponse.<BulkOperationResult<Long>>builder()
+                .code(result.hasErrors() ? 207 : 1000)
+                .message(result.getSummary())
+                .result(result)
+                .build();
+    }
+
     @GetMapping()
     ApiResponse<List<EmployeeResponse>> getEmployees(@RequestParam(required = false, defaultValue = "1") int pageNo,
                                                      @RequestParam(required = false, defaultValue = "5") int pageSize,

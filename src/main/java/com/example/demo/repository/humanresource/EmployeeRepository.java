@@ -66,5 +66,49 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             "WHERE e.placeOfBirth.provinceCityId IN :provinceCityIds " +
             "GROUP BY e.placeOfBirth. provinceCityId")
     List<Object[]> countPlaceOfBirthByProvinceCityIdIn(@Param("provinceCityIds") List<Long> provinceCityIds);
+
+    // ========================= BULK OPERATIONS SUPPORT =========================
+
+    /**
+     * Find employees by multiple sourceIds
+     */
+    @Query("SELECT e FROM Employee e WHERE e.sourceId IN :sourceIds")
+    List<Employee> findBySourceIdIn(@Param("sourceIds") Collection<String> sourceIds);
+
+    /**
+     * Find employees by multiple employee codes
+     */
+    @Query("SELECT e FROM Employee e WHERE e.employeeCode IN :codes")
+    List<Employee> findByEmployeeCodeIn(@Param("codes") Collection<String> codes);
+
+    /**
+     * Find employees by multiple corporation codes
+     */
+    @Query("SELECT e FROM Employee e WHERE e.corporationCode IN :codes")
+    List<Employee> findByCorporationCodeIn(@Param("codes") Collection<String> codes);
+
+    /**
+     * Find employees by multiple tax codes
+     */
+    @Query("SELECT e FROM Employee e WHERE e.taxCode IN :codes")
+    List<Employee> findByTaxCodeIn(@Param("codes") Collection<String> codes);
+
+    /**
+     * Find employees by multiple social insurance numbers
+     */
+    @Query("SELECT e FROM Employee e WHERE e.socialInsuranceNo IN :numbers")
+    List<Employee> findBySocialInsuranceNoIn(@Param("numbers") Collection<String> numbers);
+
+    /**
+     * Find employees by multiple social insurance codes
+     */
+    @Query("SELECT e FROM Employee e WHERE e.socialInsuranceCode IN :codes")
+    List<Employee> findBySocialInsuranceCodeIn(@Param("codes") Collection<String> codes);
+
+    /**
+     * Find employees by multiple health insurance cards
+     */
+    @Query("SELECT e FROM Employee e WHERE e.healthInsuranceCard IN :cards")
+    List<Employee> findByHealthInsuranceCardIn(@Param("cards") Collection<String> cards);
 }
 
