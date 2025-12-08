@@ -45,6 +45,7 @@ public interface EmployeeMapper {
     @Mapping(source = "employeeWorkLocationList", target = "employeeWorkLocations")
     @Mapping(target = "genderId", source = "gender.genderId")
     @Mapping(target = "genderName", source = "gender.name")
+    @Mapping(target = "maritalStatusId", source = "maritalStatus.maritalStatusId")
     @Mapping(target = "maritalStatusName", source = "maritalStatus.name")
     @Mapping(target = "idIssuePlaceCmnd", source = "idIssuePlaceCmnd.identityIssuingAuthorityId")
     @Mapping(target = "idIssuePlaceCmndName", source = "idIssuePlaceCmnd.name")

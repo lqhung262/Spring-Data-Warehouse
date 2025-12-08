@@ -1,6 +1,7 @@
 package com.example.demo.repository.humanresource;
 
 import com.example.demo.entity.humanresource.Employee;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -110,5 +111,20 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
      */
     @Query("SELECT e FROM Employee e WHERE e.healthInsuranceCard IN :cards")
     List<Employee> findByHealthInsuranceCardIn(@Param("cards") Collection<String> cards);
+
+    // ========================= ENTITY GRAPH METHODS =========================
+
+    /**
+     * Find employee by ID with all associations eagerly loaded using EntityGraph
+     * This replaces the need for manual lazy loading in service layer
+     */
+    @EntityGraph(value = "Employee.withAllAssociations", type = EntityGraph.EntityGraphType.LOAD)
+    Optional<Employee> findWithAllAssociationsById(Long id);
+
+    /**
+     * Find employee by sourceId with all associations eagerly loaded using EntityGraph
+     */
+    @EntityGraph(value = "Employee.withAllAssociations", type = EntityGraph.EntityGraphType.LOAD)
+    Optional<Employee> findWithAllAssociationsBySourceId(String sourceId);
 }
 

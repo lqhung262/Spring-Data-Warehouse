@@ -16,6 +16,36 @@ import java.util.Set;
 @Data
 @SQLDelete(sql = "UPDATE employee SET is_deleted = true WHERE employee_id = ?")
 @SQLRestriction("is_deleted = false")
+@NamedEntityGraph(
+        name = "Employee.withAllAssociations",
+        attributeNodes = {
+                // Parent/lookup entities (ManyToOne)
+                @NamedAttributeNode("gender"),
+                @NamedAttributeNode("maritalStatus"),
+                @NamedAttributeNode("nationality"),
+                @NamedAttributeNode("laborStatus"),
+                @NamedAttributeNode("bloodGroup"),
+                @NamedAttributeNode("graduationSchool"),
+                @NamedAttributeNode("language1"),
+                @NamedAttributeNode("language2"),
+                @NamedAttributeNode("language3"),
+                @NamedAttributeNode("currentAddressWard"),
+                @NamedAttributeNode("permanentAddressWard"),
+                @NamedAttributeNode("hometown"),
+                @NamedAttributeNode("placeOfBirth"),
+                @NamedAttributeNode("bank"),
+                @NamedAttributeNode("medicalRegistration"),
+                @NamedAttributeNode("idIssuePlaceCmnd"),
+                @NamedAttributeNode("idIssuePlaceCccd"),
+                @NamedAttributeNode("manager"),
+                // Child collections (OneToMany)
+                @NamedAttributeNode("employeeDecisionList"),
+                @NamedAttributeNode("employeeEducationList"),
+                @NamedAttributeNode("employeeAttendanceMachineList"),
+                @NamedAttributeNode("employeeWorkLocationList"),
+                @NamedAttributeNode("employeeWorkShift")
+        }
+)
 public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

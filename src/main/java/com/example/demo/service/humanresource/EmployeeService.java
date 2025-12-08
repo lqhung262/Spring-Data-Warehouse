@@ -15,8 +15,6 @@ import com.example.demo.exception.NotFoundException;
 import com.example.demo.mapper.humanresource.*;
 import com.example.demo.repository.humanresource.*;
 import com.example.demo.util.BulkOperationUtils;
-import com.example.demo.util.bulk.BulkDeleteConfig;
-import com.example.demo.util.bulk.BulkDeleteProcessor;
 import com.example.demo.util.bulk.BulkOperationResultBuilder;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -27,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.*;
 import java.util.function.Function;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
 public class EmployeeService {
     final EmployeeRepository employeeRepository;
     final EmployeeMapper employeeMapper;
+    final PlatformTransactionManager transactionManager;
 
     final EmployeeDecisionRepository employeeDecisionRepository;
     final EmployeeEducationRepository employeeEducationRepository;
@@ -59,60 +61,37 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeResponse createEmployee(EmployeeRequest request) {
-        // Check source_id uniqueness for create
-        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
-            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(e -> {
-                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
-            });
-        }
-
-        Employee employee = employeeMapper.toEmployee(request);
-        // Set all FK references from IDs in request
-        employeeMapper.setReferences(employee, request);
-
-        if (employee.getCreatedBy() == null) employee.setCreatedBy(1L);
-        if (employee.getUpdatedBy() == null) employee.setUpdatedBy(1L);
-
-        Employee saved = employeeRepository.save(employee);
-
-        // delegate child creation to helpers (these will validate duplicates)
-        Set<EmployeeDecision> createdDecisions = new HashSet<>(createDecisions(saved, request.getEmployeeDecisions()));
-        saved.setEmployeeDecisionList(createdDecisions);
-
-        Set<EmployeeEducation> createdEducations = new HashSet<>(createEducations(saved, request.getEmployeeEducations()));
-        saved.setEmployeeEducationList(createdEducations);
-
-        Set<EmployeeAttendanceMachine> createdMachines = new HashSet<>(createAttendanceMachines(saved, request.getEmployeeAttendanceMachines()));
-        saved.setEmployeeAttendanceMachineList(createdMachines);
-
-        Set<EmployeeWorkLocation> createdLocations = new HashSet<>(createWorkLocations(saved, request.getEmployeeWorkLocations()));
-        saved.setEmployeeWorkLocationList(createdLocations);
-
-        EmployeeWorkShift shift = createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
-        saved.setEmployeeWorkShift(shift);
-
-        loadChildCollections(saved);
-        return employeeMapper.toEmployeeResponse(saved);
+        return executeEmployeeCreation(request);
     }
 
     public List<EmployeeResponse> getEmployees(Pageable pageable) {
+        // Note: For pageable queries, we fetch lazily to avoid N+1
+        // Collections are initialized on-demand when mapping to response
         return employeeRepository.findAll(pageable).getContent().stream()
                 .map(e -> {
-                    loadChildCollections(e);
+                    initializeCollections(e);
                     return employeeMapper.toEmployeeResponse(e);
                 })
                 .toList();
     }
 
     public EmployeeResponse getEmployee(Long id) {
-        Employee emp = employeeRepository.findById(id).orElseThrow(() -> new NotFoundException(entityName));
-        loadChildCollections(emp);
+        // Use EntityGraph to fetch employee with all associations in ONE query (no N+1)
+        Employee emp = employeeRepository.findWithAllAssociationsById(id)
+                .orElseThrow(() -> new NotFoundException(entityName));
         return employeeMapper.toEmployeeResponse(emp);
     }
 
-    private void loadChildCollections(Employee employee) {
+    /**
+     * Initialize child collections by calling size() - needed only when collections are still lazy.
+     * Parent/lookup entities should be loaded via EntityGraph in repository methods.
+     * This is a lightweight fallback for cases where entity wasn't fetched with EntityGraph.
+     */
+    @SuppressWarnings({"ResultOfMethodCallIgnored", "unused"})
+    private void initializeCollections(Employee employee) {
+        // Trigger initialization of collections by calling size()
         if (employee.getEmployeeDecisionList() != null) {
-            employee.getEmployeeDecisionList().size();
+            employee.getEmployeeDecisionList().size(); // triggers lazy load
         }
         if (employee.getEmployeeEducationList() != null) {
             employee.getEmployeeEducationList().size();
@@ -123,45 +102,12 @@ public class EmployeeService {
         if (employee.getEmployeeWorkLocationList() != null) {
             employee.getEmployeeWorkLocationList().size();
         }
-        if (employee.getEmployeeWorkShift() != null) {
-            employee.getEmployeeWorkShift().getEmployeeWorkShiftId();
-        }
+        // Note: parent entities (gender, maritalStatus, etc.) should already be loaded via EntityGraph
     }
 
     @Transactional
     public EmployeeResponse updateEmployee(Long id, EmployeeRequest request) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(entityName));
-
-        // Check source_id uniqueness for update
-        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
-            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
-                if (!existing.getId().equals(id)) {
-                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
-                }
-            });
-        }
-
-        // update employee fields
-        employeeMapper.updateEmployee(employee, request);
-        // Set all FK references from IDs in request
-        employeeMapper.setReferences(employee, request);
-
-        Employee saved = employeeRepository.save(employee);
-
-        // replace child collections if provided
-        if (request.getEmployeeDecisions() != null) replaceDecisions(saved, request.getEmployeeDecisions());
-        if (request.getEmployeeEducations() != null) replaceEducations(saved, request.getEmployeeEducations());
-        if (request.getEmployeeAttendanceMachines() != null)
-            replaceAttendanceMachines(saved, request.getEmployeeAttendanceMachines());
-        if (request.getEmployeeWorkLocations() != null) replaceWorkLocations(saved, request.getEmployeeWorkLocations());
-        if (request.getEmployeeWorkShift() != null) {
-            EmployeeWorkShift shift = createOrUpdateWorkShift(saved, request.getEmployeeWorkShift());
-            saved.setEmployeeWorkShift(shift);
-        }
-
-        loadChildCollections(saved);
-        return employeeMapper.toEmployeeResponse(saved);
+        return executeEmployeeUpdate(id, request);
     }
 
     public void deleteEmployee(Long employeeId) {
@@ -330,123 +276,22 @@ public class EmployeeService {
 
     /**
      * Bulk Upsert Employee với Final Batch Logic, Partial Success Pattern:
-     * - Safe Batch: saveAll() - requests không có unique conflicts
-     * - Final Batch: gọi createEmployee/updateEmployee từng request - requests có potential conflicts
+     * - Safe Batch: saveAll() trong một transaction - requests không có unique conflicts
+     * - Final Batch: mỗi request trong transaction riêng (REQUIRES_NEW) - requests có potential conflicts
      * - Trả về detailed result với success/failure breakdown
+     * <p>
+     * NOTE: Không dùng @Transactional ở method level để đảm bảo partial commits.
+     * Mỗi batch/request sẽ chạy trong transaction riêng qua TransactionTemplate.
      */
-    @Transactional
     public BulkOperationResult<EmployeeResponse> bulkUpsertEmployees(List<EmployeeRequest> requests) {
         log.info("Starting bulk upsert for {} employee requests", requests.size());
         long startTime = System.currentTimeMillis();
 
-        // 1. Define unique field extractors cho 7 unique fields
-        Map<String, Function<EmployeeRequest, String>> uniqueFieldExtractors = new LinkedHashMap<>();
-        uniqueFieldExtractors.put("employeeCode", EmployeeRequest::getEmployeeCode);
-        uniqueFieldExtractors.put("sourceId", EmployeeRequest::getSourceId);
-        uniqueFieldExtractors.put("corporationCode", EmployeeRequest::getCorporationCode);
-        uniqueFieldExtractors.put("taxCode", EmployeeRequest::getTaxCode);
-        uniqueFieldExtractors.put("socialInsuranceNo", EmployeeRequest::getSocialInsuranceNo);
-        uniqueFieldExtractors.put("socialInsuranceCode", EmployeeRequest::getSocialInsuranceCode);
-        uniqueFieldExtractors.put("healthInsuranceCard", EmployeeRequest::getHealthInsuranceCard);
+        // 1. Define unique field extractors và fetch existing values
+        Map<String, Function<EmployeeRequest, String>> uniqueFieldExtractors = buildUniqueFieldExtractors();
+        Map<String, Set<String>> existingValuesMaps = fetchExistingUniqueValues(requests);
 
-        // 2. Fetch existing values từ database cho tất cả 7 unique fields
-        Map<String, Set<String>> existingValuesMaps = new LinkedHashMap<>();
-
-        // Extract all unique values from requests
-        Set<String> employeeCodes = requests.stream()
-                .map(EmployeeRequest::getEmployeeCode)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Set<String> sourceIds = requests.stream()
-                .map(EmployeeRequest::getSourceId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Set<String> corporationCodes = requests.stream()
-                .map(EmployeeRequest::getCorporationCode)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Set<String> taxCodes = requests.stream()
-                .map(EmployeeRequest::getTaxCode)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Set<String> socialInsuranceNos = requests.stream()
-                .map(EmployeeRequest::getSocialInsuranceNo)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Set<String> socialInsuranceCodes = requests.stream()
-                .map(EmployeeRequest::getSocialInsuranceCode)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Set<String> healthInsuranceCards = requests.stream()
-                .map(EmployeeRequest::getHealthInsuranceCard)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        // Fetch existing entities for each unique field - just extract the field values
-        if (!employeeCodes.isEmpty()) {
-            existingValuesMaps.put("employeeCode",
-                    employeeRepository.findByEmployeeCodeIn(employeeCodes).stream()
-                            .map(Employee::getEmployeeCode)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("employeeCode", new HashSet<>());
-        }
-
-        if (!sourceIds.isEmpty()) {
-            existingValuesMaps.put("sourceId",
-                    employeeRepository.findBySourceIdIn(sourceIds).stream()
-                            .map(Employee::getSourceId)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("sourceId", new HashSet<>());
-        }
-
-        if (!corporationCodes.isEmpty()) {
-            existingValuesMaps.put("corporationCode",
-                    employeeRepository.findByCorporationCodeIn(corporationCodes).stream()
-                            .map(Employee::getCorporationCode)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("corporationCode", new HashSet<>());
-        }
-
-        if (!taxCodes.isEmpty()) {
-            existingValuesMaps.put("taxCode",
-                    employeeRepository.findByTaxCodeIn(taxCodes).stream()
-                            .map(Employee::getTaxCode)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("taxCode", new HashSet<>());
-        }
-
-        if (!socialInsuranceNos.isEmpty()) {
-            existingValuesMaps.put("socialInsuranceNo",
-                    employeeRepository.findBySocialInsuranceNoIn(socialInsuranceNos).stream()
-                            .map(Employee::getSocialInsuranceNo)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("socialInsuranceNo", new HashSet<>());
-        }
-
-        if (!socialInsuranceCodes.isEmpty()) {
-            existingValuesMaps.put("socialInsuranceCode",
-                    employeeRepository.findBySocialInsuranceCodeIn(socialInsuranceCodes).stream()
-                            .map(Employee::getSocialInsuranceCode)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("socialInsuranceCode", new HashSet<>());
-        }
-
-        if (!healthInsuranceCards.isEmpty()) {
-            existingValuesMaps.put("healthInsuranceCard",
-                    employeeRepository.findByHealthInsuranceCardIn(healthInsuranceCards).stream()
-                            .map(Employee::getHealthInsuranceCard)
-                            .collect(Collectors.toSet()));
-        } else {
-            existingValuesMaps.put("healthInsuranceCard", new HashSet<>());
-        }
-
-        // 3.  Classify batch: safe vs final
+        // 2. Classify batch: safe vs final
         BulkOperationUtils.BatchClassification<EmployeeRequest> classification =
                 BulkOperationUtils.classifyBatchByUniqueFields(
                         requests,
@@ -454,28 +299,173 @@ public class EmployeeService {
                         existingValuesMaps
                 );
 
-        // 4. Initialize result tracking
+        // 3. Initialize result tracking
         List<EmployeeResponse> successResults = new ArrayList<>();
         List<BulkOperationError> errors = new ArrayList<>();
 
-        // 5. Process SAFE BATCH - no conflicts, can use batch processing
+        // 4. Process batches with per-transaction control
+        processBatchesWithTransactions(classification, successResults, errors);
+
+        // 5. Build and return result
+        return buildBulkOperationResult(requests.size(), successResults, errors, startTime);
+    }
+
+    /**
+     * Build unique field extractors for 7 unique fields
+     */
+    private Map<String, Function<EmployeeRequest, String>> buildUniqueFieldExtractors() {
+        Map<String, Function<EmployeeRequest, String>> extractors = new LinkedHashMap<>();
+        extractors.put("employeeCode", EmployeeRequest::getEmployeeCode);
+        extractors.put("sourceId", EmployeeRequest::getSourceId);
+        extractors.put("corporationCode", EmployeeRequest::getCorporationCode);
+        extractors.put("taxCode", EmployeeRequest::getTaxCode);
+        extractors.put("socialInsuranceNo", EmployeeRequest::getSocialInsuranceNo);
+        extractors.put("socialInsuranceCode", EmployeeRequest::getSocialInsuranceCode);
+        extractors.put("healthInsuranceCard", EmployeeRequest::getHealthInsuranceCard);
+        return extractors;
+    }
+
+    /**
+     * Fetch existing unique values from database for all 7 unique fields
+     */
+    private Map<String, Set<String>> fetchExistingUniqueValues(List<EmployeeRequest> requests) {
+        Map<String, Set<String>> existingValuesMaps = new LinkedHashMap<>();
+
+        // Extract unique values from requests
+        Set<String> employeeCodes = extractUniqueValues(requests, EmployeeRequest::getEmployeeCode);
+        Set<String> sourceIds = extractUniqueValues(requests, EmployeeRequest::getSourceId);
+        Set<String> corporationCodes = extractUniqueValues(requests, EmployeeRequest::getCorporationCode);
+        Set<String> taxCodes = extractUniqueValues(requests, EmployeeRequest::getTaxCode);
+        Set<String> socialInsuranceNos = extractUniqueValues(requests, EmployeeRequest::getSocialInsuranceNo);
+        Set<String> socialInsuranceCodes = extractUniqueValues(requests, EmployeeRequest::getSocialInsuranceCode);
+        Set<String> healthInsuranceCards = extractUniqueValues(requests, EmployeeRequest::getHealthInsuranceCard);
+
+        // Fetch existing values from database
+        existingValuesMaps.put("employeeCode", fetchExistingEmployeeCodes(employeeCodes));
+        existingValuesMaps.put("sourceId", fetchExistingSourceIds(sourceIds));
+        existingValuesMaps.put("corporationCode", fetchExistingCorporationCodes(corporationCodes));
+        existingValuesMaps.put("taxCode", fetchExistingTaxCodes(taxCodes));
+        existingValuesMaps.put("socialInsuranceNo", fetchExistingSocialInsuranceNos(socialInsuranceNos));
+        existingValuesMaps.put("socialInsuranceCode", fetchExistingSocialInsuranceCodes(socialInsuranceCodes));
+        existingValuesMaps.put("healthInsuranceCard", fetchExistingHealthInsuranceCards(healthInsuranceCards));
+
+        return existingValuesMaps;
+    }
+
+    /**
+     * Extract unique values from requests using the provided extractor
+     */
+    private Set<String> extractUniqueValues(List<EmployeeRequest> requests, Function<EmployeeRequest, String> extractor) {
+        return requests.stream()
+                .map(extractor)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing employee codes from database
+     */
+    private Set<String> fetchExistingEmployeeCodes(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findByEmployeeCodeIn(values).stream()
+                        .map(Employee::getEmployeeCode)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing source IDs from database
+     */
+    private Set<String> fetchExistingSourceIds(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findBySourceIdIn(values).stream()
+                        .map(Employee::getSourceId)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing corporation codes from database
+     */
+    private Set<String> fetchExistingCorporationCodes(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findByCorporationCodeIn(values).stream()
+                        .map(Employee::getCorporationCode)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing tax codes from database
+     */
+    private Set<String> fetchExistingTaxCodes(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findByTaxCodeIn(values).stream()
+                        .map(Employee::getTaxCode)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing social insurance numbers from database
+     */
+    private Set<String> fetchExistingSocialInsuranceNos(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findBySocialInsuranceNoIn(values).stream()
+                        .map(Employee::getSocialInsuranceNo)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing social insurance codes from database
+     */
+    private Set<String> fetchExistingSocialInsuranceCodes(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findBySocialInsuranceCodeIn(values).stream()
+                        .map(Employee::getSocialInsuranceCode)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Fetch existing health insurance cards from database
+     */
+    private Set<String> fetchExistingHealthInsuranceCards(Set<String> values) {
+        return values.isEmpty() ? new HashSet<>() :
+                employeeRepository.findByHealthInsuranceCardIn(values).stream()
+                        .map(Employee::getHealthInsuranceCard)
+                        .collect(Collectors.toSet());
+    }
+
+    /**
+     * Process both safe and final batches with transaction control for partial success
+     */
+    private void processBatchesWithTransactions(
+            BulkOperationUtils.BatchClassification<EmployeeRequest> classification,
+            List<EmployeeResponse> successResults,
+            List<BulkOperationError> errors) {
+
+        // Process SAFE BATCH - no conflicts, use single transaction
         if (classification.hasSafeBatch()) {
             log.info("Processing safe batch: {} requests", classification.getSafeBatch().size());
-            processSafeBatch(classification.getSafeBatch(), successResults, errors, 0);
+            processSafeBatchWithTransaction(classification.getSafeBatch(), successResults, errors);
         }
 
-        // 6. Process FINAL BATCH - có conflicts, phải xử lý từng request riêng biệt
+        // Process FINAL BATCH - có conflicts, each request in separate transaction (REQUIRES_NEW)
         if (classification.hasFinalBatch()) {
             log.warn("Processing final batch: {} requests with potential conflicts",
                     classification.getFinalBatch().size());
-            int finalBatchStartIndex = classification.getSafeBatch().size();
-            processFinalBatch(classification.getFinalBatch(), successResults, errors, finalBatchStartIndex);
+            processFinalBatchWithTransactions(classification.getFinalBatch(), successResults, errors, classification.getSafeBatch().size()); // classification.getSafeBatch().size() = start index for final batch
         }
+    }
 
-        // 7. Build and return result
+    /**
+     * Build bulk operation result with timing and summary
+     */
+    private BulkOperationResult<EmployeeResponse> buildBulkOperationResult(
+            int totalRequests,
+            List<EmployeeResponse> successResults,
+            List<BulkOperationError> errors,
+            long startTime) {
+
         long duration = System.currentTimeMillis() - startTime;
         BulkOperationResult<EmployeeResponse> result = BulkOperationResultBuilder.build(
-                requests.size(),
+                totalRequests,
                 successResults,
                 errors,
                 duration
@@ -491,126 +481,201 @@ public class EmployeeService {
 
     /**
      * Process safe batch - không có unique conflicts
-     * Có thể xử lý batch vì đã chắc chắn không có duplicate
+     * Sử dụng một transaction duy nhất cho toàn bộ batch để tối ưu performance
+     * Nếu batch save fails, fallback sang per-record processing với separate transactions
      */
-    private void processSafeBatch(
+    private void processSafeBatchWithTransaction(
             List<EmployeeRequest> safeBatch,
+            List<EmployeeResponse> successResults,
+            List<BulkOperationError> errors) {
+
+        // Create TransactionTemplate for this batch
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+
+        try {
+            // Execute entire safe batch in one transaction
+            txTemplate.executeWithoutResult(status -> {
+                try {
+                    // Prepare entities for batch save
+                    List<Employee> entitiesToSave = prepareEntitiesForBatchSave(safeBatch, errors);
+
+                    // Batch save and process results
+                    if (!entitiesToSave.isEmpty()) {
+                        processBatchSaveResults(entitiesToSave, safeBatch, successResults, errors);
+                    }
+                } catch (Exception e) {
+                    log.error("Safe batch saveAll failed: {}", e.getMessage());
+                    // Mark transaction for rollback
+                    status.setRollbackOnly();
+                    throw e;
+                }
+            });
+
+        } catch (Exception e) {
+            log.error("Safe batch processing failed, falling back to per-record processing: {}", e.getMessage());
+
+            // Fallback: process each request individually with separate transactions
+            fallbackToIndividualTransactions(safeBatch, successResults, errors, 0);
+        }
+    }
+
+    /**
+     * Prepare entities for batch save by mapping requests to entities
+     */
+    private List<Employee> prepareEntitiesForBatchSave(
+            List<EmployeeRequest> requests,
+            List<BulkOperationError> errors) {
+
+        List<Employee> entitiesToSave = new ArrayList<>();
+
+        for (int i = 0; i < requests.size(); i++) {
+            EmployeeRequest request = requests.get(i);
+
+            try {
+                Employee entity = prepareEmployeeEntity(request);
+                entitiesToSave.add(entity);
+
+            } catch (Exception e) {
+                log.error("Error preparing employee at index {}: {}", i, e.getMessage());
+                errors.add(buildError(i, request, e.getMessage(), e));
+            }
+        }
+
+        return entitiesToSave;
+    }
+
+    /**
+     * Prepare single employee entity for create or update
+     */
+    private Employee prepareEmployeeEntity(EmployeeRequest request) {
+        Employee existingEntity = findExistingEntityForUpsert(request);
+
+        if (existingEntity != null) {
+            // UPDATE: Use mapper to update existing entity
+            employeeMapper.updateEmployee(existingEntity, request);
+            employeeMapper.setReferences(existingEntity, request);
+            return existingEntity;
+        } else {
+            // CREATE: Create new entity
+            Employee entity = employeeMapper.toEmployee(request);
+            employeeMapper.setReferences(entity, request);
+
+            if (entity.getCreatedBy() == null) entity.setCreatedBy(1L);
+            if (entity.getUpdatedBy() == null) entity.setUpdatedBy(1L);
+            return entity;
+        }
+    }
+
+    /**
+     * Process results after batch save
+     */
+    private void processBatchSaveResults(
+            List<Employee> entitiesToSave,
+            List<EmployeeRequest> requests,
+            List<EmployeeResponse> successResults,
+            List<BulkOperationError> errors) {
+
+        List<Employee> savedEntities = employeeRepository.saveAll(entitiesToSave);
+
+        // Process child entities for each saved employee
+        for (int i = 0; i < savedEntities.size(); i++) {
+            Employee saved = savedEntities.get(i);
+            EmployeeRequest request = requests.get(i);
+
+            try {
+                // Handle child entities AFTER parent is saved
+                processChildEntities(saved, request);
+
+                // Reload with EntityGraph to get all associations eagerly loaded
+                Employee reloaded = employeeRepository.findWithAllAssociationsById(saved.getId())
+                        .orElse(saved); // fallback to saved if reload fails
+                successResults.add(employeeMapper.toEmployeeResponse(reloaded));
+
+            } catch (Exception e) {
+                log.error("Error processing child entities for employee {}: {}",
+                        saved.getId(), e.getMessage());
+                errors.add(buildError(i, request,
+                        "Parent saved but child processing failed: " + e.getMessage(), e));
+            }
+        }
+    }
+
+    /**
+     * Fallback to individual processing if batch fails
+     * Each request runs in separate REQUIRES_NEW transaction for partial success
+     */
+    private void fallbackToIndividualTransactions(
+            List<EmployeeRequest> requests,
             List<EmployeeResponse> successResults,
             List<BulkOperationError> errors,
             int startIndex) {
 
-        try {
-            // Process all safe requests in batch
-            List<Employee> entitiesToSave = new ArrayList<>();
-
-            for (int i = 0; i < safeBatch.size(); i++) {
-                EmployeeRequest request = safeBatch.get(i);
-                int globalIndex = startIndex + i;
-
-                try {
-                    // Find existing entity for update
-                    Employee existingEntity = findExistingEntityForUpsert(request);
-
-                    Employee entity;
-                    if (existingEntity != null) {
-                        // UPDATE: Use mapper to update existing entity
-                        employeeMapper.updateEmployee(existingEntity, request);
-                        employeeMapper.setReferences(existingEntity, request);
-                        entity = existingEntity;
-                    } else {
-                        // CREATE: Create new entity
-                        entity = employeeMapper.toEmployee(request);
-                        employeeMapper.setReferences(entity, request);
-
-                        if (entity.getCreatedBy() == null) entity.setCreatedBy(1L);
-                        if (entity.getUpdatedBy() == null) entity.setUpdatedBy(1L);
-                    }
-
-                    entitiesToSave.add(entity);
-
-                } catch (Exception e) {
-                    log.error("Error preparing employee at index {}: {}", globalIndex, e.getMessage());
-                    errors.add(buildError(globalIndex, request, e.getMessage(), e));
-                }
-            }
-
-            // Batch save all entities
-            if (!entitiesToSave.isEmpty()) {
-                List<Employee> savedEntities = employeeRepository.saveAll(entitiesToSave);
-
-                // Process child entities for each saved employee
-                for (int i = 0; i < savedEntities.size(); i++) {
-                    Employee saved = savedEntities.get(i);
-                    EmployeeRequest request = safeBatch.get(i);
-
-                    try {
-                        // Handle child entities AFTER parent is saved
-                        processChildEntities(saved, request);
-
-                        // Load collections and convert to response
-                        loadChildCollections(saved);
-                        successResults.add(employeeMapper.toEmployeeResponse(saved));
-
-                    } catch (Exception e) {
-                        log.error("Error processing child entities for employee {}: {}",
-                                saved.getId(), e.getMessage());
-                        errors.add(buildError(startIndex + i, request,
-                                "Parent saved but child processing failed: " + e.getMessage(), e));
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("Safe batch processing failed: {}", e.getMessage(), e);
-            // If batch fails, fall back to individual processing
-            for (int i = 0; i < safeBatch.size(); i++) {
-                processIndividualRequest(safeBatch.get(i), startIndex + i, successResults, errors);
-            }
+        for (int i = 0; i < requests.size(); i++) {
+            int globalIndex = startIndex + i;
+            processIndividualRequestWithTransaction(requests.get(i), globalIndex, successResults, errors);
         }
     }
 
     /**
      * Process final batch - có potential conflicts
-     * Phải xử lý từng request riêng, gọi createEmployee/updateEmployee
+     * Mỗi request chạy trong separate transaction (REQUIRES_NEW) để đảm bảo partial commits
      */
-    private void processFinalBatch(
+    private void processFinalBatchWithTransactions(
             List<EmployeeRequest> finalBatch,
             List<EmployeeResponse> successResults,
             List<BulkOperationError> errors,
             int startIndex) {
 
-        for (int i = 0; i < finalBatch.size(); i++) {
-            EmployeeRequest request = finalBatch.get(i);
-            int globalIndex = startIndex + i;
-
-            processIndividualRequest(request, globalIndex, successResults, errors);
-        }
+        // Process each request in its own transaction
+        fallbackToIndividualTransactions(finalBatch, successResults, errors, startIndex);
     }
 
     /**
-     * Process individual request - gọi createEmployee hoặc updateEmployee
+     * Process individual request in separate transaction (REQUIRES_NEW)
+     * This ensures that failure in one request doesn't affect others - enabling partial success
      */
-    private void processIndividualRequest(
+    private void processIndividualRequestWithTransaction(
             EmployeeRequest request,
             int globalIndex,
             List<EmployeeResponse> successResults,
             List<BulkOperationError> errors) {
 
-        try {
-            // Find existing entity to determine create vs update
-            Employee existingEntity = findExistingEntityForUpsert(request);
+        // Create TransactionTemplate with REQUIRES_NEW propagation
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        txTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-            EmployeeResponse response;
-            if (existingEntity != null) {
-                // UPDATE: Gọi updateEmployee method đã có
-                response = updateEmployee(existingEntity.getId(), request);
-            } else {
-                // CREATE: Gọi createEmployee method đã có
-                response = createEmployee(request);
+        try {
+            // Execute this request in its own transaction
+            EmployeeResponse response = txTemplate.execute(status -> {
+                try {
+                    // Find existing entity to determine create vs update
+                    Employee existingEntity = findExistingEntityForUpsert(request);
+
+                    EmployeeResponse resp;
+                    if (existingEntity != null) {
+                        // UPDATE: Call core update logic
+                        resp = executeEmployeeUpdate(existingEntity.getId(), request);
+                    } else {
+                        // CREATE: Call core create logic
+                        resp = executeEmployeeCreation(request);
+                    }
+
+                    // Flush to ensure DB operations are executed within this transaction
+                    entityManager.flush();
+                    return resp;
+
+                } catch (Exception e) {
+                    // Mark transaction for rollback
+                    status.setRollbackOnly();
+                    throw e;
+                }
+            });
+
+            if (response != null) {
+                successResults.add(response);
             }
 
-            successResults.add(response);
-            entityManager.flush();
+            // Clear entityManager after each transaction to avoid stale entities
             entityManager.clear();
 
         } catch (AlreadyExistsException e) {
@@ -621,6 +686,78 @@ public class EmployeeService {
             log.error("Error processing employee at index {}: {}", globalIndex, e.getMessage());
             errors.add(buildError(globalIndex, request, e.getMessage(), e));
         }
+    }
+
+    /**
+     * Core execution method for employee creation (can be called from @Transactional or within transaction)
+     * This is the single source of truth for employee creation logic
+     */
+    private EmployeeResponse executeEmployeeCreation(EmployeeRequest request) {
+        // Check source_id uniqueness for create
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(e -> {
+                throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+            });
+        }
+
+        Employee employee = employeeMapper.toEmployee(request);
+        employeeMapper.setReferences(employee, request);
+
+        if (employee.getCreatedBy() == null) employee.setCreatedBy(1L);
+        if (employee.getUpdatedBy() == null) employee.setUpdatedBy(1L);
+
+        Employee saved = employeeRepository.save(employee);
+
+        // Delegate child creation to helpers
+        saved.setEmployeeDecisionList(new HashSet<>(createDecisions(saved, request.getEmployeeDecisions())));
+        saved.setEmployeeEducationList(new HashSet<>(createEducations(saved, request.getEmployeeEducations())));
+        saved.setEmployeeAttendanceMachineList(new HashSet<>(createAttendanceMachines(saved, request.getEmployeeAttendanceMachines())));
+        saved.setEmployeeWorkLocationList(new HashSet<>(createWorkLocations(saved, request.getEmployeeWorkLocations())));
+        saved.setEmployeeWorkShift(createOrUpdateWorkShift(saved, request.getEmployeeWorkShift()));
+
+        // Reload with EntityGraph to get all associations eagerly loaded
+        Employee reloaded = employeeRepository.findWithAllAssociationsById(saved.getId())
+                .orElse(saved); // fallback to saved if reload fails
+        return employeeMapper.toEmployeeResponse(reloaded);
+    }
+
+    /**
+     * Core execution method for employee update (can be called from @Transactional or within transaction)
+     * This is the single source of truth for employee update logic
+     */
+    private EmployeeResponse executeEmployeeUpdate(Long id, EmployeeRequest request) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(entityName));
+
+        // Check source_id uniqueness for update
+        if (request.getSourceId() != null && !request.getSourceId().isEmpty()) {
+            employeeRepository.findBySourceId(request.getSourceId()).ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    throw new AlreadyExistsException(entityName + " with source_id " + request.getSourceId());
+                }
+            });
+        }
+
+        // Update employee fields
+        employeeMapper.updateEmployee(employee, request);
+        employeeMapper.setReferences(employee, request);
+
+        Employee saved = employeeRepository.save(employee);
+
+        // Replace child collections if provided
+        if (request.getEmployeeDecisions() != null) replaceDecisions(saved, request.getEmployeeDecisions());
+        if (request.getEmployeeEducations() != null) replaceEducations(saved, request.getEmployeeEducations());
+        if (request.getEmployeeAttendanceMachines() != null)
+            replaceAttendanceMachines(saved, request.getEmployeeAttendanceMachines());
+        if (request.getEmployeeWorkLocations() != null) replaceWorkLocations(saved, request.getEmployeeWorkLocations());
+        if (request.getEmployeeWorkShift() != null) {
+            saved.setEmployeeWorkShift(createOrUpdateWorkShift(saved, request.getEmployeeWorkShift()));
+        }
+
+        // Reload with EntityGraph to get all associations eagerly loaded
+        Employee reloaded = employeeRepository.findWithAllAssociationsById(saved.getId())
+                .orElse(saved); // fallback to saved if reload fails
+        return employeeMapper.toEmployeeResponse(reloaded);
     }
 
     /**
@@ -675,26 +812,81 @@ public class EmployeeService {
 
     /**
      * Bulk Delete Employees với Partial Success Pattern
-     * Gọi deleteEmployee method cho từng ID
+     * Mỗi ID chạy trong separate transaction (REQUIRES_NEW) để đảm bảo partial success
+     * <p>
+     * NOTE: Không dùng @Transactional để đảm bảo partial commits.
+     * Mỗi delete operation chạy trong transaction riêng qua TransactionTemplate.
      */
-    @Transactional
     public BulkOperationResult<Long> bulkDeleteEmployees(List<Long> ids) {
         log.info("Starting bulk delete for {} employee IDs", ids.size());
+        long startTime = System.currentTimeMillis();
 
-        // 1. Setup bulk delete config
-        BulkDeleteConfig<Employee> config = BulkDeleteConfig.<Employee>builder()
-                .entityName(entityName)
-                .foreignKeyConstraintsChecker(this::checkEmployeeForeignKeyConstraints)
-                .repositoryDeleter(this::deleteEmployee)
-                .build();
+        List<Long> successResults = new ArrayList<>();
+        List<BulkOperationError> errors = new ArrayList<>();
 
-        // 2. Create processor and execute
-        BulkDeleteProcessor<Employee> processor = new BulkDeleteProcessor<>(config);
-        BulkOperationResult<Long> result = processor.execute(ids);
+        // Create TransactionTemplate with REQUIRES_NEW propagation
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        txTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-        log.info("Bulk delete employees completed: {}/{} succeeded, {}/{} failed",
+        // Process each delete in separate transaction for partial success
+        for (int i = 0; i < ids.size(); i++) {
+            Long id = ids.get(i);
+
+            try {
+                // Execute delete in its own transaction
+                txTemplate.executeWithoutResult(status -> {
+                    try {
+                        // Check constraints and delete
+                        checkEmployeeForeignKeyConstraints(id);
+                        deleteEmployee(id);
+
+                        // Flush to ensure DB operations are executed within this transaction
+                        entityManager.flush();
+
+                    } catch (Exception e) {
+                        // Mark transaction for rollback
+                        status.setRollbackOnly();
+                        throw e;
+                    }
+                });
+
+                successResults.add(id);
+
+                // Clear entityManager after each transaction to avoid stale entities
+                entityManager.clear();
+
+            } catch (NotFoundException e) {
+                log.warn("Employee not found at index {}: {}", i, e.getMessage());
+                errors.add(BulkOperationError.builder()
+                        .index(i)
+                        .identifier("id: " + id)
+                        .errorMessage("Employee not found: " + e.getMessage())
+                        .errorType(e.getClass().getSimpleName())
+                        .build());
+            } catch (Exception e) {
+                log.error("Error deleting employee at index {}: {}", i, e.getMessage());
+                errors.add(BulkOperationError.builder()
+                        .index(i)
+                        .identifier("id: " + id)
+                        .errorMessage(e.getMessage())
+                        .errorType(e.getClass().getSimpleName())
+                        .build());
+            }
+        }
+
+        // Build and return result
+        long duration = System.currentTimeMillis() - startTime;
+        BulkOperationResult<Long> result = BulkOperationResultBuilder.build(
+                ids.size(),
+                successResults,
+                errors,
+                duration
+        );
+
+        log.info("Bulk delete employees completed: {}/{} succeeded, {}/{} failed in {}ms",
                 result.getSuccessCount(), result.getTotalRequests(),
-                result.getFailedCount(), result.getTotalRequests());
+                result.getFailedCount(), result.getTotalRequests(),
+                duration);
 
         return result;
     }
