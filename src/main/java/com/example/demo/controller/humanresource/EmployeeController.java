@@ -4,11 +4,14 @@ import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Employee.EmployeeRequest;
 import com.example.demo.dto.humanresource.Employee.EmployeeResponse;
+import com.example.demo.kafka.enums.MessageSpec;
+import com.example.demo.kafka.producer.KafkaProducerService;
 import com.example.demo.service.humanresource.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -17,11 +20,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/employees")
+@RequestMapping("/api/v1/human-resource/employees")
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class EmployeeController {
     EmployeeService employeeService;
+
+    final KafkaProducerService kafkaProducerService;
+
 
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
@@ -33,31 +40,40 @@ public class EmployeeController {
     }
 
     /**
-     * BULK UPSERT ENDPOINT
+     * Bulk Upsert Employees - sends to Kafka
+     * Returns HTTP 202 Accepted immediately
      */
-    @PostMapping("/_bulk-upsert")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<EmployeeResponse>> bulkUpsertEmployees(
-            @Valid @RequestBody List<EmployeeRequest> requests) {
-        BulkOperationResult<EmployeeResponse> result = employeeService.bulkUpsertEmployees(requests);
-        return ApiResponse.<BulkOperationResult<EmployeeResponse>>builder()
-                .code(result.hasErrors() ? 207 : 1000) // 207 = Multi-Status for partial success
-                .message(result.getSummary())
-                .result(result)
+    @PostMapping("/bulk-upsert")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<String> bulkUpsertEmployees(@RequestBody List<EmployeeRequest> requests) {
+        log.info("Received bulk upsert request for {} employees", requests.size());
+
+        // Send to Kafka topic
+        kafkaProducerService.sendToOriginalTopic(requests, MessageSpec.EMPLOYEE_UPSERT);
+
+        return ApiResponse.<String>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk upsert request accepted and queued for processing")
+                .result(String.format("Queued %d employee records for processing", requests.size()))
                 .build();
     }
 
     /**
-     * BULK DELETE ENDPOINT
+     * Bulk Delete Employees - sends to Kafka
+     * Returns HTTP 202 Accepted immediately
      */
-    @DeleteMapping("/_bulk-delete")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<Long>> bulkDeleteEmployees(@RequestParam("ids") List<Long> ids) {
-        BulkOperationResult<Long> result = employeeService.bulkDeleteEmployees(ids);
-        return ApiResponse.<BulkOperationResult<Long>>builder()
-                .code(result.hasErrors() ? 207 : 1000)
-                .message(result.getSummary())
-                .result(result)
+    @DeleteMapping("/bulk-delete")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<String> bulkDeleteEmployees(@RequestBody List<Long> ids) {
+        log.info("Received bulk delete request for {} employees", ids.size());
+
+        // Send to Kafka topic
+        kafkaProducerService.sendToOriginalTopic(ids, MessageSpec.EMPLOYEE_DELETE);
+
+        return ApiResponse.<String>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk delete request accepted and queued for processing")
+                .result(String.format("Queued %d employee IDs for deletion", ids.size()))
                 .build();
     }
 
