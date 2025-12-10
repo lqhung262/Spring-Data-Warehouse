@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class KafkaMessage<T> {
+    private String jobId;
     private List<T> payload;
     private KafkaMessageMetadata metadata;
 }

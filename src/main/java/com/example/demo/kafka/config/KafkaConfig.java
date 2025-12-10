@@ -32,7 +32,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic originalTopic() {
-        return TopicBuilder.name("human-resource. original. v1")
+        return TopicBuilder.name("human-resource.original.v1")
                 .partitions(3)
                 .replicas(1)
                 .build();

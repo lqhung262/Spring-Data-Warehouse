@@ -1,9 +1,25 @@
 package com.example.demo.kafka.processor;
 
-import com.example.demo.dto.request.humanresource.*;
+
+import com.example.demo.dto.BulkOperationResult;
+import com.example.demo.dto.humanresource.Department.DepartmentRequest;
+import com.example.demo.dto.humanresource.Employee.EmployeeRequest;
+import com.example.demo.dto.humanresource.EmployeeType.EmployeeTypeRequest;
+import com.example.demo.dto.humanresource.JobRank.JobRankRequest;
+import com.example.demo.dto.humanresource.JobTitle.JobTitleRequest;
+import com.example.demo.dto.humanresource.Nationality.NationalityRequest;
+import com.example.demo.dto.humanresource.OldDistrict.OldDistrictRequest;
+import com.example.demo.dto.humanresource.OldProvinceCity.OldProvinceCityRequest;
+import com.example.demo.dto.humanresource.OldWard.OldWardRequest;
+import com.example.demo.dto.humanresource.OtType.OtTypeRequest;
+import com.example.demo.dto.humanresource.School.SchoolRequest;
+import com.example.demo.dto.humanresource.Ward.WardRequest;
+import com.example.demo.dto.humanresource.WorkShift.WorkShiftRequest;
+import com.example.demo.dto.humanresource.WorkShiftGroup.WorkShiftGroupRequest;
 import com.example.demo.kafka.enums.MessageSpec;
 import com.example.demo.kafka.exception.RetryableException;
 import com.example.demo.kafka.model.KafkaMessage;
+import com.example.demo.kafka.service.KafkaJobStatusService;
 import com.example.demo.service.humanresource.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +28,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,150 +35,83 @@ import java.util.stream.Collectors;
 public class MessageProcessor {
 
     private final ObjectMapper objectMapper;
+    private final KafkaJobStatusService jobStatusService;
 
-    // Inject all services
+    // All services...
     private final EmployeeService employeeService;
     private final DepartmentService departmentService;
     private final JobTitleService jobTitleService;
     private final JobRankService jobRankService;
     private final SchoolService schoolService;
     private final NationalityService nationalityService;
+    private final EmployeeTypeService employeeTypeService;
+    private final WorkShiftService workShiftService;
+    private final WorkShiftGroupService workShiftGroupService;
+    private final OtTypeService otTypeService;
     private final WardService wardService;
     private final OldWardService oldWardService;
     private final OldDistrictService oldDistrictService;
     private final OldProvinceCityService oldProvinceCityService;
-    private final WorkShiftService workShiftService;
-    private final WorkShiftGroupService workShiftGroupService;
-    private final OtTypeService otTypeService;
-    private final EmployeeTypeService employeeTypeService;
 
     public void processMessage(KafkaMessage<?> kafkaMessage, MessageSpec messageSpec) {
-        log.info("Processing message with spec: {}, payload size: {}",
-                messageSpec, kafkaMessage.getPayload().size());
+        String jobId = kafkaMessage.getJobId();
+        log.info("Processing message with spec: {}, jobId: {}, payload size: {}",
+                messageSpec, jobId, kafkaMessage.getPayload().size());
 
         try {
-            switch (messageSpec) {
-                // Employee operations
-                case EMPLOYEE_UPSERT:
-                    processEmployeeUpsert(kafkaMessage);
-                    break;
-                case EMPLOYEE_DELETE:
-                    processEmployeeDelete(kafkaMessage);
-                    break;
+            // Update status to PROCESSING
+            jobStatusService.updateToProcessing(jobId);
 
-                // Department operations
-                case DEPARTMENT_UPSERT:
-                    processDepartmentUpsert(kafkaMessage);
-                    break;
-                case DEPARTMENT_DELETE:
-                    processDepartmentDelete(kafkaMessage);
-                    break;
-
-                // JobTitle operations
-                case JOBTITLE_UPSERT:
-                    processJobTitleUpsert(kafkaMessage);
-                    break;
-                case JOBTITLE_DELETE:
-                    processJobTitleDelete(kafkaMessage);
-                    break;
-
-                // JobRank operations
-                case JOBRANK_UPSERT:
-                    processJobRankUpsert(kafkaMessage);
-                    break;
-                case JOBRANK_DELETE:
-                    processJobRankDelete(kafkaMessage);
-                    break;
-
-                // School operations
-                case SCHOOL_UPSERT:
-                    processSchoolUpsert(kafkaMessage);
-                    break;
-                case SCHOOL_DELETE:
-                    processSchoolDelete(kafkaMessage);
-                    break;
-
-                // Nationality operations
-                case NATIONALITY_UPSERT:
-                    processNationalityUpsert(kafkaMessage);
-                    break;
-                case NATIONALITY_DELETE:
-                    processNationalityDelete(kafkaMessage);
-                    break;
-
-                // Ward operations
-                case WARD_UPSERT:
-                    processWardUpsert(kafkaMessage);
-                    break;
-                case WARD_DELETE:
-                    processWardDelete(kafkaMessage);
-                    break;
-
-                // OldWard operations
-                case OLDWARD_UPSERT:
-                    processOldWardUpsert(kafkaMessage);
-                    break;
-                case OLDWARD_DELETE:
-                    processOldWardDelete(kafkaMessage);
-                    break;
-
-                // OldDistrict operations
-                case OLDDISTRICT_UPSERT:
-                    processOldDistrictUpsert(kafkaMessage);
-                    break;
-                case OLDDISTRICT_DELETE:
-                    processOldDistrictDelete(kafkaMessage);
-                    break;
-
-                // OldProvinceCity operations
-                case OLDPROVINCECITY_UPSERT:
-                    processOldProvinceCityUpsert(kafkaMessage);
-                    break;
-                case OLDPROVINCECITY_DELETE:
-                    processOldProvinceCityDelete(kafkaMessage);
-                    break;
-
-                // WorkShift operations
-                case WORKSHIFT_UPSERT:
-                    processWorkShiftUpsert(kafkaMessage);
-                    break;
-                case WORKSHIFT_DELETE:
-                    processWorkShiftDelete(kafkaMessage);
-                    break;
-
-                // WorkShiftGroup operations
-                case WORKSHIFTGROUP_UPSERT:
-                    processWorkShiftGroupUpsert(kafkaMessage);
-                    break;
-                case WORKSHIFTGROUP_DELETE:
-                    processWorkShiftGroupDelete(kafkaMessage);
-                    break;
-
-                // OtType operations
-                case OTTYPE_UPSERT:
-                    processOtTypeUpsert(kafkaMessage);
-                    break;
-                case OTTYPE_DELETE:
-                    processOtTypeDelete(kafkaMessage);
-                    break;
-
-                // EmployeeType operations
-                case EMPLOYEETYPE_UPSERT:
-                    processEmployeeTypeUpsert(kafkaMessage);
-                    break;
-                case EMPLOYEETYPE_DELETE:
-                    processEmployeeTypeDelete(kafkaMessage);
-                    break;
-
-                default:
+            // Process based on message spec
+            BulkOperationResult<?> result = switch (messageSpec) {
+                case EMPLOYEE_UPSERT -> processEmployeeUpsert(kafkaMessage);
+                case EMPLOYEE_DELETE -> processEmployeeDelete(kafkaMessage);
+                case DEPARTMENT_UPSERT -> processDepartmentUpsert(kafkaMessage);
+                case DEPARTMENT_DELETE -> processDepartmentDelete(kafkaMessage);
+                case JOB_TITLE_UPSERT -> processJobTitleUpsert(kafkaMessage);
+                case JOB_TITLE_DELETE -> processJobTitleDelete(kafkaMessage);
+                case JOB_RANK_UPSERT -> processJobRankUpsert(kafkaMessage);
+                case JOB_RANK_DELETE -> processJobRankDelete(kafkaMessage);
+                case SCHOOL_UPSERT -> processSchoolUpsert(kafkaMessage);
+                case SCHOOL_DELETE -> processSchoolDelete(kafkaMessage);
+                case NATIONALITY_UPSERT -> processNationalityUpsert(kafkaMessage);
+                case NATIONALITY_DELETE -> processNationalityDelete(kafkaMessage);
+                case EMPLOYEE_TYPE_UPSERT -> processEmployeeTypeUpsert(kafkaMessage);
+                case EMPLOYEE_TYPE_DELETE -> processEmployeeTypeDelete(kafkaMessage);
+                case WORK_SHIFT_UPSERT -> processWorkShiftUpsert(kafkaMessage);
+                case WORK_SHIFT_DELETE -> processWorkShiftDelete(kafkaMessage);
+                case WORK_SHIFT_GROUP_UPSERT -> processWorkShiftGroupUpsert(kafkaMessage);
+                case WORK_SHIFT_GROUP_DELETE -> processWorkShiftGroupDelete(kafkaMessage);
+                case OT_TYPE_UPSERT -> processOtTypeUpsert(kafkaMessage);
+                case OT_TYPE_DELETE -> processOtTypeDelete(kafkaMessage);
+                case WARD_UPSERT -> processWardUpsert(kafkaMessage);
+                case WARD_DELETE -> processWardDelete(kafkaMessage);
+                case OLD_WARD_UPSERT -> processOldWardUpsert(kafkaMessage);
+                case OLD_WARD_DELETE -> processOldWardDelete(kafkaMessage);
+                case OLD_DISTRICT_UPSERT -> processOldDistrictUpsert(kafkaMessage);
+                case OLD_DISTRICT_DELETE -> processOldDistrictDelete(kafkaMessage);
+                case OLD_PROVINCE_CITY_UPSERT -> processOldProvinceCityUpsert(kafkaMessage);
+                case OLD_PROVINCE_CITY_DELETE -> processOldProvinceCityDelete(kafkaMessage);
+                default -> {
                     log.warn("Unknown message spec: {}", messageSpec);
+                    yield null;
+                }
+            };
+
+            // Update job result
+            if (result != null) {
+                jobStatusService.updateJobResult(jobId, result);
+                log.info("Job completed:  jobId={}, success={}, failure={}",
+                        jobId, result.getSuccessCount(), result.getFailedCount());
             }
+
         } catch (DataIntegrityViolationException e) {
-            log.error("Database constraint violation - retryable", e);
+            log.error("Database constraint violation - retryable for jobId: {}", jobId, e);
             throw new RetryableException("Database constraint violation", e);
         } catch (Exception e) {
-            log.error("Error processing message", e);
-            // Determine if exception should be retried
+            log.error("Error processing message for jobId: {}", jobId, e);
+            jobStatusService.markAsFailed(jobId, e.getMessage());
+
             if (isRetryable(e)) {
                 throw new RetryableException("Transient error occurred", e);
             }
@@ -171,184 +119,168 @@ public class MessageProcessor {
         }
     }
 
-    // ==================== EMPLOYEE ====================
-
-    private void processEmployeeUpsert(KafkaMessage<?> kafkaMessage) {
-        List<EmployeeRequest> requests = convertPayload(kafkaMessage.getPayload(), EmployeeRequest.class);
-        employeeService.bulkUpsertEmployees(requests);
-    }
-
-    private void processEmployeeDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        employeeService.bulkDeleteEmployees(ids);
-    }
-
     // ==================== DEPARTMENT ====================
-
-    private void processDepartmentUpsert(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processDepartmentUpsert(KafkaMessage<?> kafkaMessage) {
         List<DepartmentRequest> requests = convertPayload(kafkaMessage.getPayload(), DepartmentRequest.class);
-        departmentService.bulkUpsertDepartments(requests);
+        return departmentService.bulkUpsertDepartments(requests);
     }
 
-    private void processDepartmentDelete(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processDepartmentDelete(KafkaMessage<?> kafkaMessage) {
         List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        departmentService.bulkDeleteDepartments(ids);
+        return departmentService.bulkDeleteDepartments(ids);
+    }
+
+    // ==================== EMPLOYEE ====================
+    private BulkOperationResult<?> processEmployeeUpsert(KafkaMessage<?> kafkaMessage) {
+        List<EmployeeRequest> requests = convertPayload(kafkaMessage.getPayload(), EmployeeRequest.class);
+        return employeeService.bulkUpsertEmployees(requests);
+    }
+
+    private BulkOperationResult<?> processEmployeeDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return employeeService.bulkDeleteEmployees(ids);
     }
 
     // ==================== JOBTITLE ====================
-
-    private void processJobTitleUpsert(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processJobTitleUpsert(KafkaMessage<?> kafkaMessage) {
         List<JobTitleRequest> requests = convertPayload(kafkaMessage.getPayload(), JobTitleRequest.class);
-        jobTitleService.bulkUpsertJobTitles(requests);
+        return jobTitleService.bulkUpsertJobTitles(requests);
     }
 
-    private void processJobTitleDelete(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processJobTitleDelete(KafkaMessage<?> kafkaMessage) {
         List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        jobTitleService.bulkDeleteJobTitles(ids);
+        return jobTitleService.bulkDeleteJobTitles(ids);
     }
 
     // ==================== JOBRANK ====================
-
-    private void processJobRankUpsert(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processJobRankUpsert(KafkaMessage<?> kafkaMessage) {
         List<JobRankRequest> requests = convertPayload(kafkaMessage.getPayload(), JobRankRequest.class);
-        jobRankService.bulkUpsertJobRanks(requests);
+        return jobRankService.bulkUpsertJobRanks(requests);
     }
 
-    private void processJobRankDelete(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processJobRankDelete(KafkaMessage<?> kafkaMessage) {
         List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        jobRankService.bulkDeleteJobRanks(ids);
+        return jobRankService.bulkDeleteJobRanks(ids);
     }
 
     // ==================== SCHOOL ====================
-
-    private void processSchoolUpsert(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processSchoolUpsert(KafkaMessage<?> kafkaMessage) {
         List<SchoolRequest> requests = convertPayload(kafkaMessage.getPayload(), SchoolRequest.class);
-        schoolService.bulkUpsertSchools(requests);
+        return schoolService.bulkUpsertSchools(requests);
     }
 
-    private void processSchoolDelete(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processSchoolDelete(KafkaMessage<?> kafkaMessage) {
         List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        schoolService.bulkDeleteSchools(ids);
+        return schoolService.bulkDeleteSchools(ids);
     }
 
     // ==================== NATIONALITY ====================
-
-    private void processNationalityUpsert(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processNationalityUpsert(KafkaMessage<?> kafkaMessage) {
         List<NationalityRequest> requests = convertPayload(kafkaMessage.getPayload(), NationalityRequest.class);
-        nationalityService.bulkUpsertNationalities(requests);
+        return nationalityService.bulkUpsertNationalities(requests);
     }
 
-    private void processNationalityDelete(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processNationalityDelete(KafkaMessage<?> kafkaMessage) {
         List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        nationalityService.bulkDeleteNationalities(ids);
-    }
-
-    // ==================== WARD ====================
-
-    private void processWardUpsert(KafkaMessage<?> kafkaMessage) {
-        List<WardRequest> requests = convertPayload(kafkaMessage.getPayload(), WardRequest.class);
-        wardService.bulkUpsertWards(requests);
-    }
-
-    private void processWardDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        wardService.bulkDeleteWards(ids);
-    }
-
-    // ==================== OLDWARD ====================
-
-    private void processOldWardUpsert(KafkaMessage<?> kafkaMessage) {
-        List<OldWardRequest> requests = convertPayload(kafkaMessage.getPayload(), OldWardRequest.class);
-        oldWardService.bulkUpsertOldWards(requests);
-    }
-
-    private void processOldWardDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        oldWardService.bulkDeleteOldWards(ids);
-    }
-
-    // ==================== OLDDISTRICT ====================
-
-    private void processOldDistrictUpsert(KafkaMessage<?> kafkaMessage) {
-        List<OldDistrictRequest> requests = convertPayload(kafkaMessage.getPayload(), OldDistrictRequest.class);
-        oldDistrictService.bulkUpsertOldDistricts(requests);
-    }
-
-    private void processOldDistrictDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        oldDistrictService.bulkDeleteOldDistricts(ids);
-    }
-
-    // ==================== OLDPROVINCECITY ====================
-
-    private void processOldProvinceCityUpsert(KafkaMessage<?> kafkaMessage) {
-        List<OldProvinceCityRequest> requests = convertPayload(kafkaMessage.getPayload(), OldProvinceCityRequest.class);
-        oldProvinceCityService.bulkUpsertOldProvinceCities(requests);
-    }
-
-    private void processOldProvinceCityDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        oldProvinceCityService.bulkDeleteOldProvinceCities(ids);
-    }
-
-    // ==================== WORKSHIFT ====================
-
-    private void processWorkShiftUpsert(KafkaMessage<?> kafkaMessage) {
-        List<WorkShiftRequest> requests = convertPayload(kafkaMessage.getPayload(), WorkShiftRequest.class);
-        workShiftService.bulkUpsertWorkShifts(requests);
-    }
-
-    private void processWorkShiftDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        workShiftService.bulkDeleteWorkShifts(ids);
-    }
-
-    // ==================== WORKSHIFTGROUP ====================
-
-    private void processWorkShiftGroupUpsert(KafkaMessage<?> kafkaMessage) {
-        List<WorkShiftGroupRequest> requests = convertPayload(kafkaMessage.getPayload(), WorkShiftGroupRequest.class);
-        workShiftGroupService.bulkUpsertWorkShiftGroups(requests);
-    }
-
-    private void processWorkShiftGroupDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        workShiftGroupService.bulkDeleteWorkShiftGroups(ids);
-    }
-
-    // ==================== OTTYPE ====================
-
-    private void processOtTypeUpsert(KafkaMessage<?> kafkaMessage) {
-        List<OtTypeRequest> requests = convertPayload(kafkaMessage.getPayload(), OtTypeRequest.class);
-        otTypeService.bulkUpsertOtTypes(requests);
-    }
-
-    private void processOtTypeDelete(KafkaMessage<?> kafkaMessage) {
-        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        otTypeService.bulkDeleteOtTypes(ids);
+        return nationalityService.bulkDeleteNationalities(ids);
     }
 
     // ==================== EMPLOYEETYPE ====================
-
-    private void processEmployeeTypeUpsert(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processEmployeeTypeUpsert(KafkaMessage<?> kafkaMessage) {
         List<EmployeeTypeRequest> requests = convertPayload(kafkaMessage.getPayload(), EmployeeTypeRequest.class);
-        employeeTypeService.bulkUpsertEmployeeTypes(requests);
+        return employeeTypeService.bulkUpsertEmployeeTypes(requests);
     }
 
-    private void processEmployeeTypeDelete(KafkaMessage<?> kafkaMessage) {
+    private BulkOperationResult<?> processEmployeeTypeDelete(KafkaMessage<?> kafkaMessage) {
         List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
-        employeeTypeService.bulkDeleteEmployeeTypes(ids);
+        return employeeTypeService.bulkDeleteEmployeeTypes(ids);
+    }
+
+    // ==================== WORKSHIFT ====================
+    private BulkOperationResult<?> processWorkShiftUpsert(KafkaMessage<?> kafkaMessage) {
+        List<WorkShiftRequest> requests = convertPayload(kafkaMessage.getPayload(), WorkShiftRequest.class);
+        return workShiftService.bulkUpsertWorkShifts(requests);
+    }
+
+    private BulkOperationResult<?> processWorkShiftDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return workShiftService.bulkDeleteWorkShifts(ids);
+    }
+
+    // ==================== WORKSHIFTGROUP ====================
+    private BulkOperationResult<?> processWorkShiftGroupUpsert(KafkaMessage<?> kafkaMessage) {
+        List<WorkShiftGroupRequest> requests = convertPayload(kafkaMessage.getPayload(), WorkShiftGroupRequest.class);
+        return workShiftGroupService.bulkUpsertWorkShiftGroups(requests);
+    }
+
+    private BulkOperationResult<?> processWorkShiftGroupDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return workShiftGroupService.bulkDeleteWorkShiftGroups(ids);
+    }
+
+    // ==================== OTTYPE ====================
+    private BulkOperationResult<?> processOtTypeUpsert(KafkaMessage<?> kafkaMessage) {
+        List<OtTypeRequest> requests = convertPayload(kafkaMessage.getPayload(), OtTypeRequest.class);
+        return otTypeService.bulkUpsertOtTypes(requests);
+    }
+
+    private BulkOperationResult<?> processOtTypeDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return otTypeService.bulkDeleteOtTypes(ids);
+    }
+
+    // ==================== WARD ====================
+    private BulkOperationResult<?> processWardUpsert(KafkaMessage<?> kafkaMessage) {
+        List<WardRequest> requests = convertPayload(kafkaMessage.getPayload(), WardRequest.class);
+        return wardService.bulkUpsertWards(requests);
+    }
+
+    private BulkOperationResult<?> processWardDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return wardService.bulkDeleteWards(ids);
+    }
+
+    // ==================== OLDWARD ====================
+    private BulkOperationResult<?> processOldWardUpsert(KafkaMessage<?> kafkaMessage) {
+        List<OldWardRequest> requests = convertPayload(kafkaMessage.getPayload(), OldWardRequest.class);
+        return oldWardService.bulkUpsertOldWards(requests);
+    }
+
+    private BulkOperationResult<?> processOldWardDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return oldWardService.bulkDeleteOldWards(ids);
+    }
+
+    // ==================== OLDDISTRICT ====================
+    private BulkOperationResult<?> processOldDistrictUpsert(KafkaMessage<?> kafkaMessage) {
+        List<OldDistrictRequest> requests = convertPayload(kafkaMessage.getPayload(), OldDistrictRequest.class);
+        return oldDistrictService.bulkUpsertOldDistricts(requests);
+    }
+
+    private BulkOperationResult<?> processOldDistrictDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return oldDistrictService.bulkDeleteOldDistricts(ids);
+    }
+
+    // ==================== OLDPROVINCECITY ====================
+    private BulkOperationResult<?> processOldProvinceCityUpsert(KafkaMessage<?> kafkaMessage) {
+        List<OldProvinceCityRequest> requests = convertPayload(kafkaMessage.getPayload(), OldProvinceCityRequest.class);
+        return oldProvinceCityService.bulkUpsertOldProvinceCities(requests);
+    }
+
+    private BulkOperationResult<?> processOldProvinceCityDelete(KafkaMessage<?> kafkaMessage) {
+        List<Long> ids = convertPayload(kafkaMessage.getPayload(), Long.class);
+        return oldProvinceCityService.bulkDeleteOldProvinceCities(ids);
     }
 
     // ==================== HELPER METHODS ====================
-
     private <T> List<T> convertPayload(List<?> payload, Class<T> targetClass) {
         return payload.stream()
                 .map(item -> objectMapper.convertValue(item, targetClass))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private boolean isRetryable(Exception e) {
-        // Define which exceptions should trigger retry
         return e instanceof DataIntegrityViolationException
                 || e.getCause() instanceof java.net.SocketTimeoutException
                 || e.getCause() instanceof java.sql.SQLTransientException;
