@@ -1,5 +1,7 @@
 package com.example.demo.kafka.consumer;
 
+import static org.springframework.kafka.support.KafkaHeaders.*;
+
 import com.example.demo.kafka.constants.KafkaHeaders;
 import com.example.demo.kafka.enums.MessageSpec;
 import com.example.demo.kafka.exception.RetryableException;
@@ -37,7 +39,7 @@ public class HumanResourceDlqConsumer {
     )
     public void consumeDlqMessage(
             @Payload Map<String, Object> messageMap,
-            @Header(org.springframework.kafka.support.KafkaHeaders.RECEIVED_TOPIC) String topic,
+            @Header(RECEIVED_TOPIC) String topic,
             @Header(value = KafkaHeaders.MESSAGE_SPEC, required = false) byte[] messageSpecBytes,
             @Header(value = KafkaHeaders.MESSAGE_ID, required = false) byte[] messageIdBytes,
             @Header(value = KafkaHeaders.SOURCE_TOPIC, required = false) byte[] sourceTopicBytes,

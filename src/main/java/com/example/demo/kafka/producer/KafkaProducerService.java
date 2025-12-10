@@ -1,5 +1,7 @@
 package com.example.demo.kafka.producer;
 
+import static org.springframework.kafka.support.KafkaHeaders.*;
+
 import com.example.demo.kafka.constants.KafkaHeaders;
 import com.example.demo.kafka.enums.DataDomain;
 import com.example.demo.kafka.enums.MessageSpec;
@@ -100,7 +102,7 @@ public class KafkaProducerService {
 
             Message<KafkaMessage<T>> message = MessageBuilder
                     .withPayload(kafkaMessage)
-                    .setHeader(org.springframework.kafka.support.KafkaHeaders.TOPIC, topic)
+                    .setHeader(TOPIC, topic)
                     .setHeader(KafkaHeaders.TOPIC, topic.getBytes(StandardCharsets.UTF_8))
                     .setHeader(KafkaHeaders.SOURCE_TOPIC,
                             topic.getBytes(StandardCharsets.UTF_8))
