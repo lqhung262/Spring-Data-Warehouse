@@ -1,4 +1,4 @@
-package com.example.demo.entity;
+package com.example.demo.entity.kafka;
 
 import com.example.demo.kafka.enums.JobStatus;
 import com.example.demo.kafka.enums.OperationType;
@@ -65,7 +65,7 @@ public class KafkaJobStatus {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();

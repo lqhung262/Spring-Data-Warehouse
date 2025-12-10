@@ -4,6 +4,7 @@ import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.humanresource.Employee.EmployeeRequest;
 import com.example.demo.dto.humanresource.Employee.EmployeeResponse;
 import com.example.demo.dto.kafka.JobSubmissionResponse;
+import com.example.demo.kafka.enums.DataDomain;
 import com.example.demo.kafka.enums.MessageSpec;
 import com.example.demo.kafka.enums.OperationType;
 import com.example.demo.kafka.producer.KafkaProducerService;
@@ -54,7 +55,7 @@ public class EmployeeController {
         String jobId = jobStatusService.createJob("EMPLOYEE", OperationType.UPSERT, requests.size());
 
         // Send to Kafka
-        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.EMPLOYEE_UPSERT);
+        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.EMPLOYEE_UPSERT, DataDomain.HUMAN_RESOURCE.getValue());
 
         // Create response
         JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
@@ -80,7 +81,7 @@ public class EmployeeController {
         String jobId = jobStatusService.createJob("EMPLOYEE", OperationType.DELETE, ids.size());
 
         // Send to Kafka
-        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.EMPLOYEE_DELETE);
+        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.EMPLOYEE_DELETE, DataDomain.HUMAN_RESOURCE.getValue());
 
         // Create response
         JobSubmissionResponse response = jobStatusService.createSubmissionResponse(

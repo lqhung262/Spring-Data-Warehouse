@@ -4,7 +4,7 @@ package com.example.demo.kafka.service;
 import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.kafka.JobStatusResponse;
 import com.example.demo.dto.kafka.JobSubmissionResponse;
-import com.example.demo.entity.KafkaJobStatus;
+import com.example.demo.entity.kafka.KafkaJobStatus;
 import com.example.demo.exception.NotFoundException;
 import com.example.demo.kafka.enums.JobStatus;
 import com.example.demo.kafka.enums.OperationType;

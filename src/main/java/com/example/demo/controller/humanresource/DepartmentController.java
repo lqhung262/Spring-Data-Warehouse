@@ -4,6 +4,7 @@ import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.humanresource.Department.DepartmentRequest;
 import com.example.demo.dto.humanresource.Department.DepartmentResponse;
 import com.example.demo.dto.kafka.JobSubmissionResponse;
+import com.example.demo.kafka.enums.DataDomain;
 import com.example.demo.kafka.enums.MessageSpec;
 import com.example.demo.kafka.enums.OperationType;
 import com.example.demo.kafka.producer.KafkaProducerService;
@@ -56,7 +57,7 @@ public class DepartmentController {
         String jobId = jobStatusService.createJob("DEPARTMENT", OperationType.UPSERT, requests.size());
 
         // Send to Kafka
-        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.DEPARTMENT_UPSERT);
+        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.DEPARTMENT_UPSERT, DataDomain.HUMAN_RESOURCE.getValue());
 
         // Create response
         JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
@@ -70,7 +71,7 @@ public class DepartmentController {
     }
 
     /**
-     * BULK DELETE
+     * BULK DELETE ENDPOINT
      */
     @DeleteMapping("/bulk-delete")
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -81,7 +82,7 @@ public class DepartmentController {
         String jobId = jobStatusService.createJob("DEPARTMENT", OperationType.DELETE, ids.size());
 
         // Send to Kafka
-        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.DEPARTMENT_DELETE);
+        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.DEPARTMENT_DELETE, DataDomain.HUMAN_RESOURCE.getValue());
 
         // Create response
         JobSubmissionResponse response = jobStatusService.createSubmissionResponse(

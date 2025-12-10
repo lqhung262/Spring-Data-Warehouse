@@ -39,8 +39,8 @@ public class KafkaProducerService {
     /**
      * Send messages to original topic with batch partitioning
      */
-    public <T> void sendToOriginalTopic(String jobId, List<T> records, MessageSpec messageSpec) {
-        sendMessages(jobId, records, messageSpec, originalTopic);
+    public <T> void sendToOriginalTopic(String jobId, List<T> records, MessageSpec messageSpec, String dataDomain) {
+        sendMessages(jobId, records, messageSpec, originalTopic, dataDomain);
     }
 
     /**
@@ -51,20 +51,21 @@ public class KafkaProducerService {
 
         Message<KafkaMessage<T>> message = MessageBuilder
                 .withPayload(kafkaMessage)
-                .setHeader(KafkaHeaders.TOPIC, dlqTopic.getBytes(StandardCharsets.UTF_8))
-                .setHeader(KafkaHeaders.SOURCE_TOPIC, sourceTopic.getBytes(StandardCharsets.UTF_8))
+                // Use Spring TOPIC header for topic routing
+                .setHeader(TOPIC, dlqTopic)
+                .setHeader(KafkaHeaders.SOURCE_TOPIC, sourceTopic)
                 .setHeader(KafkaHeaders.DATA_DOMAIN_NAME,
-                        DataDomain.HUMAN_RESOURCE.getValue().getBytes(StandardCharsets.UTF_8))
+                        DataDomain.HUMAN_RESOURCE.getValue())
                 .setHeader(KafkaHeaders.MESSAGE_SPEC,
-                        kafkaMessage.getMetadata().getMessageSpec().getBytes(StandardCharsets.UTF_8))
+                        kafkaMessage.getMetadata().getMessageSpec())
                 .setHeader(KafkaHeaders.MESSAGE_SPEC_VERSION,
-                        kafkaMessage.getMetadata().getMessageSpecVersion().getBytes(StandardCharsets.UTF_8))
+                        kafkaMessage.getMetadata().getMessageSpecVersion())
                 .setHeader(KafkaHeaders.MESSAGE_ID,
-                        messageId.getBytes(StandardCharsets.UTF_8))
+                        messageId)
                 .setHeader(KafkaHeaders.MESSAGE_TIMESTAMP,
-                        String.valueOf(System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8))
+                        String.valueOf(System.currentTimeMillis()))
                 .setHeader(KafkaHeaders.RETRY_COUNT,
-                        String.valueOf(kafkaMessage.getMetadata().getRetryCount()).getBytes(StandardCharsets.UTF_8))
+                        String.valueOf(kafkaMessage.getMetadata().getRetryCount()))
                 .build();
 
         kafkaTemplate.send(message);
@@ -75,7 +76,7 @@ public class KafkaProducerService {
      * Private helper to partition and send messages
      */
     private <T> void sendMessages(String jobId, List<T> records, MessageSpec messageSpec,
-                                  String topic) {
+                                  String topic, String dataDomain) {
         List<List<T>> batches = partitionRecords(records);
 
         log.info("Partitioning {} records into {} message(s) for topic: {}, jobId: {}",
@@ -87,7 +88,7 @@ public class KafkaProducerService {
 
             KafkaMessageMetadata metadata = KafkaMessageMetadata.builder()
                     .messageId(messageId)
-                    .dataDomainName(DataDomain.HUMAN_RESOURCE.getValue())
+                    .dataDomainName(dataDomain)
                     .messageSpec(messageSpec.getValue())
                     .messageSpecVersion("1.0")
                     .messageTimestamp(timestamp)
@@ -102,20 +103,20 @@ public class KafkaProducerService {
 
             Message<KafkaMessage<T>> message = MessageBuilder
                     .withPayload(kafkaMessage)
+                    // Use Spring TOPIC header for topic routing
                     .setHeader(TOPIC, topic)
-                    .setHeader(KafkaHeaders.TOPIC, topic.getBytes(StandardCharsets.UTF_8))
                     .setHeader(KafkaHeaders.SOURCE_TOPIC,
-                            topic.getBytes(StandardCharsets.UTF_8))
+                            topic)
                     .setHeader(KafkaHeaders.DATA_DOMAIN_NAME,
-                            DataDomain.HUMAN_RESOURCE.getValue().getBytes(StandardCharsets.UTF_8))
+                            dataDomain)
                     .setHeader(KafkaHeaders.MESSAGE_SPEC,
-                            messageSpec.getValue().getBytes(StandardCharsets.UTF_8))
+                            messageSpec.getValue())
                     .setHeader(KafkaHeaders.MESSAGE_SPEC_VERSION,
-                            "1.0".getBytes(StandardCharsets.UTF_8))
+                            "1.0")
                     .setHeader(KafkaHeaders.MESSAGE_ID,
-                            messageId.getBytes(StandardCharsets.UTF_8))
+                            messageId)
                     .setHeader(KafkaHeaders.MESSAGE_TIMESTAMP,
-                            String.valueOf(timestamp).getBytes(StandardCharsets.UTF_8))
+                            String.valueOf(timestamp))
                     .build();
 
             kafkaTemplate.send(message);

@@ -17,7 +17,6 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
@@ -35,54 +34,54 @@ public class HumanResourceDlqConsumer {
     @KafkaListener(
             topics = "${kafka.topic.dlq}",
             groupId = "${spring.kafka.consumer.group-id}-dlq",
-            containerFactory = "dlqKafkaListenerContainerFactory"
+            containerFactory = "${kafka.consumer.dlq.containerFactory}"
     )
     public void consumeDlqMessage(
             @Payload Map<String, Object> messageMap,
             @Header(RECEIVED_TOPIC) String topic,
-            @Header(value = KafkaHeaders.MESSAGE_SPEC, required = false) byte[] messageSpecBytes,
-            @Header(value = KafkaHeaders.MESSAGE_ID, required = false) byte[] messageIdBytes,
-            @Header(value = KafkaHeaders.SOURCE_TOPIC, required = false) byte[] sourceTopicBytes,
-            @Header(value = KafkaHeaders.RETRY_COUNT, required = false) byte[] retryCountBytes
+            @Header(value = KafkaHeaders.MESSAGE_SPEC, required = false) String messageSpec,
+            @Header(value = KafkaHeaders.MESSAGE_ID, required = false) String messageId,
+            @Header(value = KafkaHeaders.SOURCE_TOPIC, required = false) String sourceTopic,
+            @Header(value = KafkaHeaders.RETRY_COUNT, required = false) String retryCountStr
     ) {
-        String messageSpec = messageSpecBytes != null ?
-                new String(messageSpecBytes, StandardCharsets.UTF_8) : "UNKNOWN";
-        String messageId = messageIdBytes != null ?
-                new String(messageIdBytes, StandardCharsets.UTF_8) : "UNKNOWN";
-        String sourceTopic = sourceTopicBytes != null ?
-                new String(sourceTopicBytes, StandardCharsets.UTF_8) : "UNKNOWN";
+        String resolvedMessageSpec = messageSpec != null ? messageSpec : "UNKNOWN";
+        String resolvedMessageId = messageId != null ? messageId : "UNKNOWN";
+        String resolvedSourceTopic = sourceTopic != null ? sourceTopic : "UNKNOWN";
 
         int retryCount = 0;
-        if (retryCountBytes != null) {
-            retryCount = Integer.parseInt(new String(retryCountBytes, StandardCharsets.UTF_8));
+        if (retryCountStr != null) {
+            try {
+                retryCount = Integer.parseInt(retryCountStr);
+            } catch (NumberFormatException ignored) {
+            }
         }
 
         log.info("Consumed message from DLQ: {}, messageId: {}, messageSpec: {}, retryCount: {}",
-                topic, messageId, messageSpec, retryCount);
+                topic, resolvedMessageId, resolvedMessageSpec, retryCount);
 
         try {
             KafkaMessage<?> kafkaMessage = objectMapper.convertValue(messageMap, KafkaMessage.class);
-            messageProcessor.processMessage(kafkaMessage, MessageSpec.valueOf(messageSpec));
-            log.info("Successfully processed DLQ message: {} after {} retries", messageId, retryCount);
+            messageProcessor.processMessage(kafkaMessage, MessageSpec.valueOf(resolvedMessageSpec));
+            log.info("Successfully processed DLQ message: {} after {} retries", resolvedMessageId, retryCount);
 
         } catch (RetryableException e) {
             retryCount++;
 
             if (retryCount < maxRetries) {
                 log.warn("Retry {}/{} failed for message: {}. Re-sending to DLQ.",
-                        retryCount, maxRetries, messageId, e);
+                        retryCount, maxRetries, resolvedMessageId, e);
 
                 KafkaMessage<?> kafkaMessage = objectMapper.convertValue(messageMap, KafkaMessage.class);
                 kafkaMessage.getMetadata().setRetryCount(retryCount);
-                kafkaProducerService.sendToDlqTopic(kafkaMessage, sourceTopic);
+                kafkaProducerService.sendToDlqTopic(kafkaMessage, resolvedSourceTopic);
 
             } else {
                 log.error("Max retries ({}) exceeded for message: {}. Manual review needed.",
-                        maxRetries, messageId, e);
+                        maxRetries, resolvedMessageId, e);
             }
 
         } catch (Exception e) {
-            log.error("Non-retryable error processing DLQ message: {}. Skipping.", messageId, e);
+            log.error("Non-retryable error processing DLQ message: {}. Skipping.", resolvedMessageId, e);
         }
     }
 }

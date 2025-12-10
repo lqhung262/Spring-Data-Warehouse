@@ -1,6 +1,6 @@
 package com.example.demo.repository;
 
-import com.example.demo.entity.KafkaJobStatus;
+import com.example.demo.entity.kafka.KafkaJobStatus;
 import com.example.demo.kafka.enums.JobStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
