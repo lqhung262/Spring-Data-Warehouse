@@ -15,7 +15,6 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -72,9 +71,7 @@ public class KafkaProducerService {
         log.info("Sent message to DLQ topic: {} with messageId: {}", dlqTopic, messageId);
     }
 
-    /**
-     * Private helper to partition and send messages
-     */
+    // Partition records and send message function
     private <T> void sendMessages(String jobId, List<T> records, MessageSpec messageSpec,
                                   String topic, String dataDomain) {
         List<List<T>> batches = partitionRecords(records);

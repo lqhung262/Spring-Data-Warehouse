@@ -24,6 +24,7 @@ public class MessageProcessor {
     private final KafkaJobStatusService jobStatusService;
     private final BulkOperationHandlerRegistry handlerRegistry;
 
+    // gán messageSpec + handler function (bulk service functions)
     @PostConstruct
     public void init() {
         handlerRegistry.init();
@@ -60,7 +61,7 @@ public class MessageProcessor {
                 return;
             }
 
-            // Update job result
+            // Update job result => COMPLETED
             if (result != null) {
                 jobStatusService.updateJobResult(jobId, result);
                 log.info("Job completed: jobId={}, success={}, failure={}",
