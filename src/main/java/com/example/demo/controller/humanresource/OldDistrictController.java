@@ -1,14 +1,20 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
-import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.OldDistrict.OldDistrictRequest;
 import com.example.demo.dto.humanresource.OldDistrict.OldDistrictResponse;
+import com.example.demo.dto.kafka.JobSubmissionResponse;
+import com.example.demo.kafka.enums.DataDomain;
+import com.example.demo.kafka.enums.MessageSpec;
+import com.example.demo.kafka.enums.OperationType;
+import com.example.demo.kafka.producer.KafkaProducerService;
+import com.example.demo.kafka.service.KafkaJobStatusService;
 import com.example.demo.service.humanresource.OldDistrictService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -16,15 +22,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
-
 
 @RestController
-@RequestMapping("/old-districts")
+@RequestMapping("/api/v1/human-resource/old-districts")
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OldDistrictController {
     OldDistrictService oldDistrictService;
+    final KafkaProducerService kafkaProducerService;
+    final KafkaJobStatusService jobStatusService;
 
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
@@ -39,45 +46,52 @@ public class OldDistrictController {
     /**
      * BULK UPSERT ENDPOINT
      */
-    @PostMapping("/_bulk-upsert")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<OldDistrictResponse>> bulkUpsertOldDistricts(
-            @Valid @RequestBody List<OldDistrictRequest> requests) {
+    @PostMapping("/bulk-upsert")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkUpsertOldDistricts(
+            @RequestBody List<OldDistrictRequest> requests) {
+        log.info("Received bulk upsert request for {} old districts", requests.size());
 
-        BulkOperationResult<OldDistrictResponse> result =
-                oldDistrictService.bulkUpsertOldDistricts(requests);
+        // Create job
+        String jobId = jobStatusService.createJob("OLD_DISTRICT", OperationType.UPSERT, requests.size());
 
-        // Determine response code based on result
-        int responseCode;
-        if (!result.hasErrors()) {
-            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
-            responseCode = 1000;
-        } else if (result.hasSuccess()) {
-            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
-            responseCode = 207;
-        } else {
-            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
-            responseCode = 400;
-        }
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.OLD_DISTRICT_UPSERT, DataDomain.HUMAN_RESOURCE.getValue());
 
-        return ApiResponse.<BulkOperationResult<OldDistrictResponse>>builder()
-                .code(responseCode)
-                .message(result.getSummary())
-                .result(result)
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "OLD_DISTRICT", OperationType.UPSERT, requests.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk upsert request accepted")
+                .result(response)
                 .build();
     }
 
     /**
-     * BULK DELETE
+     * BULK DELETE ENDPOINT
      */
-    @DeleteMapping("/_bulk-delete")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<Long>> bulkDeleteOldDistricts(@RequestParam("ids") List<Long> ids) {
+    @DeleteMapping("/bulk-delete")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkDeleteOldDistricts(@RequestBody List<Long> ids) {
+        log.info("Received bulk delete request for {} old districts", ids.size());
 
-        BulkOperationResult<Long> result = oldDistrictService.bulkDeleteOldDistricts(ids);
+        // Create job
+        String jobId = jobStatusService.createJob("OLD_DISTRICT", OperationType.DELETE, ids.size());
 
-        // Determine response code
-        return getBulkOperationResultApiResponse(result);
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.OLD_DISTRICT_DELETE, DataDomain.HUMAN_RESOURCE.getValue());
+
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "OLD_DISTRICT", OperationType.DELETE, ids.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk delete request accepted")
+                .result(response)
+                .build();
     }
 
     @GetMapping()

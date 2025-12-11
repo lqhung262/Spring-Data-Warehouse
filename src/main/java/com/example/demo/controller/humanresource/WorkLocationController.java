@@ -1,14 +1,20 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
-import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.WorkLocation.WorkLocationRequest;
 import com.example.demo.dto.humanresource.WorkLocation.WorkLocationResponse;
+import com.example.demo.dto.kafka.JobSubmissionResponse;
+import com.example.demo.kafka.enums.DataDomain;
+import com.example.demo.kafka.enums.MessageSpec;
+import com.example.demo.kafka.enums.OperationType;
+import com.example.demo.kafka.producer.KafkaProducerService;
+import com.example.demo.kafka.service.KafkaJobStatusService;
 import com.example.demo.service.humanresource.WorkLocationService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -16,14 +22,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
-@RequestMapping("/work-locations")
+@RequestMapping("/api/v1/human-resource/work-locations")
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class WorkLocationController {
     WorkLocationService workLocationService;
+    final KafkaProducerService kafkaProducerService;
+    final KafkaJobStatusService jobStatusService;
 
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
@@ -38,45 +46,52 @@ public class WorkLocationController {
     /**
      * BULK UPSERT ENDPOINT
      */
-    @PostMapping("/_bulk-upsert")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<WorkLocationResponse>> bulkUpsertWorkLocations(
-            @Valid @RequestBody List<WorkLocationRequest> requests) {
+    @PostMapping("/bulk-upsert")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkUpsertWorkLocations(
+            @RequestBody List<WorkLocationRequest> requests) {
+        log.info("Received bulk upsert request for {} work locations", requests.size());
 
-        BulkOperationResult<WorkLocationResponse> result =
-                workLocationService.bulkUpsertWorkLocations(requests);
+        // Create job
+        String jobId = jobStatusService.createJob("WORK_LOCATION", OperationType.UPSERT, requests.size());
 
-        // Determine response code based on result
-        int responseCode;
-        if (!result.hasErrors()) {
-            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
-            responseCode = 1000;
-        } else if (result.hasSuccess()) {
-            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
-            responseCode = 207;
-        } else {
-            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
-            responseCode = 400;
-        }
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.WORK_LOCATION_UPSERT, DataDomain.HUMAN_RESOURCE.getValue());
 
-        return ApiResponse.<BulkOperationResult<WorkLocationResponse>>builder()
-                .code(responseCode)
-                .message(result.getSummary())
-                .result(result)
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "WORK_LOCATION", OperationType.UPSERT, requests.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk upsert request accepted")
+                .result(response)
                 .build();
     }
 
     /**
-     * BULK DELETE
+     * BULK DELETE ENDPOINT
      */
-    @DeleteMapping("/_bulk-delete")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<Long>> bulkDeleteWorkLocations(@RequestParam("ids") List<Long> ids) {
+    @DeleteMapping("/bulk-delete")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkDeleteWorkLocations(@RequestBody List<Long> ids) {
+        log.info("Received bulk delete request for {} work locations", ids.size());
 
-        BulkOperationResult<Long> result = workLocationService.bulkDeleteWorkLocations(ids);
+        // Create job
+        String jobId = jobStatusService.createJob("WORK_LOCATION", OperationType.DELETE, ids.size());
 
-        // Determine response code
-        return getBulkOperationResultApiResponse(result);
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.WORK_LOCATION_DELETE, DataDomain.HUMAN_RESOURCE.getValue());
+
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "WORK_LOCATION", OperationType.DELETE, ids.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk delete request accepted")
+                .result(response)
+                .build();
     }
 
     @GetMapping()

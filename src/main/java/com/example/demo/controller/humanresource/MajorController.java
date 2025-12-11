@@ -1,14 +1,20 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
-import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Major.MajorRequest;
 import com.example.demo.dto.humanresource.Major.MajorResponse;
+import com.example.demo.dto.kafka.JobSubmissionResponse;
+import com.example.demo.kafka.enums.DataDomain;
+import com.example.demo.kafka.enums.MessageSpec;
+import com.example.demo.kafka.enums.OperationType;
+import com.example.demo.kafka.producer.KafkaProducerService;
+import com.example.demo.kafka.service.KafkaJobStatusService;
 import com.example.demo.service.humanresource.MajorService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -16,14 +22,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
-@RequestMapping("/majors")
+@RequestMapping("/api/v1/human-resource/majors")
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class MajorController {
     MajorService majorService;
+    final KafkaProducerService kafkaProducerService;
+    final KafkaJobStatusService jobStatusService;
 
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
@@ -38,45 +46,52 @@ public class MajorController {
     /**
      * BULK UPSERT ENDPOINT
      */
-    @PostMapping("/_bulk-upsert")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<MajorResponse>> bulkUpsertMajors(
-            @Valid @RequestBody List<MajorRequest> requests) {
+    @PostMapping("/bulk-upsert")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkUpsertMajors(
+            @RequestBody List<MajorRequest> requests) {
+        log.info("Received bulk upsert request for {} majors", requests.size());
 
-        BulkOperationResult<MajorResponse> result =
-                majorService.bulkUpsertMajors(requests);
+        // Create job
+        String jobId = jobStatusService.createJob("MAJOR", OperationType.UPSERT, requests.size());
 
-        // Determine response code based on result
-        int responseCode;
-        if (!result.hasErrors()) {
-            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
-            responseCode = 1000;
-        } else if (result.hasSuccess()) {
-            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
-            responseCode = 207;
-        } else {
-            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
-            responseCode = 400;
-        }
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.MAJOR_UPSERT, DataDomain.HUMAN_RESOURCE.getValue());
 
-        return ApiResponse.<BulkOperationResult<MajorResponse>>builder()
-                .code(responseCode)
-                .message(result.getSummary())
-                .result(result)
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "MAJOR", OperationType.UPSERT, requests.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk upsert request accepted")
+                .result(response)
                 .build();
     }
 
     /**
-     * BULK DELETE
+     * BULK DELETE ENDPOINT
      */
-    @DeleteMapping("/_bulk-delete")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<Long>> bulkDeleteMajors(@RequestParam("ids") List<Long> ids) {
+    @DeleteMapping("/bulk-delete")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkDeleteMajors(@RequestBody List<Long> ids) {
+        log.info("Received bulk delete request for {} majors", ids.size());
 
-        BulkOperationResult<Long> result = majorService.bulkDeleteMajors(ids);
+        // Create job
+        String jobId = jobStatusService.createJob("MAJOR", OperationType.DELETE, ids.size());
 
-        // Determine response code
-        return getBulkOperationResultApiResponse(result);
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.MAJOR_DELETE, DataDomain.HUMAN_RESOURCE.getValue());
+
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "MAJOR", OperationType.DELETE, ids.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk delete request accepted")
+                .result(response)
+                .build();
     }
 
     @GetMapping()

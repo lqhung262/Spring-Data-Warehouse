@@ -1,14 +1,20 @@
 package com.example.demo.controller.humanresource;
 
 import com.example.demo.dto.ApiResponse;
-import com.example.demo.dto.BulkOperationResult;
 import com.example.demo.dto.humanresource.Language.LanguageRequest;
 import com.example.demo.dto.humanresource.Language.LanguageResponse;
+import com.example.demo.dto.kafka.JobSubmissionResponse;
+import com.example.demo.kafka.enums.DataDomain;
+import com.example.demo.kafka.enums.MessageSpec;
+import com.example.demo.kafka.enums.OperationType;
+import com.example.demo.kafka.producer.KafkaProducerService;
+import com.example.demo.kafka.service.KafkaJobStatusService;
 import com.example.demo.service.humanresource.LanguageService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -16,14 +22,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.demo.controller.humanresource.AttendanceMachineController.getBulkOperationResultApiResponse;
 
 @RestController
-@RequestMapping("/languages")
+@RequestMapping("/api/v1/human-resource/languages")
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LanguageController {
     LanguageService languageService;
+    final KafkaProducerService kafkaProducerService;
+    final KafkaJobStatusService jobStatusService;
 
     @PostMapping()
     @ResponseStatus(HttpStatus.CREATED)
@@ -38,45 +46,52 @@ public class LanguageController {
     /**
      * BULK UPSERT ENDPOINT
      */
-    @PostMapping("/_bulk-upsert")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<LanguageResponse>> bulkUpsertLanguages(
-            @Valid @RequestBody List<LanguageRequest> requests) {
+    @PostMapping("/bulk-upsert")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkUpsertLanguages(
+            @RequestBody List<LanguageRequest> requests) {
+        log.info("Received bulk upsert request for {} languages", requests.size());
 
-        BulkOperationResult<LanguageResponse> result =
-                languageService.bulkUpsertLanguages(requests);
+        // Create job
+        String jobId = jobStatusService.createJob("LANGUAGE", OperationType.UPSERT, requests.size());
 
-        // Determine response code based on result
-        int responseCode;
-        if (!result.hasErrors()) {
-            // Trường hợp 1: Không có lỗi nào -> Thành công toàn bộ
-            responseCode = 1000;
-        } else if (result.hasSuccess()) {
-            // Trường hợp 2: Có lỗi NHƯNG cũng có thành công -> Thành công một phần (Multi-Status)
-            responseCode = 207;
-        } else {
-            // Trường hợp 3: Có lỗi VÀ không có thành công nào -> Thất bại toàn bộ
-            responseCode = 400;
-        }
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, requests, MessageSpec.LANGUAGE_UPSERT, DataDomain.HUMAN_RESOURCE.getValue());
 
-        return ApiResponse.<BulkOperationResult<LanguageResponse>>builder()
-                .code(responseCode)
-                .message(result.getSummary())
-                .result(result)
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "LANGUAGE", OperationType.UPSERT, requests.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk upsert request accepted")
+                .result(response)
                 .build();
     }
 
     /**
-     * BULK DELETE
+     * BULK DELETE ENDPOINT
      */
-    @DeleteMapping("/_bulk-delete")
-    @ResponseStatus(HttpStatus.OK)
-    ApiResponse<BulkOperationResult<Long>> bulkDeleteLanguages(@RequestParam("ids") List<Long> ids) {
+    @DeleteMapping("/bulk-delete")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<JobSubmissionResponse> bulkDeleteLanguages(@RequestBody List<Long> ids) {
+        log.info("Received bulk delete request for {} languages", ids.size());
 
-        BulkOperationResult<Long> result = languageService.bulkDeleteLanguages(ids);
+        // Create job
+        String jobId = jobStatusService.createJob("LANGUAGE", OperationType.DELETE, ids.size());
 
-        // Determine response code
-        return getBulkOperationResultApiResponse(result);
+        // Send to Kafka
+        kafkaProducerService.sendToOriginalTopic(jobId, ids, MessageSpec.LANGUAGE_DELETE, DataDomain.HUMAN_RESOURCE.getValue());
+
+        // Create response
+        JobSubmissionResponse response = jobStatusService.createSubmissionResponse(
+                jobId, "LANGUAGE", OperationType.DELETE, ids.size());
+
+        return ApiResponse.<JobSubmissionResponse>builder()
+                .code(HttpStatus.ACCEPTED.value())
+                .message("Bulk delete request accepted")
+                .result(response)
+                .build();
     }
 
     @GetMapping()
