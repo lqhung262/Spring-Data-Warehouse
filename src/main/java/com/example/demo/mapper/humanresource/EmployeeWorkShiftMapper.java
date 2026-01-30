@@ -1,34 +1,48 @@
 package com.example.demo.mapper.humanresource;
 
+import com.example.demo.dto.common.RefDto;
 import com.example.demo.dto.humanresource.EmployeeWorkShift.EmployeeWorkShiftRequest;
 import com.example.demo.dto.humanresource.EmployeeWorkShift.EmployeeWorkShiftResponse;
 import com.example.demo.entity.humanresource.*;
-import org.mapstruct.*;
+import com.example.demo.mapper.common.CommonMapperConfig;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+/**
+ * MapStruct mapper for EmployeeWorkShift entity.
+ * Uses CommonMapperConfig for shared settings.
+ */
+@Mapper(config = CommonMapperConfig.class)
 public interface EmployeeWorkShiftMapper {
 
-    @Mapping(target = "employee", ignore = true)
-    @Mapping(target = "employeeWorkShiftId", ignore = true)
-    @Mapping(target = "workShift", ignore = true)
-    @Mapping(target = "workShiftGroup", ignore = true)
-    @Mapping(target = "attendanceType", ignore = true)
-    @Mapping(target = "otType", ignore = true)
     EmployeeWorkShift toEmployeeWorkShift(EmployeeWorkShiftRequest request);
 
-    @Mapping(target = "workShiftId", source = "workShift.workShiftId")
-    @Mapping(target = "workShiftGroupId", source = "workShiftGroup.workShiftGroupId")
-    @Mapping(target = "attendanceTypeId", source = "attendanceType.attendanceTypeId")
-    @Mapping(target = "otTypeId", source = "otType.otTypeId")
-    EmployeeWorkShiftResponse toEmployeeWorkShiftResponse(EmployeeWorkShift employeeWorkShift);
+    @Mapping(target = "id", source = "employeeWorkShiftId")
+    @Mapping(target = "workShift", expression = "java(toWorkShiftRef(ws.getWorkShift()))")
+    @Mapping(target = "workShiftGroup", expression = "java(toWorkShiftGroupRef(ws.getWorkShiftGroup()))")
+    @Mapping(target = "attendanceType", expression = "java(toAttendanceTypeRef(ws.getAttendanceType()))")
+    @Mapping(target = "otType", expression = "java(toOtTypeRef(ws.getOtType()))")
+    EmployeeWorkShiftResponse toEmployeeWorkShiftResponse(EmployeeWorkShift ws);
 
-    @Mapping(target = "employee", ignore = true)
-    @Mapping(target = "employeeWorkShiftId", ignore = true)
-    @Mapping(target = "workShift", ignore = true)
-    @Mapping(target = "workShiftGroup", ignore = true)
-    @Mapping(target = "attendanceType", ignore = true)
-    @Mapping(target = "otType", ignore = true)
     void updateEmployeeWorkShift(@MappingTarget EmployeeWorkShift employeeWorkShift, EmployeeWorkShiftRequest request);
+
+    // Helper methods to convert entities to RefDto
+    default RefDto toWorkShiftRef(WorkShift entity) {
+        return entity == null ? null : RefDto.of(entity.getWorkShiftId(), entity.getName());
+    }
+    
+    default RefDto toWorkShiftGroupRef(WorkShiftGroup entity) {
+        return entity == null ? null : RefDto.of(entity.getWorkShiftGroupId(), entity.getName());
+    }
+    
+    default RefDto toAttendanceTypeRef(AttendanceType entity) {
+        return entity == null ? null : RefDto.of(entity.getAttendanceTypeId(), entity.getName());
+    }
+    
+    default RefDto toOtTypeRef(OtType entity) {
+        return entity == null ? null : RefDto.of(entity.getOtTypeId(), entity.getName());
+    }
 
     default void setReferences(EmployeeWorkShift workShift, EmployeeWorkShiftRequest request) {
         if (request.getWorkShiftId() != null) {
