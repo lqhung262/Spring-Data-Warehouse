@@ -1,17 +1,27 @@
 package com.example.demo.dto.humanresource.EmployeeEducation;
 
-import lombok.*;
+import com.example.demo.dto.common.RefDto;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+/**
+ * Response DTO for EmployeeEducation.
+ * Uses RefDto for related entities to provide clean, structured data.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmployeeEducationResponse {
-    Long employeeEducationId;
-    Long majorId;
-    Long specializationId;
-    Long educationLevelId;
-    Long schoolId;
+    
+    Long id;
+    RefDto major;
+    RefDto specialization;
+    RefDto educationLevel;
+    RefDto school;
 }

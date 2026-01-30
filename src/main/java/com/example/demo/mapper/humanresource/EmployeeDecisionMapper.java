@@ -1,49 +1,71 @@
 package com.example.demo.mapper.humanresource;
 
 
+import com.example.demo.dto.common.RefDto;
 import com.example.demo.dto.humanresource.EmployeeDecision.EmployeeDecisionRequest;
 import com.example.demo.dto.humanresource.EmployeeDecision.EmployeeDecisionResponse;
 import com.example.demo.entity.humanresource.*;
-import org.mapstruct.*;
+import com.example.demo.mapper.common.CommonMapperConfig;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+/**
+ * MapStruct mapper for EmployeeDecision entity.
+ * Uses CommonMapperConfig for shared settings (no need for explicit ignore mappings).
+ */
+@Mapper(config = CommonMapperConfig.class)
 public interface EmployeeDecisionMapper {
 
-    @Mapping(target = "employee", ignore = true)
-    @Mapping(target = "employeeDecisionId", ignore = true)
-    @Mapping(target = "department", ignore = true)
-    @Mapping(target = "employeeType", ignore = true)
-    @Mapping(target = "jobPosition", ignore = true)
-    @Mapping(target = "jobTitle", ignore = true)
-    @Mapping(target = "jobRank", ignore = true)
-    @Mapping(target = "decisionType", ignore = true)
     @Mapping(target = "costCategoryLevel1", ignore = true)
     @Mapping(target = "costCategoryLevel2", ignore = true)
     EmployeeDecision toEmployeeDecision(EmployeeDecisionRequest request);
 
-    @Mapping(target = "departmentId", source = "department.departmentId")
-    @Mapping(target = "employeeTypeId", source = "employeeType.employeeTypeId")
-    @Mapping(target = "jobPositionId", source = "jobPosition.jobPositionId")
-    @Mapping(target = "jobTitleId", source = "jobTitle.jobTitleId")
-    @Mapping(target = "jobRankId", source = "jobRank.jobRankId")
-    @Mapping(target = "decisionTypeId", source = "decisionType.decisionTypeId")
-    @Mapping(target = "costCategoryLevel1", source = "costCategoryLevel1.expenseTypeId")
-    @Mapping(target = "costCategoryLevel2", source = "costCategoryLevel2.expenseTypeId")
-    EmployeeDecisionResponse toEmployeeDecisionResponse(EmployeeDecision employeeDecision);
+    @Mapping(target = "id", source = "employeeDecisionId")
+    @Mapping(target = "department", expression = "java(toDepartmentRef(decision.getDepartment()))")
+    @Mapping(target = "employeeType", expression = "java(toEmployeeTypeRef(decision.getEmployeeType()))")
+    @Mapping(target = "jobPosition", expression = "java(toJobPositionRef(decision.getJobPosition()))")
+    @Mapping(target = "jobTitle", expression = "java(toJobTitleRef(decision.getJobTitle()))")
+    @Mapping(target = "jobRank", expression = "java(toJobRankRef(decision.getJobRank()))")
+    @Mapping(target = "decisionType", expression = "java(toDecisionTypeRef(decision.getDecisionType()))")
+    @Mapping(target = "costCategoryLevel1", expression = "java(toExpenseTypeRef(decision.getCostCategoryLevel1()))")
+    @Mapping(target = "costCategoryLevel2", expression = "java(toExpenseTypeRef(decision.getCostCategoryLevel2()))")
+    EmployeeDecisionResponse toEmployeeDecisionResponse(EmployeeDecision decision);
 
-    @Mapping(target = "employee", ignore = true)
-    @Mapping(target = "employeeDecisionId", ignore = true)
-    @Mapping(target = "department", ignore = true)
-    @Mapping(target = "employeeType", ignore = true)
-    @Mapping(target = "jobPosition", ignore = true)
-    @Mapping(target = "jobTitle", ignore = true)
-    @Mapping(target = "jobRank", ignore = true)
-    @Mapping(target = "decisionType", ignore = true)
     @Mapping(target = "costCategoryLevel1", ignore = true)
     @Mapping(target = "costCategoryLevel2", ignore = true)
     void updateEmployeeDecision(@MappingTarget EmployeeDecision decision, EmployeeDecisionRequest request);
 
-    // Helper methods to set references from IDs - to be called manually in service layer
+    // Helper methods to convert entities to RefDto
+    default RefDto toDepartmentRef(Department entity) {
+        return entity == null ? null : RefDto.of(entity.getDepartmentId(), entity.getName());
+    }
+    
+    default RefDto toEmployeeTypeRef(EmployeeType entity) {
+        return entity == null ? null : RefDto.of(entity.getEmployeeTypeId(), entity.getName());
+    }
+    
+    default RefDto toJobPositionRef(JobPosition entity) {
+        return entity == null ? null : RefDto.of(entity.getJobPositionId(), entity.getName());
+    }
+    
+    default RefDto toJobTitleRef(JobTitle entity) {
+        return entity == null ? null : RefDto.of(entity.getJobTitleId(), entity.getName());
+    }
+    
+    default RefDto toJobRankRef(JobRank entity) {
+        return entity == null ? null : RefDto.of(entity.getJobRankId(), entity.getName());
+    }
+    
+    default RefDto toDecisionTypeRef(DecisionType entity) {
+        return entity == null ? null : RefDto.of(entity.getDecisionTypeId(), entity.getName());
+    }
+    
+    default RefDto toExpenseTypeRef(ExpenseType entity) {
+        return entity == null ? null : RefDto.of(entity.getExpenseTypeId(), entity.getName());
+    }
+
+    // Helper methods to set references from IDs
     default void setReferences(EmployeeDecision decision, EmployeeDecisionRequest request) {
         if (request.getDepartmentId() != null) {
             Department department = new Department();

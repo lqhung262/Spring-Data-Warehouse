@@ -1,34 +1,48 @@
 package com.example.demo.mapper.humanresource;
 
+import com.example.demo.dto.common.RefDto;
 import com.example.demo.dto.humanresource.EmployeeEducation.EmployeeEducationRequest;
 import com.example.demo.dto.humanresource.EmployeeEducation.EmployeeEducationResponse;
 import com.example.demo.entity.humanresource.*;
-import org.mapstruct.*;
+import com.example.demo.mapper.common.CommonMapperConfig;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+/**
+ * MapStruct mapper for EmployeeEducation entity.
+ * Uses CommonMapperConfig for shared settings.
+ */
+@Mapper(config = CommonMapperConfig.class)
 public interface EmployeeEducationMapper {
 
-    @Mapping(target = "employee", ignore = true)
-    @Mapping(target = "employeeEducationId", ignore = true)
-    @Mapping(target = "major", ignore = true)
-    @Mapping(target = "specialization", ignore = true)
-    @Mapping(target = "educationLevel", ignore = true)
-    @Mapping(target = "school", ignore = true)
     EmployeeEducation toEmployeeEducation(EmployeeEducationRequest request);
 
-    @Mapping(target = "majorId", source = "major.majorId")
-    @Mapping(target = "specializationId", source = "specialization.specializationId")
-    @Mapping(target = "educationLevelId", source = "educationLevel.educationLevelId")
-    @Mapping(target = "schoolId", source = "school.schoolId")
-    EmployeeEducationResponse toEmployeeEducationResponse(EmployeeEducation employeeEducation);
+    @Mapping(target = "id", source = "employeeEducationId")
+    @Mapping(target = "major", expression = "java(toMajorRef(education.getMajor()))")
+    @Mapping(target = "specialization", expression = "java(toSpecializationRef(education.getSpecialization()))")
+    @Mapping(target = "educationLevel", expression = "java(toEducationLevelRef(education.getEducationLevel()))")
+    @Mapping(target = "school", expression = "java(toSchoolRef(education.getSchool()))")
+    EmployeeEducationResponse toEmployeeEducationResponse(EmployeeEducation education);
 
-    @Mapping(target = "employee", ignore = true)
-    @Mapping(target = "employeeEducationId", ignore = true)
-    @Mapping(target = "major", ignore = true)
-    @Mapping(target = "specialization", ignore = true)
-    @Mapping(target = "educationLevel", ignore = true)
-    @Mapping(target = "school", ignore = true)
     void updateEmployeeEducation(@MappingTarget EmployeeEducation employeeEducation, EmployeeEducationRequest request);
+
+    // Helper methods to convert entities to RefDto
+    default RefDto toMajorRef(Major entity) {
+        return entity == null ? null : RefDto.of(entity.getMajorId(), entity.getName());
+    }
+    
+    default RefDto toSpecializationRef(Specialization entity) {
+        return entity == null ? null : RefDto.of(entity.getSpecializationId(), entity.getName());
+    }
+    
+    default RefDto toEducationLevelRef(EducationLevel entity) {
+        return entity == null ? null : RefDto.of(entity.getEducationLevelId(), entity.getName());
+    }
+    
+    default RefDto toSchoolRef(School entity) {
+        return entity == null ? null : RefDto.of(entity.getSchoolId(), entity.getName());
+    }
 
     default void setReferences(EmployeeEducation education, EmployeeEducationRequest request) {
         if (request.getMajorId() != null) {
