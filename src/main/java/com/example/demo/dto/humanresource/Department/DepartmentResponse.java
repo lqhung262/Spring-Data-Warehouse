@@ -1,16 +1,26 @@
 package com.example.demo.dto.humanresource.Department;
 
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+/**
+ * Response DTO for Department.
+ * 
+ * NOTE: Excludes internal fields (sourceId, sourceSystemId, audit fields)
+ * that are not relevant for API consumers.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class DepartmentResponse {
-    Long departmentId;
-    String departmentCode;
-    String sourceId;
+    
+    Long id;
+    String code;
     String name;
 }

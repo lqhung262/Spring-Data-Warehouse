@@ -1,114 +1,143 @@
 package com.example.demo.mapper.humanresource;
 
+import com.example.demo.dto.common.RefDto;
 import com.example.demo.dto.humanresource.Employee.EmployeeRequest;
 import com.example.demo.dto.humanresource.Employee.EmployeeResponse;
 import com.example.demo.entity.humanresource.*;
+import com.example.demo.mapper.common.CommonMapperConfig;
 import org.mapstruct.*;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-        uses = {EmployeeDecisionMapper.class, EmployeeEducationMapper.class, EmployeeWorkShiftMapper.class, EmployeeAttendanceMachineMapper.class, EmployeeWorkLocationMapper.class})
+/**
+ * MapStruct mapper for Employee entity.
+ * 
+ * Uses CommonMapperConfig for shared settings which includes:
+ * - unmappedTargetPolicy = IGNORE (no need for explicit @Mapping(ignore=true))
+ * - nullValuePropertyMappingStrategy = IGNORE
+ * 
+ * Uses RefDto for related entities in response to provide clean, structured data.
+ */
+@Mapper(config = CommonMapperConfig.class,
+        uses = {EmployeeDecisionMapper.class, EmployeeEducationMapper.class, 
+                EmployeeWorkShiftMapper.class, EmployeeAttendanceMachineMapper.class, 
+                EmployeeWorkLocationMapper.class})
 public interface EmployeeMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "employeeDecisionList", ignore = true)
-    @Mapping(target = "employeeEducationList", ignore = true)
-    @Mapping(target = "employeeAttendanceMachineList", ignore = true)
-    @Mapping(target = "employeeWorkLocationList", ignore = true)
-    @Mapping(target = "employeeWorkShift", ignore = true)
-    @Mapping(target = "bank", ignore = true)
-    @Mapping(target = "maritalStatus", ignore = true)
-    @Mapping(target = "gender", ignore = true)
-    @Mapping(target = "nationality", ignore = true)
-    @Mapping(target = "laborStatus", ignore = true)
-    @Mapping(target = "manager", ignore = true)
-    @Mapping(target = "graduationSchool", ignore = true)
+    /**
+     * Convert request DTO to entity.
+     * Note: Related entities (gender, bank, etc.) are handled via setReferences() method.
+     * The @Mapping(ignore=true) annotations prevent MapStruct from trying to map Long IDs to Entity objects.
+     */
     @Mapping(target = "language1", ignore = true)
     @Mapping(target = "language2", ignore = true)
     @Mapping(target = "language3", ignore = true)
-    @Mapping(target = "bloodGroup", ignore = true)
     @Mapping(target = "currentAddressWard", ignore = true)
     @Mapping(target = "permanentAddressWard", ignore = true)
-    @Mapping(target = "hometown", ignore = true)
-    @Mapping(target = "placeOfBirth", ignore = true)
     @Mapping(target = "medicalRegistration", ignore = true)
     @Mapping(target = "idIssuePlaceCmnd", ignore = true)
     @Mapping(target = "idIssuePlaceCccd", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
     Employee toEmployee(EmployeeRequest request);
 
+    /**
+     * Convert entity to response DTO.
+     * Uses RefDto for related entities to provide clean, structured data.
+     */
     @Mapping(source = "employeeDecisionList", target = "employeeDecisions")
     @Mapping(source = "employeeEducationList", target = "employeeEducations")
     @Mapping(source = "employeeWorkShift", target = "employeeWorkShift")
     @Mapping(source = "employeeAttendanceMachineList", target = "employeeAttendanceMachines")
     @Mapping(source = "employeeWorkLocationList", target = "employeeWorkLocations")
-    @Mapping(target = "genderId", source = "gender.genderId")
-    @Mapping(target = "genderName", source = "gender.name")
-    @Mapping(target = "maritalStatusId", source = "maritalStatus.maritalStatusId")
-    @Mapping(target = "maritalStatusName", source = "maritalStatus.name")
-    @Mapping(target = "idIssuePlaceCmnd", source = "idIssuePlaceCmnd.identityIssuingAuthorityId")
-    @Mapping(target = "idIssuePlaceCmndName", source = "idIssuePlaceCmnd.name")
-    @Mapping(target = "idIssuePlaceCccd", source = "idIssuePlaceCccd.identityIssuingAuthorityId")
-    @Mapping(target = "idIssuePlaceCccdName", source = "idIssuePlaceCccd.name")
-    @Mapping(target = "nationalityId", source = "nationality.nationalityId")
-    @Mapping(target = "nationalityName", source = "nationality.name")
-    @Mapping(target = "laborStatusId", source = "laborStatus.laborStatusId")
-    @Mapping(target = "laborStatusName", source = "laborStatus.name")
-    @Mapping(target = "managerId", source = "manager.id")
-    @Mapping(target = "managerName", source = "manager.fullName")
-    @Mapping(target = "graduationSchoolId", source = "graduationSchool.schoolId")
-    @Mapping(target = "graduationSchoolName", source = "graduationSchool.name")
-    @Mapping(target = "language1", source = "language1.languageId")
-    @Mapping(target = "language1Name", source = "language1.name")
-    @Mapping(target = "language2", source = "language2.languageId")
-    @Mapping(target = "language2Name", source = "language2.name")
-    @Mapping(target = "language3", source = "language3.languageId")
-    @Mapping(target = "language3Name", source = "language3.name")
-    @Mapping(target = "bloodGroupId", source = "bloodGroup.bloodGroupId")
-    @Mapping(target = "bloodGroupName", source = "bloodGroup.name")
-    @Mapping(target = "currentAddressWard", source = "currentAddressWard.wardId")
-    @Mapping(target = "currentAddressWardName", source = "currentAddressWard.name")
-    @Mapping(target = "permanentAddressWard", source = "permanentAddressWard.wardId")
-    @Mapping(target = "permanentAddressWardName", source = "permanentAddressWard.name")
-    @Mapping(target = "hometownId", source = "hometown.provinceCityId")
-    @Mapping(target = "hometownName", source = "hometown.name")
-    @Mapping(target = "placeOfBirthId", source = "placeOfBirth.provinceCityId")
-    @Mapping(target = "placeOfBirthName", source = "placeOfBirth.name")
-    @Mapping(target = "bankId", source = "bank.bankId")
-    @Mapping(target = "bankName", source = "bank.name")
-    @Mapping(target = "medicalRegistration", source = "medicalRegistration.medicalFacilityId")
-    @Mapping(target = "medicalRegistrationName", source = "medicalRegistration.name")
+    @Mapping(target = "gender", expression = "java(toRefDto(employee.getGender()))")
+    @Mapping(target = "maritalStatus", expression = "java(toMaritalStatusRef(employee.getMaritalStatus()))")
+    @Mapping(target = "nationality", expression = "java(toNationalityRef(employee.getNationality()))")
+    @Mapping(target = "laborStatus", expression = "java(toLaborStatusRef(employee.getLaborStatus()))")
+    @Mapping(target = "bloodGroup", expression = "java(toBloodGroupRef(employee.getBloodGroup()))")
+    @Mapping(target = "idIssuePlaceCmnd", expression = "java(toIdentityIssuingAuthorityRef(employee.getIdIssuePlaceCmnd()))")
+    @Mapping(target = "idIssuePlaceCccd", expression = "java(toIdentityIssuingAuthorityRef(employee.getIdIssuePlaceCccd()))")
+    @Mapping(target = "manager", expression = "java(toManagerRef(employee.getManager()))")
+    @Mapping(target = "graduationSchool", expression = "java(toSchoolRef(employee.getGraduationSchool()))")
+    @Mapping(target = "language1", expression = "java(toLanguageRef(employee.getLanguage1()))")
+    @Mapping(target = "language2", expression = "java(toLanguageRef(employee.getLanguage2()))")
+    @Mapping(target = "language3", expression = "java(toLanguageRef(employee.getLanguage3()))")
+    @Mapping(target = "currentAddressWard", expression = "java(toWardRef(employee.getCurrentAddressWard()))")
+    @Mapping(target = "permanentAddressWard", expression = "java(toWardRef(employee.getPermanentAddressWard()))")
+    @Mapping(target = "hometown", expression = "java(toProvinceCityRef(employee.getHometown()))")
+    @Mapping(target = "placeOfBirth", expression = "java(toProvinceCityRef(employee.getPlaceOfBirth()))")
+    @Mapping(target = "bank", expression = "java(toBankRef(employee.getBank()))")
+    @Mapping(target = "medicalRegistration", expression = "java(toMedicalFacilityRef(employee.getMedicalRegistration()))")
     EmployeeResponse toEmployeeResponse(Employee employee);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "employeeDecisionList", ignore = true)
-    @Mapping(target = "employeeEducationList", ignore = true)
-    @Mapping(target = "employeeAttendanceMachineList", ignore = true)
-    @Mapping(target = "employeeWorkLocationList", ignore = true)
-    @Mapping(target = "employeeWorkShift", ignore = true)
-    @Mapping(target = "bank", ignore = true)
-    @Mapping(target = "maritalStatus", ignore = true)
-    @Mapping(target = "gender", ignore = true)
-    @Mapping(target = "nationality", ignore = true)
-    @Mapping(target = "laborStatus", ignore = true)
-    @Mapping(target = "manager", ignore = true)
-    @Mapping(target = "graduationSchool", ignore = true)
+    /**
+     * Update existing entity from request DTO.
+     */
     @Mapping(target = "language1", ignore = true)
     @Mapping(target = "language2", ignore = true)
     @Mapping(target = "language3", ignore = true)
-    @Mapping(target = "bloodGroup", ignore = true)
     @Mapping(target = "currentAddressWard", ignore = true)
     @Mapping(target = "permanentAddressWard", ignore = true)
-    @Mapping(target = "hometown", ignore = true)
-    @Mapping(target = "placeOfBirth", ignore = true)
     @Mapping(target = "medicalRegistration", ignore = true)
     @Mapping(target = "idIssuePlaceCmnd", ignore = true)
     @Mapping(target = "idIssuePlaceCccd", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
     void updateEmployee(@MappingTarget Employee employee, EmployeeRequest request);
+
+    // =====================================================================
+    // Helper methods to convert entities to RefDto
+    // =====================================================================
+    
+    default RefDto toRefDto(Gender entity) {
+        return entity == null ? null : RefDto.of(entity.getGenderId(), entity.getName());
+    }
+    
+    default RefDto toMaritalStatusRef(MaritalStatus entity) {
+        return entity == null ? null : RefDto.of(entity.getMaritalStatusId(), entity.getName());
+    }
+    
+    default RefDto toNationalityRef(Nationality entity) {
+        return entity == null ? null : RefDto.of(entity.getNationalityId(), entity.getName());
+    }
+    
+    default RefDto toLaborStatusRef(LaborStatus entity) {
+        return entity == null ? null : RefDto.of(entity.getLaborStatusId(), entity.getName());
+    }
+    
+    default RefDto toBloodGroupRef(BloodGroup entity) {
+        return entity == null ? null : RefDto.of(entity.getBloodGroupId(), entity.getName());
+    }
+    
+    default RefDto toIdentityIssuingAuthorityRef(IdentityIssuingAuthority entity) {
+        return entity == null ? null : RefDto.of(entity.getIdentityIssuingAuthorityId(), entity.getName());
+    }
+    
+    default RefDto toManagerRef(Employee manager) {
+        return manager == null ? null : RefDto.of(manager.getId(), manager.getFullName());
+    }
+    
+    default RefDto toSchoolRef(School entity) {
+        return entity == null ? null : RefDto.of(entity.getSchoolId(), entity.getName());
+    }
+    
+    default RefDto toLanguageRef(Language entity) {
+        return entity == null ? null : RefDto.of(entity.getLanguageId(), entity.getName());
+    }
+    
+    default RefDto toWardRef(Ward entity) {
+        return entity == null ? null : RefDto.of(entity.getWardId(), entity.getName());
+    }
+    
+    default RefDto toProvinceCityRef(ProvinceCity entity) {
+        return entity == null ? null : RefDto.of(entity.getProvinceCityId(), entity.getName());
+    }
+    
+    default RefDto toBankRef(Bank entity) {
+        return entity == null ? null : RefDto.of(entity.getBankId(), entity.getName());
+    }
+    
+    default RefDto toMedicalFacilityRef(MedicalFacility entity) {
+        return entity == null ? null : RefDto.of(entity.getMedicalFacilityId(), entity.getName());
+    }
+
+    // =====================================================================
+    // Methods to set FK references from request IDs to employee entity
+    // =====================================================================
 
     /**
      * Set all FK references from request IDs to employee entity.
